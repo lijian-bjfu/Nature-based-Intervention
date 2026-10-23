@@ -1,17 +1,22 @@
 """Track 描述报告：接收本次计算结果，不重新读取或计算原始数据。"""
+SCRIPT_HISTORY = [
+    {"at": "2026-10-23T20:36:13+08:00", "action": "first_versioned",
+     "summary": "已有报告工具首次纳入 Git；原始创建时间未知。", "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
+    {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
+     "summary": "改用共享原始字段规范及实验自己的方法登记，更新本地参数、输出与运行追溯说明。"},
+]
+
 from pathlib import Path
 import sys
 sys.dont_write_bytecode = True
-PROJECT = next(p for p in Path(__file__).resolve().parents if (p/"00_settings.py").is_file())
-sys.path.insert(0,str(PROJECT))
-from importlib import import_module
-settings = import_module("00_settings")
-sys.path.insert(0,str(settings.TOOLS_DIR))
+PROJECT = next(p for p in Path(__file__).resolve().parents if (p/"global_settings.py").is_file())
+sys.path[:0] = [str(PROJECT),str(PROJECT/"analysis"),str(PROJECT/"analysis/tools")]
 import pandas as pd
+import global_settings as settings
 from artifacts import markdown_table
-from configuration import AppDescribeOptions
+from data_lab.track.description.record_description.experiment import TrackDescribeOptions, FIGURES
 
-def make_report(summary,layers,look_stats,bins,tables,dest,images,language,options: AppDescribeOptions):
+def make_report(summary,layers,look_stats,bins,tables,dest,images,language,options: TrackDescribeOptions):
     zh=language=="zh"
     text=lambda cn,en: cn if zh else en
     number=lambda x,precision=3: "—" if x is None else f"{x:.{precision}f}"
@@ -27,8 +32,8 @@ def make_report(summary,layers,look_stats,bins,tables,dest,images,language,optio
         "## "+text("原理与方法","Purpose and methods"),
         text("本报告描述记录到的环境接触与操作过程。先交代可用数据，再呈现触摸、世界事件、受阻、转动以及时间和空间分布。行为事实不直接解释为兴趣、注意、无聊或动机。",
              "This report describes recorded environmental contact and interaction. It first establishes data availability, then summarizes touches, world events, path restrictions, turns, and temporal and spatial distributions. Behavior alone does not establish interest, attention, boredom or motivation."),
-        text("数据由根目录 02_run.py 调度：01 核对文件，02 在副本中处理已定的历史取值，03 统一类型，06 从标准表生成描述。固定字段、方法与路径来自 00_settings.py，可调参数来自 01_parameters.py；未定义新的行为指标。",
-             "The root runner executes inventory, configured legacy-value cleaning, type formatting and description. Fixed columns, methods and paths come from 00_settings.py; adjustable options come from 01_parameters.py. No new behavioral metric is defined."),
+        text("本记录描述实验依次核对文件、在副本中处理已定历史取值、统一类型，再从标准表生成描述。原始字段与标签来自 global_settings.py；参数来自入口 track_describe.py 的 PARAMETERS，方法与依赖属于本实验；未定义新的行为指标。",
+             "This local experiment executes inventory, specified legacy-value cleaning, type formatting and description. Raw field definitions and labels come from global_settings.py; adjustable options come from PARAMETERS in track_describe.py. No new behavioral metric is defined."),
         "## "+text("记录范围与可用性","Recording scope and availability"),
         text(f"session.t_device_end − session.t_device_start = {duration} 秒。缺失文件的行数显示为空，不按零次行为解释。",
              f"session.t_device_end − session.t_device_start = {duration} seconds. Missing-file counts are unavailable, rather than zero."),
@@ -62,13 +67,13 @@ def make_report(summary,layers,look_stats,bins,tables,dest,images,language,optio
     ]
     notes=summary["quality"]["notes"]
     fragments += ["\n".join("- "+note for note in notes) if notes else text("未发现文件缺失或时间顺序警告；这不等于已检验全部研究数据质量。","No missing-file or time-order warning; this does not establish full research-data validity.")]
-    for stem in settings.APP_FIGURES.values():
+    for stem in FIGURES.values():
         image=next((name for ext in ("png","svg","pdf") for name in images
                     if name==stem+"."+ext),None)
         if image:
             fragments += [f"[{image}]({image})" if image.endswith(".pdf") else f"![{image}]({image})"]
     fragments += ["## "+text("复现","Reproduction"),
-        text("本次运行的根目录含 manifest.json、settings_snapshot.json 与 parameters_snapshot.json，可核对输入 SHA-256、脚本 SHA-256、选择范围与配置。原始数据不改写，文字与图表由同次计算生成。",
-             "The run root contains manifest.json, settings_snapshot.json and parameters_snapshot.json with input and script SHA-256, selection and configuration. Raw data remain unchanged; text and figures derive from the same computation.")]
+        text("本次结果目录含 manifest.json、global_settings_snapshot.json、parameters_snapshot.json 及 source_snapshot。manifest 记录整次和各步骤的起止时间、Git 提交号、工作树状态与输入/源码 SHA-256；源码快照保留当次未提交的修改。原始数据不改写，文字与图表由同次计算生成。",
+             "The result directory contains manifest.json, global_settings_snapshot.json, parameters_snapshot.json and source_snapshot. It records run and step timestamps, Git commit and working-tree status, and input/source SHA-256. Source snapshots preserve uncommitted edits. Raw data remain unchanged; text and figures derive from the same computation.")]
     (dest/"report.md").write_text("\n\n".join(fragments)+"\n",encoding="utf-8")
 

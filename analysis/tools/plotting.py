@@ -1,11 +1,10 @@
 """跨来源共用绘图工具，展示参数由调用方明确传入。"""
 import os
-from importlib import import_module
-settings = import_module("00_settings")
+from paths import CACHE
 
 def pyplot(options):
-    settings.CACHE_DIR.mkdir(parents=True,exist_ok=True)
-    os.environ.setdefault("MPLCONFIGDIR",str(settings.CACHE_DIR/"matplotlib"))
+    CACHE.mkdir(parents=True,exist_ok=True)
+    os.environ.setdefault("MPLCONFIGDIR",str(CACHE/"matplotlib"))
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

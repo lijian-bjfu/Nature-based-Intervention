@@ -1,12 +1,17 @@
 """02：保留空值与历史字符串的区别；仅在输出副本中应用已定的取值映射。"""
+SCRIPT_HISTORY = [
+    {"at": "2026-10-23T20:36:13+08:00", "action": "first_versioned",
+     "summary": "已有工具首次纳入 Git；原始创建时间未知。", "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
+    {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
+     "summary": "改用 global_settings 原始数据规范与调用方上下文，移除根入口和固定参数依赖；处理规则不变。"},
+]
+
 from pathlib import Path
 import sys
 sys.dont_write_bytecode = True
-PROJECT = next(p for p in Path(__file__).resolve().parents if (p / "00_settings.py").is_file())
-sys.path.insert(0, str(PROJECT))
-from importlib import import_module
-settings = import_module("00_settings")
-sys.path.insert(0, str(settings.TOOLS_DIR))
+PROJECT = next(p for p in Path(__file__).resolve().parents if (p/"global_settings.py").is_file())
+sys.path[:0] = [str(PROJECT),str(PROJECT/"analysis"),str(PROJECT/"analysis/tools")]
+import global_settings as settings
 
 from track_io import read_session, write_table
 from artifacts import write_json
@@ -16,11 +21,11 @@ def run(context):
     changes = []
     for source in context.sessions:
         tables = read_session(source)
-        dest = stage_dir(context,"02_clean",source.name)/settings.STAGE_TABLE_FOLDER
+        dest = stage_dir(context,"02_clean",source.name)/context.table_folder
         for table, frame in tables.items():
             if not frame.attrs["present"]:
                 continue
-            for field, mapping in settings.APP_LEGACY_VALUES.get(table,{}).items():
+            for field, mapping in settings.TRACK_LEGACY_VALUES.get(table,{}).items():
                 name = settings.column(table,field)
                 for old,new in mapping.items():
                     count = int(frame[name].eq(old).fillna(False).sum())
@@ -32,5 +37,4 @@ def run(context):
     write_json(stage_dir(context,"02_clean")/"cleaning_log.json",changes)
 
 if __name__ == "__main__":
-    from pipeline import cli
-    cli(("track_clean",))
+    print("这是实验工具。请运行 data_lab/track/description/record_description/track_describe.py；选择相应 tasks 可单独检查本环节。")

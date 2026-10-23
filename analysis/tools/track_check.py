@@ -1,182 +1,153 @@
-"""Track 工程检查：读取、配置、任务依赖与废弃工具隔离；不写入 data。"""
+"""Track 工程检查：规范读取、局部参数、时间追溯与任务隔离；不改写 raw。"""
 from pathlib import Path
 import sys
-sys.dont_write_bytecode = True
-ROOT = next(p for p in Path(__file__).resolve().parents if (p/"00_settings.py").is_file())
-sys.path.insert(0,str(ROOT))
-from importlib import import_module
-settings = import_module("00_settings")
-sys.path.insert(0,str(settings.TOOLS_DIR))
+sys.dont_write_bytecode=True
+PROJECT=next(p for p in Path(__file__).resolve().parents if (p/"global_settings.py").is_file())
+sys.path[:0]=[str(PROJECT),str(PROJECT/"analysis"),str(PROJECT/"analysis/tools")]
+
+from copy import deepcopy
 from datetime import datetime
 import tempfile
 import pandas as pd
-from track_io import read_table, convert_types, write_table
-from artifacts import write_json
-from paths import report_root, processed_root, final_root, stage_dir
-from pipeline import resolve_steps, resolve_tasks
-from configuration import RunContext, load_config, choice_help
-from copy import deepcopy
-parameters = import_module("01_parameters")
+
+import global_settings as settings
+from artifacts import write_json, read_json, sha256
+from paths import ANALYSIS, processed_root, raw
+from track_io import read_table, read_session, write_table, convert_types
+from workflow import load_script, resolve_steps, script_path
+from table_flow import run_flow
+from run_records import run_id, script_history
+from lab_history import collect
+from data_lab.track.description.record_description.experiment import (
+    EXPERIMENT_DIR, STAGES, STEP_ORDER, resolve_tasks, load_config,
+)
+ENTRY=EXPERIMENT_DIR/"track_describe.py"
 
 def main():
     checks=[]
-    root_script=ROOT/"analysis/data_lab/track/description/track_describe.py"
-    base=report_root("pilot_and_test", "track")/"checks"
+    base=EXPERIMENT_DIR/"outputs/pilot_and_test/checks"
     base.mkdir(parents=True,exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=base,prefix="app_check_") as temp:
-        folder=Path(temp)
-        missing=read_table(folder,"tap")
-        assert not missing.attrs["present"]
-        pd.DataFrame(columns=settings.table_columns("tap")).to_csv(folder/settings.APP_FILES["tap"],index=False)
+    module=load_script(ENTRY,"track_check_description")
+    parameters=deepcopy(module.PARAMETERS)
+    with tempfile.TemporaryDirectory(dir=base,prefix="fixture_") as temporary:
+        folder=Path(temporary)
+        absent=read_table(folder,"tap")
+        assert absent.attrs["present"] is False
+        pd.DataFrame(columns=settings.table_columns("tap")).to_csv(folder/"tap.csv",index=False)
         empty=read_table(folder,"tap",formatted=True)
         assert empty.attrs["present"] and empty.empty
-        checks.append("Missing file differs from present empty table")
-        values={name:"0" if settings.APP_TYPES[field] in ("Float64","Int64") else ""
-                for field,name in settings.APP_COLUMNS["tap"].items()}
-        values[settings.column("tap","is_touched")]=settings.APP_FALSE
+        checks.append("缺失文件与存在但零行的表保持区别")
+        values={name:"0" if settings.TRACK_TYPES[field] in ("Float64","Int64") else ""
+                for field,name in settings.TRACK_COLUMNS["tap"].items()}
+        values[settings.column("tap","is_touched")]="FALSE"
         values[settings.column("tap","block_type")]="None"
         frame=pd.DataFrame([values],dtype="string")
         write_table(folder,"tap",frame)
         reread=read_table(folder,"tap")
         assert reread[settings.column("tap","block_type")].iloc[0]=="None"
-        assert reread[settings.column("tap","is_touched")].iloc[0]==settings.APP_FALSE
-        converted=convert_types(reread,"tap")
-        assert converted[settings.column("tap","is_touched")].iloc[0]==False
-        checks.append("Literal None preserved; FALSE stays false through string and typed writes")
-        old=settings.APP_COLUMNS["tap"]["cam_x"]
-        changed="configured_camera_x"
+        assert convert_types(reread,"tap")[settings.column("tap","is_touched")].iloc[0]==False
+        checks.append("None 字面值保留，FALSE 不会被转换成真")
+        original=settings.TRACK_COLUMNS["tap"]["cam_x"]
         try:
-            settings.APP_COLUMNS["tap"]["cam_x"]=changed
-            renamed=frame.rename(columns={old:changed})
-            write_table(folder,"tap",renamed)
-            parsed=read_table(folder,"tap",formatted=True)
-            assert changed in parsed and old not in parsed
+            settings.TRACK_COLUMNS["tap"]["cam_x"]="configured_camera_x"
+            write_table(folder,"tap",frame.rename(columns={original:"configured_camera_x"}))
+            assert "configured_camera_x" in read_table(folder,"tap",formatted=True)
         finally:
-            settings.APP_COLUMNS["tap"]["cam_x"]=old
-        checks.append("External column rename requires settings change only")
+            settings.TRACK_COLUMNS["tap"]["cam_x"]=original
+        checks.append("读取实际采用 global_settings 的集中列名")
         invalid=frame.copy()
-        invalid[settings.column("tap","is_touched")]="not_a_boolean"
+        invalid[settings.column("tap","is_touched")]="invalid"
         try:
             convert_types(invalid,"tap")
         except ValueError:
-            checks.append("Invalid boolean fails explicitly")
+            pass
         else:
-            raise AssertionError("Invalid boolean was silently accepted")
-        assert resolve_steps(("06_analysis",))==["01_import","02_clean","03_format","06_analysis"]
-        checks.append("Selecting 06 resolves ordered prerequisites")
-        try:
-            resolve_steps(("04_features",))
-        except ValueError:
-            checks.append("Unimplemented metric stage fails explicitly")
-        else:
-            raise AssertionError("Unimplemented stage appeared to run")
-        assert report_root("formal")!=report_root("pilot_and_test")
-        assert report_root(settings.DATASETS["pilot"]["report_group"]) == report_root(settings.DATASETS["logging_test"]["report_group"])
-        assert report_root("pilot_and_test") == settings.REPORTS_DIR/"pilot_and_test"/"track"
-        checks.append("Reports separated by formal/test and work topic, not dataset")
-        config = load_config()
-        context = RunContext(config, [],
-                   report_root("pilot_and_test")/"runs"/"check",
-                   processed_root("logging_test","track")/"check",
-                   final_root("logging_test")/"check")
-        assert stage_dir(context,"02_clean").is_relative_to(settings.DATA_DIR)
-        assert stage_dir(context,"03_format").is_relative_to(settings.DATA_DIR)
-        assert stage_dir(context,"05_integrate").is_relative_to(final_root("logging_test"))
-        assert stage_dir(context,"06_analysis").is_relative_to(settings.REPORTS_DIR)
-        assert not stage_dir(context,"02_clean").is_relative_to(settings.REPORTS_DIR)
-        checks.append("Processing and final tables route to data; analysis results route to reports")
-
-        assert resolve_tasks(("track_describe",)) == ["01_import","02_clean","03_format","06_analysis"]
-        assert resolve_tasks(("track_clean",)) == ["01_import","02_clean"]
-        checks.append("User task selection resolves correct dependencies")
-        old_lab,old_common,old_run = deepcopy(parameters.DATA_LAB),deepcopy(parameters.COMMON),deepcopy(parameters.RUN)
-        try:
-            parameters.DATA_LAB["track"]["description"]["time_bin_seconds"] = 30
-            parameters.COMMON["figure"]["dpi"] = 120
-            parameters.RUN["sessions"] = ["sub-P999*"]
-            configured = load_config()
-            assert configured.app_describe.time_bin_seconds == 30
-            assert configured.figure.dpi == 120
-            assert configured.sessions == ("sub-P999*",)
-            overridden = load_config({"time_bin_seconds":15,"language":"en"})
-            assert overridden.app_describe.time_bin_seconds == 15 and overridden.language=="en"
-            assert parameters.DATA_LAB["track"]["description"]["time_bin_seconds"]==30
-            checks.append("VS Code parameters and CLI overrides share loader without rewriting file")
-            # 检验参数进入实际分箱计算，而不只是写进快照。
-            import importlib.util
-            from track_io import read_session
-            spec=importlib.util.spec_from_file_location("app_check_description",root_script)
-            module=importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            candidates=sorted(processed_root("logging_test","track").glob("**/03_format/*/tables"),reverse=True)
-            for candidate in candidates:
-                tables=read_session(candidate,formatted=True)
-                if tables["tap"].attrs["present"] and not tables["tap"].empty:
-                    params_60=load_config({"time_bin_seconds":60}).app_describe
-                    params_30=load_config({"time_bin_seconds":30}).app_describe
-                    a=module.describe(tables,candidate.parent.name,params_60)
-                    b=module.describe(tables,candidate.parent.name,params_30)
-                    assert len(b[3])>len(a[3])
-                    assert a[0]["tap"]==b[0]["tap"]
-                    assert int(a[3].tap_n.sum())==len(tables["tap"])==int(b[3].tap_n.sum())
-                    checks.append("30-second bins change output while event totals remain identical")
-                    break
-            else:
-                raise AssertionError("No formatted tap table available for parameter propagation check")
-            parameters.DATA_LAB["track"]["description"]["time_bin_seconds"] = -1
-            try:
-                load_config()
-            except ValueError as error:
-                assert "time_bin_seconds" in str(error)
-            else:
-                raise AssertionError("Invalid parameter accepted")
-            checks.append("Invalid parameter identifies key before execution")
-            assert not hasattr(settings,"PLOT") and not hasattr(settings,"APP_DESCRIBE")
-            checks.append("Mutable presentation and run parameters absent from fixed settings")
-        finally:
-            parameters.DATA_LAB,parameters.COMMON,parameters.RUN=old_lab,old_common,old_run
-
-    parameter_text=(ROOT/"01_parameters.py").read_text(encoding="utf-8")
-    for key in (*settings.TASKS,*settings.DATASETS,*settings.MODULE_LABELS):
-        assert '"'+key+'"' in parameter_text, key
-    assert "settings.py" not in [p.name for p in ROOT.glob("*.py")]
-    assert (ROOT/"02_run.py").is_file() and (ROOT/"00_settings.py").is_file()
-    checks.append("Numbered entries present and RUN choices documented beside parameters")
-    for kind,override in [("tasks",{"tasks":["unknown_task"]}),
-                          ("dataset",{"dataset":"unknown_dataset"}),
-                          ("modules",{"modules":["unknown_module"]})]:
-        try:
-            load_config(override)
-        except ValueError as error:
-            assert "01_parameters.py" in str(error)
-            assert choice_help(kind) in str(error)
-        else:
-            raise AssertionError("Unknown choice accepted")
-    checks.append("Invalid choices show parameter file and Chinese option meanings")
+            raise AssertionError("非法布尔值被接受")
+        checks.append("非法布尔值明确报错")
+    assert resolve_tasks(("track_describe","track_clean"))==list(STEP_ORDER)
+    checks.append("组合任务正确补齐依赖且不重复执行")
     try:
-        load_config({"workspace":"table_flows"})
-    except ValueError as error:
-        assert "预测试" in str(error)
+        resolve_steps({"a":{"requires":("b",)},"b":{"requires":("a",)}},("a",),("a","b"))
+    except ValueError:
+        pass
     else:
-        raise AssertionError("Unimplemented table_flows appeared executable")
-    checks.append("Reserved table flows fail before creating output")
-    original=settings.APP_PIPELINE["06_analysis"]["script"]
+        raise AssertionError("循环依赖被接受")
+    checks.append("循环依赖拒绝执行")
     try:
-        settings.APP_PIPELINE["06_analysis"]["script"]="data_lab/track/deprecated/rejected_tool.py"
+        script_path(ANALYSIS,"data_lab/track/deprecated/discarded.py")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("废弃工具可进入调度")
+    checks.append("废弃工具不能被执行")
+    for name in ("track","psycho","physico","integration"):
         try:
-            settings.validate()
-        except ValueError as error:
-            assert "废弃" in str(error)
+            run_flow(name,{"dataset":"pilot"})
+        except NotImplementedError:
+            pass
         else:
-            raise AssertionError("Deprecated tool could be dispatched")
-    finally:
-        settings.APP_PIPELINE["06_analysis"]["script"]=original
-    settings.validate()
-    checks.append("Deprecated tools cannot enter the executable task registry")
-    path=base/("track_check_"+datetime.now().strftime("%Y%m%d_%H%M%S_%f")+".json")
+            raise AssertionError("未实现的制表流程伪装为成功")
+    checks.append("四个制表流程均明确标为预留")
+    source_digest=sha256(ENTRY)
+    configured=load_config(parameters,{"time_bin_seconds":30,"language":"en"})
+    assert configured.description.time_bin_seconds==30 and configured.language=="en"
+    assert parameters==module.PARAMETERS and sha256(ENTRY)==source_digest
+    checks.append("CLI 覆盖与脚本参数共用加载器，原参数与源码不回写")
+    for override in ({"tasks":["unknown"]},{"dataset":"unknown"},{"modules":["unknown"]},
+                     {"time_bin_seconds":-1}):
+        try:
+            load_config(parameters,override)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("非法参数被接受")
+    checks.append("非法选择及数值在输出前被拒绝")
+    candidates=sorted(processed_root("logging_test","track").glob("**/03_format/*/tables"),reverse=True)
+    for candidate in candidates:
+        tables=read_session(candidate,formatted=True)
+        if tables["tap"].attrs["present"] and not tables["tap"].empty:
+            a=module.describe(tables,candidate.parent.name,load_config(parameters,{"time_bin_seconds":60}).description)
+            b=module.describe(tables,candidate.parent.name,load_config(parameters,{"time_bin_seconds":30}).description)
+            assert len(b[3])>len(a[3])
+            assert a[0]["tap"]==b[0]["tap"]
+            assert int(a[3].tap_n.sum())==int(b[3].tap_n.sum())==len(tables["tap"])
+            break
+    else:
+        raise AssertionError("缺少标准表，先执行记录描述实验")
+    checks.append("分箱参数进入实际计算，改变分箱但保持事件总数")
+    assert not any(hasattr(settings,key) for key in ("ROOT","RUN","TASKS","REPORTS_DIR","APP_PIPELINE"))
+    assert set(settings.METRICS)==set(settings.DATA_OBJECTS)
+    assert all(isinstance(value,dict) for value in settings.METRICS.values())
+    checks.append("共享设置仅包含数据规范，指标登记按数据对象组织")
+    assert not any((PROJECT/name).exists() for name in ("00_settings.py","01_parameters.py","02_run.py","reports"))
+    checks.append("根目录旧设置、参数、运行器和 reports 已移除")
+    events=collect(object_name="track")
+    assert events and all(datetime.fromisoformat(row["at"]).tzinfo for row in events)
+    assert any(row["action"]=="first_versioned" for row in events)
+    for path in (ANALYSIS/"data_lab/track").rglob("*.py"):
+        if not set(path.relative_to(ANALYSIS).parts)&{"archive","outputs","deprecated"}:
+            assert script_history(path),path
+    checks.append("活跃 Lab 脚本有带时区的历史登记，可按时间检索")
+    manifests=sorted((EXPERIMENT_DIR/"outputs").glob("*/*/manifest.json"),reverse=True)
+    assert manifests,"先运行一次新实验以验证运行记录"
+    completed=next(read_json(path) for path in manifests if read_json(path)["status"]=="complete")
+    start,end=map(datetime.fromisoformat,(completed["started_at"],completed["finished_at"]))
+    assert start<=end
+    previous=start
+    for step in completed["steps"]:
+        left,right=map(datetime.fromisoformat,(step["started_at"],step["finished_at"]))
+        assert previous<=left<=right<=end and step["status"]=="complete"
+        previous=right
+    assert completed["git"]["available"]
+    assert completed["raw_files_unchanged"] and completed["source_files_unchanged"]
+    for path,digest in completed["script_sha256"].items():
+        assert sha256(Path(completed["source_snapshot"])/path)==digest
+    checks.append("运行与各步骤时间有序，Git 信息和源码快照校验完整")
+    path=base/("track_check_"+run_id()+".json")
     write_json(path,{"passed":True,"checks":checks,"raw_data_written":False})
     print(path)
     print("PASS:",len(checks),"checks")
+    return checks
 
 if __name__=="__main__":
     main()

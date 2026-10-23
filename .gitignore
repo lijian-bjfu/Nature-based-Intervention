@@ -1,0 +1,9 @@
+# 本机元数据与可重建缓存。
+.DS_Store
+__pycache__/
+*.py[cod]
+.cache/
+
+# 每次运行的本地结果含源码/参数快照，不自动加入版本库。
+analysis/**/outputs/
+analysis/data_lab/history_index.csv

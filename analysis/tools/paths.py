@@ -1,42 +1,53 @@
-"""路径只来自根目录 settings。数据按数据集/性质组织，报告按工作内容组织。"""
-from importlib import import_module
-settings = import_module("00_settings")
+"""工程路径工具：数据位置集中映射，结果由各项工作的目录决定。"""
+from pathlib import Path
 
-ROOT = settings.ROOT
-DATA = settings.DATA_DIR
-ANALYSIS = settings.ANALYSIS_DIR
-REPORTS = settings.REPORTS_DIR
+ROOT = Path(__file__).resolve().parents[2]
+DATA = ROOT / "data"
+ANALYSIS = ROOT / "analysis"
+DATA_LAB = ANALYSIS / "data_lab"
+TABLE_FLOWS = ANALYSIS / "table_flows"
+CACHE = ROOT / ".cache"
+DATASETS = {
+    "formal": {"root": DATA / "formal", "kind": "formal", "label": "正式实验数据"},
+    "pilot": {"root": DATA / "pilot_and_test" / "pilot",
+              "kind": "pilot_and_test", "label": "被试预实验数据"},
+    "logging_test": {"root": DATA / "pilot_and_test" / "logging_test",
+                     "kind": "pilot_and_test", "label": "开发埋点测试数据"},
+}
+# 保留已经采集的数据及历史处理结果的物理目录，不为改名移动原始记录。
+DATA_SOURCE_FOLDERS = {"track": "app", "psycho": "questionnaire", "physico": "physio",
+                       "interview": "interview", "session_notes": "session_notes"}
 
 def dataset(name):
-    if name not in settings.DATASETS:
-        raise ValueError(f"未知数据集 {name}；可选 {tuple(settings.DATASETS)}")
-    return settings.DATASETS[name]["root"]
+    if name not in DATASETS:
+        raise ValueError(f"未知数据集 {name}；可选 {tuple(DATASETS)}")
+    return DATASETS[name]["root"]
+
+def source_folder(source):
+    if source not in DATA_SOURCE_FOLDERS:
+        raise ValueError(f"未知数据对象 {source}")
+    return DATA_SOURCE_FOLDERS[source]
 
 def raw(name, source):
-    if source not in settings.SOURCES:
-        raise ValueError(f"未知来源 {source}")
-    return dataset(name) / settings.DATA_FOLDERS["raw"] / settings.DATA_SOURCE_FOLDERS[source]
+    return dataset(name) / "raw" / source_folder(source)
 
 def processed_root(name, source):
-    if source not in settings.SOURCES:
-        raise ValueError(f"未知来源 {source}")
-    return dataset(name) / settings.DATA_FOLDERS["processed"] / settings.DATA_SOURCE_FOLDERS[source]
+    return dataset(name) / "processed" / source_folder(source)
 
 def final_root(name):
-    return dataset(name) / settings.DATA_FOLDERS["final"]
+    return dataset(name) / "final"
 
 def supplementary(name):
-    return dataset(name) / settings.DATA_FOLDERS["supplementary"]
+    return dataset(name) / "supplementary"
 
-def report_root(group, topic="track"):
-    if group not in settings.REPORT_GROUPS:
-        raise ValueError(f"未知报告类别 {group}")
-    if topic not in settings.REPORT_TOPICS:
-        raise ValueError(f"未知工作内容 {topic}")
-    return settings.REPORT_GROUPS[group] / settings.REPORT_TOPICS[topic]
+def lab_output_root(experiment_dir, name):
+    experiment_dir = Path(experiment_dir).resolve()
+    if not experiment_dir.is_relative_to(DATA_LAB) or "deprecated" in experiment_dir.relative_to(DATA_LAB).parts:
+        raise ValueError("数据实验结果必须位于有效实验自己的目录内")
+    return experiment_dir / "outputs" / DATASETS[name]["kind"]
 
 def stage_dir(context, step, session=None):
-    destination = settings.DATA_STAGE_DESTINATIONS[step]
+    destination = context.stage_destinations[step]
     if destination == "processed":
         path = context.processed_output / step
     elif destination == "final":

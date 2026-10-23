@@ -6,8 +6,7 @@ import json
 import math
 import numpy as np
 import pandas as pd
-from importlib import import_module
-settings = import_module("00_settings")
+import global_settings as settings
 
 def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
