@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "Missing file differs from present empty table",
+    "Literal None preserved; FALSE stays false through string and typed writes",
+    "External column rename requires settings change only",
+    "Invalid boolean fails explicitly",
+    "Selecting 06 resolves ordered prerequisites",
+    "Unimplemented metric stage fails explicitly",
+    "Formal and test output roots are separate"
+  ],
+  "raw_data_written": false
+}

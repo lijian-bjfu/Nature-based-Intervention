@@ -1,0 +1,134 @@
+[
+  {
+    "session_dir": "sub-P000_ses-S001_mod-Interactive_run-001",
+    "tables": {
+      "session": {
+        "present": true,
+        "sha256": "f84229bad5eda23538ec8e55afe6b01be52b6fd5b4994fd80f73ef459afa6d02"
+      },
+      "spacetime": {
+        "present": true,
+        "sha256": "ec9585e843995c0b7edc29da3e006fc128b46e3e2bf4b401ed926387940dfe59"
+      },
+      "tap": {
+        "present": false,
+        "sha256": null
+      },
+      "backstep": {
+        "present": false,
+        "sha256": null
+      },
+      "look": {
+        "present": false,
+        "sha256": null
+      },
+      "world_event": {
+        "present": false,
+        "sha256": null
+      },
+      "tech_glitch": {
+        "present": false,
+        "sha256": null
+      }
+    }
+  },
+  {
+    "session_dir": "sub-P000_ses-S001_mod-Interactive_run-002",
+    "tables": {
+      "session": {
+        "present": true,
+        "sha256": "382e66a66616343e6a955e4c1306c1d3bb87c68f41db603400b163751748905f"
+      },
+      "spacetime": {
+        "present": true,
+        "sha256": "e3c938115b48a24a7d5d6f42d08599407a52384f5cfba7545e121c9da4155edb"
+      },
+      "tap": {
+        "present": false,
+        "sha256": null
+      },
+      "backstep": {
+        "present": false,
+        "sha256": null
+      },
+      "look": {
+        "present": false,
+        "sha256": null
+      },
+      "world_event": {
+        "present": false,
+        "sha256": null
+      },
+      "tech_glitch": {
+        "present": false,
+        "sha256": null
+      }
+    }
+  },
+  {
+    "session_dir": "sub-P999_ses-S001_mod-Interactive_run-001",
+    "tables": {
+      "session": {
+        "present": true,
+        "sha256": "eee827b4045262b91a229a03e2fad9d26fe66b8c8793879596d4816d190e97fa"
+      },
+      "spacetime": {
+        "present": true,
+        "sha256": "574be9f4e81774e55b6b63fbcbccd0a85be1517098f3c3ca58a2870b15371535"
+      },
+      "tap": {
+        "present": true,
+        "sha256": "cc04a1ff632cc87281056c2540a2e51aec35d0c727f1e65d4aed5514c550eb5f"
+      },
+      "backstep": {
+        "present": true,
+        "sha256": "7d6df037d4877122da3db01ae6da679b64d6f5335bbfda47c825d696a869ccee"
+      },
+      "look": {
+        "present": true,
+        "sha256": "cbbe073c9bc9d5b485cc260b7daa6b945cd6eb4868b558d26a6ecc5c190dc52a"
+      },
+      "world_event": {
+        "present": true,
+        "sha256": "75da6161ceb1bb2b599e61af89234ad88800990fa231c8255878391c31ff75ec"
+      },
+      "tech_glitch": {
+        "present": true,
+        "sha256": "89a134bdd1a77902c140469026d08d12771c6c3872a34b280d6a6688b05f70e1"
+      }
+    }
+  },
+  {
+    "session_dir": "sub-P999_ses-S001_mod-Interactive_run-002",
+    "tables": {
+      "session": {
+        "present": true,
+        "sha256": "bb72e57628798c8ba1a3f4bd5360d199ccb3d572640251826e88f090106bbd76"
+      },
+      "spacetime": {
+        "present": true,
+        "sha256": "c8df82fc25cb0cbc55b541388043e1a588e72da79364d77a3e9d7607eb9236d3"
+      },
+      "tap": {
+        "present": true,
+        "sha256": "f5794bb7b4d37850de96617b3449d4b08617ef1769105271e0d0d2c0d6327c42"
+      },
+      "backstep": {
+        "present": true,
+        "sha256": "c7fe78dce440101eedb0165da495bc5f26c39de8237a159e6581d8de133f95ea"
+      },
+      "look": {
+        "present": true,
+        "sha256": "9a8a9a3bbd3d8eaad2e44d144593c1dedea128a9d19e3323f9c9e03768f57f0b"
+      },
+      "world_event": {
+        "present": true,
+        "sha256": "e341373caeb614497c8ff2b05d4e911ece8a36315a56dc81b8ac670bdf51239d"
+      },
+      "tech_glitch": {
+        "present": true,
+        "sha256": "31df02b71b7fea4b54e6b556f892c303b8c2b0ec6aff27c0cd79b2b5add5d17a"
+      }
+    }
+  }
+]

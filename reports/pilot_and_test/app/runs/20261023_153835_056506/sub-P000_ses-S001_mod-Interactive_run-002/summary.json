@@ -1,0 +1,108 @@
+{
+  "session_dir": "sub-P000_ses-S001_mod-Interactive_run-002",
+  "session": {
+    "subject": 0,
+    "session": 1,
+    "group": null,
+    "module": "Interactive",
+    "t_device_start": 1792720489.513,
+    "t_device_end": 1792720663.438
+  },
+  "duration_s": 173.925,
+  "tables": {
+    "session": {
+      "present": true,
+      "rows": 1,
+      "applicable": true
+    },
+    "spacetime": {
+      "present": true,
+      "rows": 1739,
+      "applicable": true
+    },
+    "tap": {
+      "present": false,
+      "rows": null,
+      "applicable": true
+    },
+    "backstep": {
+      "present": false,
+      "rows": null,
+      "applicable": true
+    },
+    "look": {
+      "present": false,
+      "rows": null,
+      "applicable": true
+    },
+    "world_event": {
+      "present": false,
+      "rows": null,
+      "applicable": true
+    },
+    "tech_glitch": {
+      "present": false,
+      "rows": null,
+      "applicable": true
+    }
+  },
+  "space": {
+    "horizontal_path_m": 59.270177130220716,
+    "first_s": 0.082,
+    "last_s": 173.813,
+    "intervals_s": {
+      "min": 0.021999999999999992,
+      "max": 0.17799999999999727,
+      "q0.5": 0.10099999999999909,
+      "q0.95": 0.11400000000000432,
+      "q0.99": 0.12099999999999511
+    },
+    "start_xz": [
+      56.23,
+      67.75
+    ],
+    "end_xz": [
+      55.74,
+      66.63
+    ],
+    "start_end_displacement_m": 1.2224974437601108
+  },
+  "tap": {
+    "intent": null,
+    "hit_layer": null,
+    "block_type": null,
+    "block_reason": null,
+    "blocked_n": null,
+    "is_touched_TRUE_n": null
+  },
+  "look": [],
+  "backstep": null,
+  "world_event": null,
+  "tech_glitch": null,
+  "quality": {
+    "missing_cells": {
+      "session": {
+        "group": 1
+      },
+      "spacetime": {}
+    },
+    "monotonic_time": {
+      "spacetime": true
+    },
+    "observed_touch_ids_n": 0,
+    "touch_id_range": null,
+    "missing_touch_ids_in_observed_range": [],
+    "notes": [
+      "Missing required file: tap.csv; counts are unavailable, not zero.",
+      "Missing required file: backstep.csv; counts are unavailable, not zero.",
+      "Missing required file: look.csv; counts are unavailable, not zero.",
+      "Missing required file: world_event.csv; counts are unavailable, not zero.",
+      "Missing required file: tech_glitch.csv; counts are unavailable, not zero."
+    ]
+  },
+  "methods": {
+    "trajectory": "adjacent_xz",
+    "time_bin_seconds": 60.0,
+    "scope": "description only; no new behavioral metric or threshold"
+  }
+}

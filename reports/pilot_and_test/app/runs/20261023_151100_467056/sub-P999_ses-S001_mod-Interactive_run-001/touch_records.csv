@@ -1,0 +1,4 @@
+touch_id,t_session,t_device,cam_x,cam_y,cam_z,intent,hit_layer,hit_x,hit_y,hit_z,is_touched,block_type,block_reason
+7,19.277,1792722385.328,51.74,3.56,65.27,LookAt,WaterTouchSurface,51.29,2.0,64.97,True,NotBlocked,NotBlocked
+52,189.69,1792722555.752,50.79,3.87,27.51,LookAt,SweepFoliage,50.61,3.46,26.84,True,NotBlocked,NotBlocked
+82,294.317,1792722660.38,51.14,3.76,25.66,LookAt,SweepFoliage,51.18,3.6,26.34,True,NotBlocked,NotBlocked

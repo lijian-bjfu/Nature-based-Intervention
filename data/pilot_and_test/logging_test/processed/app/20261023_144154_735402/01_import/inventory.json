@@ -1,0 +1,35 @@
+[
+  {
+    "session_dir": "sub-P999_ses-S001_mod-Interactive_run-002",
+    "tables": {
+      "session": {
+        "present": true,
+        "sha256": "bb72e57628798c8ba1a3f4bd5360d199ccb3d572640251826e88f090106bbd76"
+      },
+      "spacetime": {
+        "present": true,
+        "sha256": "c8df82fc25cb0cbc55b541388043e1a588e72da79364d77a3e9d7607eb9236d3"
+      },
+      "tap": {
+        "present": true,
+        "sha256": "f5794bb7b4d37850de96617b3449d4b08617ef1769105271e0d0d2c0d6327c42"
+      },
+      "backstep": {
+        "present": true,
+        "sha256": "c7fe78dce440101eedb0165da495bc5f26c39de8237a159e6581d8de133f95ea"
+      },
+      "look": {
+        "present": true,
+        "sha256": "9a8a9a3bbd3d8eaad2e44d144593c1dedea128a9d19e3323f9c9e03768f57f0b"
+      },
+      "world_event": {
+        "present": true,
+        "sha256": "e341373caeb614497c8ff2b05d4e911ece8a36315a56dc81b8ac670bdf51239d"
+      },
+      "tech_glitch": {
+        "present": true,
+        "sha256": "31df02b71b7fea4b54e6b556f892c303b8c2b0ec6aff27c0cd79b2b5add5d17a"
+      }
+    }
+  }
+]

@@ -1,0 +1,181 @@
+{
+  "migration": "Separate data products from reports; reports grouped by work",
+  "raw_files_byte_identical": true,
+  "moves": [
+    {
+      "from": "data/main",
+      "to": "data/formal",
+      "verified_files": 6
+    },
+    {
+      "from": "data/formal/participants.csv",
+      "to": "data/formal/supplementary/participants.csv",
+      "verified_files": 1
+    },
+    {
+      "from": "data/pilot_and_test/pilot/participants.csv",
+      "to": "data/pilot_and_test/pilot/supplementary/participants.csv",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/01_import/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_143804_162982/01_import",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/02_clean/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_143804_162982/02_clean",
+      "verified_files": 19
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/03_format/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_143804_162982/03_format",
+      "verified_files": 19
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/06_analysis/app/sub-P000_ses-S001_mod-Interactive_run-002",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/sub-P000_ses-S001_mod-Interactive_run-002",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/06_analysis/app/sub-P999_ses-S001_mod-Interactive_run-001",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/sub-P999_ses-S001_mod-Interactive_run-001",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/06_analysis/app/sub-P000_ses-S001_mod-Interactive_run-001",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/sub-P000_ses-S001_mod-Interactive_run-001",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/06_analysis/app/index.md",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/index.md",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/06_analysis/app/sub-P999_ses-S001_mod-Interactive_run-002",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/sub-P999_ses-S001_mod-Interactive_run-002",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/06_analysis/app/sessions.csv",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/sessions.csv",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/manifest.json",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/manifest.json",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_143804_162982/settings_snapshot.json",
+      "to": "reports/pilot_and_test/app/runs/20261023_143804_162982/settings_snapshot.json",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/01_import/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_144154_256818/01_import",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/02_clean/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_144154_256818/02_clean",
+      "verified_files": 19
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/03_format/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_144154_256818/03_format",
+      "verified_files": 19
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/06_analysis/app/sub-P000_ses-S001_mod-Interactive_run-002",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/sub-P000_ses-S001_mod-Interactive_run-002",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/06_analysis/app/sub-P999_ses-S001_mod-Interactive_run-001",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/sub-P999_ses-S001_mod-Interactive_run-001",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/06_analysis/app/sub-P000_ses-S001_mod-Interactive_run-001",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/sub-P000_ses-S001_mod-Interactive_run-001",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/06_analysis/app/index.md",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/index.md",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/06_analysis/app/sub-P999_ses-S001_mod-Interactive_run-002",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/sub-P999_ses-S001_mod-Interactive_run-002",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/06_analysis/app/sessions.csv",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/sessions.csv",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/manifest.json",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/manifest.json",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_256818/settings_snapshot.json",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_256818/settings_snapshot.json",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/01_import/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_144154_735402/01_import",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/02_clean/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_144154_735402/02_clean",
+      "verified_files": 8
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/03_format/app",
+      "to": "data/pilot_and_test/logging_test/processed/app/20261023_144154_735402/03_format",
+      "verified_files": 8
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/06_analysis/app/index.md",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_735402/index.md",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/06_analysis/app/sub-P999_ses-S001_mod-Interactive_run-002",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_735402/sub-P999_ses-S001_mod-Interactive_run-002",
+      "verified_files": 9
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/06_analysis/app/sessions.csv",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_735402/sessions.csv",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/manifest.json",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_735402/manifest.json",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/runs/20261023_144154_735402/settings_snapshot.json",
+      "to": "reports/pilot_and_test/app/runs/20261023_144154_735402/settings_snapshot.json",
+      "verified_files": 1
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/archive",
+      "to": "reports/pilot_and_test/app/archive",
+      "verified_files": 38
+    },
+    {
+      "from": "reports/pilot_and_test/logging_test/checks",
+      "to": "reports/pilot_and_test/app/checks",
+      "verified_files": 1
+    }
+  ]
+}

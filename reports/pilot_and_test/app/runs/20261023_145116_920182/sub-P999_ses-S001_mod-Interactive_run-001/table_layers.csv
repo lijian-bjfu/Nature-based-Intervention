@@ -1,0 +1,12 @@
+hit_layer,tap_n,is_touched_TRUE_n,is_touched_FALSE_n,is_touched_missing_n
+Terrain,66,0,66,0
+Road,9,0,9,0
+Rock,6,0,6,0
+DeadWood,0,0,0,0
+Flower,0,0,0,0
+Creature,0,0,0,0
+TouchFoliage,1,0,1,0
+SweepFoliage,8,2,6,0
+TouchRigid,0,0,0,0
+WaterTouchSurface,7,1,6,0
+NoHit,0,0,0,0

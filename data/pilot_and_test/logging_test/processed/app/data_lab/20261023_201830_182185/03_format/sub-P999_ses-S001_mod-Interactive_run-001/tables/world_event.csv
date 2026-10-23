@@ -1,0 +1,5 @@
+t_session,t_device,event_name,action,cam_x,cam_y,cam_z,detail
+126.735,1792722492.786,ScriptedEvent_bird_r1-r2,Fired,56.63,3.81,39.65,
+328.845,1792722694.896,ScriptedEvent_bird_r3-r2,Fired,39.53,4.12,28.32,
+480.379,1792722846.43,ScriptedEvent_R1-2_butterfly,NotFired,23.14,7.33,38.51,NeverEntered
+480.38,1792722846.431,ScriptedEvent_R1_east_butterfly,NotFired,23.14,7.33,38.51,NeverEntered

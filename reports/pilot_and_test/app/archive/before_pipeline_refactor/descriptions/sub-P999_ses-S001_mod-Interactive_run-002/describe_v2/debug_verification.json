@@ -1,0 +1,184 @@
+{
+  "used": true,
+  "source_sha256": {
+    "/Users/lijian/Working Projects/NBI proj/nature/Assets/_Project/Interaction/Logs~/Tap/tap_20261023_104904.csv": "4aea279fb235ef4304fa5ac30c6357e01b4fe8431cdc74a70c6a7ae69d4c7a37",
+    "/Users/lijian/Working Projects/NBI proj/nature/Assets/_Project/Interaction/Logs~/Event/event_20261023_104904.tsv": "bee799ce519c9740a5c1e00a217f2e38710301b85fa82dc64545471a6166eeda",
+    "/Users/lijian/Working Projects/NBI proj/nature/Assets/_Project/Interaction/Logs~/Sound/sound_20261023_104904.tsv": "251a6fbafa5b57e3efccc9768a7ab650f713348bc593b2d50d5986fa55a68a1a"
+  },
+  "debug_tap_rows_n": 258,
+  "matched_resolved_taps_n": 155,
+  "resolved_tap_positions_and_layers_match": true,
+  "debug_time_minus_t_session_min_max_s": [
+    100.21599999999995,
+    100.226
+  ],
+  "touch_matches": [
+    {
+      "touch_id": 7,
+      "debug_row_id": "8",
+      "tap_t_session": 18.702,
+      "debug_time": 120.51,
+      "debug_intent": "补发出手",
+      "hit_layer": "WaterTouchSurface"
+    },
+    {
+      "touch_id": 102,
+      "debug_row_id": "104",
+      "tap_t_session": 334.958,
+      "debug_time": 436.74,
+      "debug_intent": "补发出手",
+      "hit_layer": "WaterTouchSurface"
+    },
+    {
+      "touch_id": 105,
+      "debug_row_id": "108",
+      "tap_t_session": 349.095,
+      "debug_time": 450.87,
+      "debug_intent": "补发出手",
+      "hit_layer": "WaterTouchSurface"
+    },
+    {
+      "touch_id": 148,
+      "debug_row_id": "152",
+      "tap_t_session": 480.293,
+      "debug_time": 580.51,
+      "debug_intent": "我想看",
+      "hit_layer": "SweepFoliage"
+    },
+    {
+      "touch_id": 168,
+      "debug_row_id": "173",
+      "tap_t_session": 544.283,
+      "debug_time": 646.0,
+      "debug_intent": "补发出手",
+      "hit_layer": "WaterTouchSurface"
+    },
+    {
+      "touch_id": 176,
+      "debug_row_id": "182",
+      "tap_t_session": 571.075,
+      "debug_time": 672.11,
+      "debug_intent": "补发出手",
+      "hit_layer": "Creature"
+    }
+  ],
+  "world_event_matches": [
+    {
+      "event_name": "ScriptedEvent_bird_r3-r2",
+      "action": "Fired",
+      "t_session": 383.341,
+      "debug_time": 483.561,
+      "debug_minus_session_s": 100.21999999999997,
+      "debug_detail": "-",
+      "debug_source": "Observer"
+    },
+    {
+      "event_name": "ScriptedEvent_R1-2_butterfly",
+      "action": "Fired",
+      "t_session": 572.511,
+      "debug_time": 672.73,
+      "debug_minus_session_s": 100.21900000000005,
+      "debug_detail": "-",
+      "debug_source": "Hand"
+    },
+    {
+      "event_name": "ScriptedEvent_R1_east_butterfly",
+      "action": "NotFired",
+      "t_session": 817.667,
+      "debug_time": 917.822,
+      "debug_minus_session_s": 100.15499999999997,
+      "debug_detail": "触发者从未进入范围",
+      "debug_source": "Hand"
+    },
+    {
+      "event_name": "ScriptedEvent_bird_r1-r2",
+      "action": "NotFired",
+      "t_session": 817.668,
+      "debug_time": 917.822,
+      "debug_minus_session_s": 100.154,
+      "debug_detail": "进入过范围，但视线条件未满足",
+      "debug_source": "Observer"
+    }
+  ],
+  "debug_event_action_counts": {
+    "armed": 4,
+    "entered": 3,
+    "delay": 1,
+    "fired": 2,
+    "path-start": 1,
+    "path-end": 1,
+    "waiting-sight": 1,
+    "startle": 1,
+    "not-fired": 2
+  },
+  "bird_path_end_details": [
+    {
+      "time": "498.232",
+      "event": "ScriptedEvent_bird_r3-r2",
+      "kind": "Choreographed",
+      "source": "Observer",
+      "action": "path-end",
+      "camX": "41.31",
+      "camY": "3.74",
+      "camZ": "28.57",
+      "camYaw": "86.4",
+      "viewAngle": "-",
+      "detail": "时长 14.7 秒，画面内可见 13.2 秒，首次可见于第 0.1 秒，追逐 2 次",
+      "rigMode": "Disabled"
+    }
+  ],
+  "sound_technical_rows": [
+    {
+      "time": "100.199",
+      "event": "hitch",
+      "zone": "声音系统0.3ms 回收0次 前台",
+      "clip": "-",
+      "srcX": "-",
+      "srcY": "-",
+      "srcZ": "-",
+      "distance": "-",
+      "far": "-",
+      "volume": "4544.138",
+      "camX": "56.23",
+      "camY": "3.93",
+      "camZ": "67.75",
+      "camYaw": "280.7",
+      "rigMode": "Disabled"
+    },
+    {
+      "time": "100.219",
+      "event": "hitch",
+      "zone": "声音系统0.4ms 回收0次 前台",
+      "clip": "-",
+      "srcX": "-",
+      "srcY": "-",
+      "srcZ": "-",
+      "distance": "-",
+      "far": "-",
+      "volume": "261.860",
+      "camX": "56.23",
+      "camY": "3.93",
+      "camZ": "67.75",
+      "camYaw": "280.7",
+      "rigMode": "Disabled"
+    },
+    {
+      "time": "917.608",
+      "event": "focus-lost",
+      "zone": "全局默认（林内）",
+      "clip": "-",
+      "srcX": "-",
+      "srcY": "-",
+      "srcZ": "-",
+      "distance": "-",
+      "far": "-",
+      "volume": "0.000",
+      "camX": "55.27",
+      "camY": "4.13",
+      "camZ": "65.62",
+      "camYaw": "184.3",
+      "rigMode": "Disabled"
+    }
+  ],
+  "note": "Debug time uses old game-clock values; not directly t_session. No absolute alignment to a fixed offset assumed. Debug row id is not touch_id."
+}

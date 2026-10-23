@@ -1,0 +1,895 @@
+{
+  "ANALYSIS_DIR": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/analysis",
+  "APP_COLUMNS": {
+    "session": {
+      "subject": "subject",
+      "session": "session",
+      "group": "group",
+      "module": "module",
+      "t_device_start": "t_device_start",
+      "t_device_end": "t_device_end"
+    },
+    "spacetime": {
+      "t_session": "t_session",
+      "t_device": "t_device",
+      "cam_x": "cam_x",
+      "cam_y": "cam_y",
+      "cam_z": "cam_z",
+      "ground_y": "ground_y",
+      "view_yaw": "view_yaw",
+      "view_pitch": "view_pitch"
+    },
+    "tap": {
+      "touch_id": "touch_id",
+      "t_session": "t_session",
+      "t_device": "t_device",
+      "cam_x": "cam_x",
+      "cam_y": "cam_y",
+      "cam_z": "cam_z",
+      "intent": "intent",
+      "hit_layer": "hit_layer",
+      "hit_x": "hit_x",
+      "hit_y": "hit_y",
+      "hit_z": "hit_z",
+      "is_touched": "is_touched",
+      "block_type": "block_type",
+      "block_reason": "block_reason"
+    },
+    "backstep": {
+      "touch_id": "touch_id",
+      "t_session": "t_session",
+      "t_device": "t_device",
+      "cam_x": "cam_x",
+      "cam_y": "cam_y",
+      "cam_z": "cam_z",
+      "back_dist": "back_dist",
+      "block_type": "block_type",
+      "block_reason": "block_reason"
+    },
+    "look": {
+      "touch_id": "touch_id",
+      "t_session_start": "t_session_start",
+      "t_device_start": "t_device_start",
+      "t_session_end": "t_session_end",
+      "t_device_end": "t_device_end",
+      "yaw_start": "yaw_start",
+      "pitch_start": "pitch_start",
+      "yaw_end": "yaw_end",
+      "pitch_end": "pitch_end",
+      "yaw_delta": "yaw_delta",
+      "pitch_delta": "pitch_delta",
+      "yaw_path": "yaw_path",
+      "pitch_path": "pitch_path",
+      "look_type": "look_type"
+    },
+    "world_event": {
+      "t_session": "t_session",
+      "t_device": "t_device",
+      "event_name": "event_name",
+      "action": "action",
+      "cam_x": "cam_x",
+      "cam_y": "cam_y",
+      "cam_z": "cam_z",
+      "detail": "detail"
+    },
+    "tech_glitch": {
+      "t_session": "t_session",
+      "t_device": "t_device",
+      "status": "status",
+      "duration": "duration"
+    }
+  },
+  "APP_CSV": {
+    "encoding": "utf-8-sig",
+    "keep_default_na": false,
+    "na_values": [
+      ""
+    ]
+  },
+  "APP_DESCRIPTION_METHOD": "adjacent_xz",
+  "APP_FALSE": "FALSE",
+  "APP_FIGURES": {
+    "space": "fig1_space",
+    "time": "fig2_time",
+    "actions": "fig3_actions"
+  },
+  "APP_FILES": {
+    "session": "session.csv",
+    "spacetime": "spacetime.csv",
+    "tap": "tap.csv",
+    "backstep": "backstep.csv",
+    "look": "look.csv",
+    "world_event": "world_event.csv",
+    "tech_glitch": "tech_glitch.csv"
+  },
+  "APP_LEGACY_VALUES": {
+    "tap": {
+      "intent": {
+        "None": "NoHit"
+      },
+      "hit_layer": {
+        "None": "NoHit"
+      },
+      "block_type": {
+        "None": "NotBlocked"
+      },
+      "block_reason": {
+        "None": "NotBlocked"
+      }
+    },
+    "backstep": {
+      "block_type": {
+        "None": "NotBlocked"
+      },
+      "block_reason": {
+        "None": "NotBlocked"
+      }
+    }
+  },
+  "APP_LEVELS": {
+    "session": {
+      "group": [
+        1,
+        2
+      ],
+      "module": [
+        "Practice",
+        "Interactive",
+        "Passive"
+      ]
+    },
+    "tap": {
+      "intent": [
+        "NoHit",
+        "WalkTo",
+        "LookAt"
+      ],
+      "hit_layer": [
+        "Terrain",
+        "Road",
+        "Rock",
+        "DeadWood",
+        "Flower",
+        "Creature",
+        "TouchFoliage",
+        "SweepFoliage",
+        "TouchRigid",
+        "WaterTouchSurface",
+        "NoHit"
+      ],
+      "is_touched": [
+        true,
+        false
+      ],
+      "block_type": [
+        "NotBlocked",
+        "CutShort",
+        "NoStart"
+      ],
+      "block_reason": [
+        "NotBlocked",
+        "BarrierDenseSlope",
+        "BarrierWater",
+        "BarrierUnlabeled",
+        "StepUp",
+        "DropTooHigh",
+        "TooSteep",
+        "NoGround"
+      ]
+    },
+    "backstep": {
+      "block_type": [
+        "NotBlocked",
+        "CutShort",
+        "NoStart"
+      ],
+      "block_reason": [
+        "NotBlocked",
+        "BarrierDenseSlope",
+        "BarrierWater",
+        "BarrierUnlabeled",
+        "StepUp",
+        "DropTooHigh",
+        "TooSteep",
+        "NoGround"
+      ]
+    },
+    "look": {
+      "look_type": [
+        "Drag",
+        "Tap"
+      ]
+    },
+    "world_event": {
+      "action": [
+        "Fired",
+        "NotFired",
+        "HandStartle"
+      ]
+    },
+    "tech_glitch": {
+      "status": [
+        "Background",
+        "Freeze"
+      ]
+    }
+  },
+  "APP_PIPELINE": {
+    "01_import": {
+      "script": "01_import/app_inventory.py",
+      "requires": []
+    },
+    "02_clean": {
+      "script": "02_clean/app_clean.py",
+      "requires": [
+        "01_import"
+      ]
+    },
+    "03_format": {
+      "script": "03_format/app_format.py",
+      "requires": [
+        "02_clean"
+      ]
+    },
+    "06_analysis": {
+      "script": "06_analysis/describe/app_describe.py",
+      "requires": [
+        "03_format"
+      ]
+    }
+  },
+  "APP_RECORDING": {
+    "spacetime_interval_seconds": 0.1,
+    "yaw_zero": "+Z",
+    "pitch_positive": "up"
+  },
+  "APP_REQUIRED_TABLES": {
+    "Interactive": [
+      "session",
+      "spacetime",
+      "tap",
+      "backstep",
+      "look",
+      "world_event",
+      "tech_glitch"
+    ],
+    "Practice": [
+      "session"
+    ],
+    "Passive": [
+      "session"
+    ]
+  },
+  "APP_SCHEMA": {
+    "session": {
+      "subject": {
+        "column": "subject",
+        "dtype": "Int64",
+        "unit": null,
+        "levels": null
+      },
+      "session": {
+        "column": "session",
+        "dtype": "Int64",
+        "unit": null,
+        "levels": null
+      },
+      "group": {
+        "column": "group",
+        "dtype": "Int64",
+        "unit": null,
+        "levels": [
+          1,
+          2
+        ]
+      },
+      "module": {
+        "column": "module",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "Practice",
+          "Interactive",
+          "Passive"
+        ]
+      },
+      "t_device_start": {
+        "column": "t_device_start",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device_end": {
+        "column": "t_device_end",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      }
+    },
+    "spacetime": {
+      "t_session": {
+        "column": "t_session",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device": {
+        "column": "t_device",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "cam_x": {
+        "column": "cam_x",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_y": {
+        "column": "cam_y",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_z": {
+        "column": "cam_z",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "ground_y": {
+        "column": "ground_y",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "view_yaw": {
+        "column": "view_yaw",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "view_pitch": {
+        "column": "view_pitch",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      }
+    },
+    "tap": {
+      "touch_id": {
+        "column": "touch_id",
+        "dtype": "Int64",
+        "unit": null,
+        "levels": null
+      },
+      "t_session": {
+        "column": "t_session",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device": {
+        "column": "t_device",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "cam_x": {
+        "column": "cam_x",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_y": {
+        "column": "cam_y",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_z": {
+        "column": "cam_z",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "intent": {
+        "column": "intent",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "NoHit",
+          "WalkTo",
+          "LookAt"
+        ]
+      },
+      "hit_layer": {
+        "column": "hit_layer",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "Terrain",
+          "Road",
+          "Rock",
+          "DeadWood",
+          "Flower",
+          "Creature",
+          "TouchFoliage",
+          "SweepFoliage",
+          "TouchRigid",
+          "WaterTouchSurface",
+          "NoHit"
+        ]
+      },
+      "hit_x": {
+        "column": "hit_x",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "hit_y": {
+        "column": "hit_y",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "hit_z": {
+        "column": "hit_z",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "is_touched": {
+        "column": "is_touched",
+        "dtype": "boolean",
+        "unit": null,
+        "levels": [
+          true,
+          false
+        ]
+      },
+      "block_type": {
+        "column": "block_type",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "NotBlocked",
+          "CutShort",
+          "NoStart"
+        ]
+      },
+      "block_reason": {
+        "column": "block_reason",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "NotBlocked",
+          "BarrierDenseSlope",
+          "BarrierWater",
+          "BarrierUnlabeled",
+          "StepUp",
+          "DropTooHigh",
+          "TooSteep",
+          "NoGround"
+        ]
+      }
+    },
+    "backstep": {
+      "touch_id": {
+        "column": "touch_id",
+        "dtype": "Int64",
+        "unit": null,
+        "levels": null
+      },
+      "t_session": {
+        "column": "t_session",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device": {
+        "column": "t_device",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "cam_x": {
+        "column": "cam_x",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_y": {
+        "column": "cam_y",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_z": {
+        "column": "cam_z",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "back_dist": {
+        "column": "back_dist",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "block_type": {
+        "column": "block_type",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "NotBlocked",
+          "CutShort",
+          "NoStart"
+        ]
+      },
+      "block_reason": {
+        "column": "block_reason",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "NotBlocked",
+          "BarrierDenseSlope",
+          "BarrierWater",
+          "BarrierUnlabeled",
+          "StepUp",
+          "DropTooHigh",
+          "TooSteep",
+          "NoGround"
+        ]
+      }
+    },
+    "look": {
+      "touch_id": {
+        "column": "touch_id",
+        "dtype": "Int64",
+        "unit": null,
+        "levels": null
+      },
+      "t_session_start": {
+        "column": "t_session_start",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device_start": {
+        "column": "t_device_start",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_session_end": {
+        "column": "t_session_end",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device_end": {
+        "column": "t_device_end",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "yaw_start": {
+        "column": "yaw_start",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "pitch_start": {
+        "column": "pitch_start",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "yaw_end": {
+        "column": "yaw_end",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "pitch_end": {
+        "column": "pitch_end",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "yaw_delta": {
+        "column": "yaw_delta",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "pitch_delta": {
+        "column": "pitch_delta",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "yaw_path": {
+        "column": "yaw_path",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "pitch_path": {
+        "column": "pitch_path",
+        "dtype": "Float64",
+        "unit": "degree",
+        "levels": null
+      },
+      "look_type": {
+        "column": "look_type",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "Drag",
+          "Tap"
+        ]
+      }
+    },
+    "world_event": {
+      "t_session": {
+        "column": "t_session",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device": {
+        "column": "t_device",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "event_name": {
+        "column": "event_name",
+        "dtype": "string",
+        "unit": null,
+        "levels": null
+      },
+      "action": {
+        "column": "action",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "Fired",
+          "NotFired",
+          "HandStartle"
+        ]
+      },
+      "cam_x": {
+        "column": "cam_x",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_y": {
+        "column": "cam_y",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "cam_z": {
+        "column": "cam_z",
+        "dtype": "Float64",
+        "unit": "m",
+        "levels": null
+      },
+      "detail": {
+        "column": "detail",
+        "dtype": "string",
+        "unit": null,
+        "levels": null
+      }
+    },
+    "tech_glitch": {
+      "t_session": {
+        "column": "t_session",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "t_device": {
+        "column": "t_device",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      },
+      "status": {
+        "column": "status",
+        "dtype": "string",
+        "unit": null,
+        "levels": [
+          "Background",
+          "Freeze"
+        ]
+      },
+      "duration": {
+        "column": "duration",
+        "dtype": "Float64",
+        "unit": "s",
+        "levels": null
+      }
+    }
+  },
+  "APP_SESSION_GLOB": "sub-*",
+  "APP_SESSION_REGEX": "^sub-P(?P<subject>\\d+)_ses-S(?P<session>\\d+)_mod-(?P<module>Practice|Interactive|Passive)_run-(?P<run>\\d+)$",
+  "APP_TABLES": [
+    "session",
+    "spacetime",
+    "tap",
+    "backstep",
+    "look",
+    "world_event",
+    "tech_glitch"
+  ],
+  "APP_TRUE": "TRUE",
+  "APP_TYPES": {
+    "subject": "Int64",
+    "session": "Int64",
+    "group": "Int64",
+    "module": "string",
+    "t_device_start": "Float64",
+    "t_device_end": "Float64",
+    "t_session": "Float64",
+    "t_device": "Float64",
+    "cam_x": "Float64",
+    "cam_y": "Float64",
+    "cam_z": "Float64",
+    "ground_y": "Float64",
+    "view_yaw": "Float64",
+    "view_pitch": "Float64",
+    "touch_id": "Int64",
+    "intent": "string",
+    "hit_layer": "string",
+    "hit_x": "Float64",
+    "hit_y": "Float64",
+    "hit_z": "Float64",
+    "is_touched": "boolean",
+    "block_type": "string",
+    "block_reason": "string",
+    "back_dist": "Float64",
+    "t_session_start": "Float64",
+    "t_session_end": "Float64",
+    "yaw_start": "Float64",
+    "pitch_start": "Float64",
+    "yaw_end": "Float64",
+    "pitch_end": "Float64",
+    "yaw_delta": "Float64",
+    "pitch_delta": "Float64",
+    "yaw_path": "Float64",
+    "pitch_path": "Float64",
+    "look_type": "string",
+    "event_name": "string",
+    "action": "string",
+    "detail": "string",
+    "status": "string",
+    "duration": "Float64"
+  },
+  "APP_UNITS": {
+    "t_device_start": "s",
+    "t_device_end": "s",
+    "t_session": "s",
+    "t_device": "s",
+    "cam_x": "m",
+    "cam_y": "m",
+    "cam_z": "m",
+    "ground_y": "m",
+    "view_yaw": "degree",
+    "view_pitch": "degree",
+    "hit_x": "m",
+    "hit_y": "m",
+    "hit_z": "m",
+    "back_dist": "m",
+    "t_session_start": "s",
+    "t_session_end": "s",
+    "yaw_start": "degree",
+    "pitch_start": "degree",
+    "yaw_end": "degree",
+    "pitch_end": "degree",
+    "yaw_delta": "degree",
+    "pitch_delta": "degree",
+    "yaw_path": "degree",
+    "pitch_path": "degree",
+    "duration": "s"
+  },
+  "CACHE_DIR": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/reports/_runtime_cache",
+  "CONFIG_VERSION": "2.0",
+  "DATASETS": {
+    "formal": {
+      "root": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/formal",
+      "report_group": "formal"
+    },
+    "pilot": {
+      "root": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/pilot",
+      "report_group": "pilot_and_test"
+    },
+    "logging_test": {
+      "root": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test",
+      "report_group": "pilot_and_test"
+    }
+  },
+  "DATA_DIR": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data",
+  "DATA_FOLDERS": {
+    "raw": "raw",
+    "processed": "processed",
+    "final": "final",
+    "supplementary": "supplementary"
+  },
+  "DATA_STAGE_DESTINATIONS": {
+    "01_import": "processed",
+    "02_clean": "processed",
+    "03_format": "processed",
+    "04_features": "processed",
+    "05_integrate": "final",
+    "06_analysis": "report"
+  },
+  "FIGURE_FORMATS": [
+    "png",
+    "svg",
+    "pdf"
+  ],
+  "PRECISION": {
+    "s": 3,
+    "m": 2,
+    "degree": 1
+  },
+  "PROJECT_TIMEZONE": "Asia/Shanghai",
+  "RAW_FOLDER": "raw",
+  "REPORTS_DIR": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/reports",
+  "REPORT_GROUPS": {
+    "formal": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/reports/formal",
+    "pilot_and_test": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/reports/pilot_and_test"
+  },
+  "REPORT_TOPICS": {
+    "app": "app",
+    "questionnaire": "questionnaire",
+    "physio": "physio"
+  },
+  "ROOT": "/Users/lijian/Desktop/GitHub/Nature-based Intervention",
+  "RUNS_FOLDER": "runs",
+  "SCHEMA_VERSION": "1.1",
+  "SOURCES": [
+    "app",
+    "questionnaire",
+    "physio",
+    "interview",
+    "session_notes"
+  ],
+  "STAGE_TABLE_FOLDER": "tables",
+  "STEP_ORDER": [
+    "01_import",
+    "02_clean",
+    "03_format",
+    "04_features",
+    "05_integrate",
+    "06_analysis"
+  ],
+  "TASKS": {
+    "app_inventory": {
+      "source": "app",
+      "stage": "01_import",
+      "label": "核对埋点文件"
+    },
+    "app_clean": {
+      "source": "app",
+      "stage": "02_clean",
+      "label": "清理埋点历史取值"
+    },
+    "app_format": {
+      "source": "app",
+      "stage": "03_format",
+      "label": "生成埋点标准表"
+    },
+    "app_describe": {
+      "source": "app",
+      "stage": "06_analysis",
+      "label": "埋点描述、绘图与报告"
+    }
+  },
+  "TOOLS_DIR": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/analysis/07_tools"
+}

@@ -1,0 +1,3 @@
+look_type,segments_n,distinct_touch_ids_n,duration_sum_s,duration_median_s,duration_min_s,duration_max_s,yaw_path_sum_deg,pitch_path_sum_deg
+Drag,130,97,275.636000,1.702000,0.494000,8.119000,4574.400000,1699.400000
+Tap,114,113,154.516000,1.132500,0.400000,6.370000,2194.600000,583.300000

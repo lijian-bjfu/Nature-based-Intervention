@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.1",
+  "config_version": "3.0",
+  "status": "complete",
+  "run_id": "20261023_201830_182185",
+  "timezone": "Asia/Shanghai",
+  "selection": {
+    "workspace": "data_lab",
+    "tasks": [
+      "track_describe"
+    ],
+    "dataset": "logging_test",
+    "sessions": [
+      "*"
+    ],
+    "modules": [
+      "Interactive"
+    ]
+  },
+  "resolved_steps": [
+    "01_import",
+    "02_clean",
+    "03_format",
+    "06_analysis"
+  ],
+  "language": "zh",
+  "processed_output": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/processed/app/data_lab/20261023_201830_182185",
+  "final_output": null,
+  "report_output": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/reports/pilot_and_test/track/runs/20261023_201830_182185",
+  "sessions": [
+    "sub-P000_ses-S001_mod-Interactive_run-001",
+    "sub-P000_ses-S001_mod-Interactive_run-002",
+    "sub-P999_ses-S001_mod-Interactive_run-001",
+    "sub-P999_ses-S001_mod-Interactive_run-002"
+  ],
+  "source_sha256": {
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P000_ses-S001_mod-Interactive_run-001/session.csv": "f84229bad5eda23538ec8e55afe6b01be52b6fd5b4994fd80f73ef459afa6d02",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P000_ses-S001_mod-Interactive_run-001/spacetime.csv": "ec9585e843995c0b7edc29da3e006fc128b46e3e2bf4b401ed926387940dfe59",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P000_ses-S001_mod-Interactive_run-002/session.csv": "382e66a66616343e6a955e4c1306c1d3bb87c68f41db603400b163751748905f",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P000_ses-S001_mod-Interactive_run-002/spacetime.csv": "e3c938115b48a24a7d5d6f42d08599407a52384f5cfba7545e121c9da4155edb",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-001/session.csv": "eee827b4045262b91a229a03e2fad9d26fe66b8c8793879596d4816d190e97fa",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-001/spacetime.csv": "574be9f4e81774e55b6b63fbcbccd0a85be1517098f3c3ca58a2870b15371535",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-001/tap.csv": "cc04a1ff632cc87281056c2540a2e51aec35d0c727f1e65d4aed5514c550eb5f",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-001/backstep.csv": "7d6df037d4877122da3db01ae6da679b64d6f5335bbfda47c825d696a869ccee",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-001/look.csv": "cbbe073c9bc9d5b485cc260b7daa6b945cd6eb4868b558d26a6ecc5c190dc52a",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-001/world_event.csv": "75da6161ceb1bb2b599e61af89234ad88800990fa231c8255878391c31ff75ec",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-001/tech_glitch.csv": "89a134bdd1a77902c140469026d08d12771c6c3872a34b280d6a6688b05f70e1",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-002/session.csv": "bb72e57628798c8ba1a3f4bd5360d199ccb3d572640251826e88f090106bbd76",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-002/spacetime.csv": "c8df82fc25cb0cbc55b541388043e1a588e72da79364d77a3e9d7607eb9236d3",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-002/tap.csv": "f5794bb7b4d37850de96617b3449d4b08617ef1769105271e0d0d2c0d6327c42",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-002/backstep.csv": "c7fe78dce440101eedb0165da495bc5f26c39de8237a159e6581d8de133f95ea",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-002/look.csv": "9a8a9a3bbd3d8eaad2e44d144593c1dedea128a9d19e3323f9c9e03768f57f0b",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-002/world_event.csv": "e341373caeb614497c8ff2b05d4e911ece8a36315a56dc81b8ac670bdf51239d",
+    "/Users/lijian/Desktop/GitHub/Nature-based Intervention/data/pilot_and_test/logging_test/raw/app/sub-P999_ses-S001_mod-Interactive_run-002/tech_glitch.csv": "31df02b71b7fea4b54e6b556f892c303b8c2b0ec6aff27c0cd79b2b5add5d17a"
+  },
+  "script_sha256": {
+    "02_run.py": "f4fc50e5f2ae4be0f83b3fca9857db4efa093e410e6e71d362e589e14527ce46",
+    "00_settings.py": "7ad9586743f5b98293e9a7046b8207f5e27d0dc81d9c891d6a4a802e097f36e5",
+    "01_parameters.py": "9e6d71729ac2a0f6af30915fd01f932ae8e8125cc0b69b8bd61ad308cdadfe07",
+    "analysis/data_lab/track/description/track_describe.py": "e8f7252ec84ff487d35f82edf2fe3a52a4f9de1010065f1e7a3259caabff8680",
+    "analysis/data_lab/track/processing/track_clean.py": "ec6f4e275c18d1d325bbe07f16228f4f6a5d8dc6199c41866e651b6e4a1359d5",
+    "analysis/data_lab/track/processing/track_format.py": "42de8b36f31c55fbe5b77d68957199b62f6a524c013e9d1267da23e9f30ecae0",
+    "analysis/data_lab/track/processing/track_inventory.py": "416532fc100877eacbdece54a17af222478a37bda3209c257b5f16d777ac4360",
+    "analysis/data_lab/track/report/track_report.py": "777ced67c0c5b28509c4fe338e22bd3358ffbfaf6e8186087b74d7569fe63df8",
+    "analysis/tools/artifacts.py": "16c7fb9384cc2c61db5f32c3973cf1fdaee7cb7147ea102f063ca06e3b45a192",
+    "analysis/tools/configuration.py": "5e022eb2db404b8b7e8e63a90dd167cc543920a2468188c9365045a8933e138a",
+    "analysis/tools/paths.py": "fec469e480cb46d5b2439c92caffe051dade3c73f3af3d8bc308cb4517c21eef",
+    "analysis/tools/pipeline.py": "5c951cd58ceb98d4a2e85c29561646cc11ee727f316808e4d505e4ba12e6d7f9",
+    "analysis/tools/plotting.py": "d9be07a9acc1c53c37e6f37c762dddedd2d52a33ac065ee40a1f0ec10fe45114",
+    "analysis/tools/track_check.py": "2ffebc4a1e5c1bdb822765e3c45235aa2b0f35a0fc44ba420c2298a2852ba82e",
+    "analysis/tools/track_io.py": "179e3f769a31c6fe32f1fa80c5e689e7cf3432dfa682dd265cf1ee4a044dde54"
+  },
+  "python_executable": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3",
+  "python_version": "3.11.8 (v3.11.8:db85d51d3e, Feb  6 2024, 18:02:37) [Clang 13.0.0 (clang-1300.0.29.30)]",
+  "package_versions": {
+    "numpy": "2.4.6",
+    "pandas": "2.3.2",
+    "matplotlib": "3.10.3"
+  },
+  "raw_files_unchanged": true
+}

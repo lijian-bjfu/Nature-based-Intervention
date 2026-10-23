@@ -1,0 +1,223 @@
+{
+  "session_dir": "sub-P999_ses-S001_mod-Interactive_run-002",
+  "session": {
+    "subject": 999,
+    "session": 1,
+    "group": 1,
+    "module": "Interactive",
+    "t_device_start": 1792723745.112,
+    "t_device_end": 1792724562.801
+  },
+  "duration_s": 817.689,
+  "tables": {
+    "session": {
+      "present": true,
+      "rows": 1,
+      "applicable": true
+    },
+    "spacetime": {
+      "present": true,
+      "rows": 8177,
+      "applicable": true
+    },
+    "tap": {
+      "present": true,
+      "rows": 155,
+      "applicable": true
+    },
+    "backstep": {
+      "present": true,
+      "rows": 1,
+      "applicable": true
+    },
+    "look": {
+      "present": true,
+      "rows": 244,
+      "applicable": true
+    },
+    "world_event": {
+      "present": true,
+      "rows": 4,
+      "applicable": true
+    },
+    "tech_glitch": {
+      "present": true,
+      "rows": 1,
+      "applicable": true
+    }
+  },
+  "space": {
+    "horizontal_path_m": 211.39014698004155,
+    "first_s": 0.028,
+    "last_s": 817.601,
+    "intervals_s": {
+      "min": 0.025999999999953616,
+      "max": 0.16800000000000637,
+      "q0.5": 0.10000000000002274,
+      "q0.95": 0.11299999999999955,
+      "q0.99": 0.12000000000000455
+    },
+    "start_xz": [
+      56.23,
+      67.75
+    ],
+    "end_xz": [
+      55.27,
+      65.62
+    ],
+    "start_end_displacement_m": 2.336343296692498
+  },
+  "tap": {
+    "intent": {
+      "NoHit": 0,
+      "WalkTo": 72,
+      "LookAt": 83
+    },
+    "hit_layer": {
+      "Terrain": 94,
+      "Road": 10,
+      "Rock": 11,
+      "DeadWood": 1,
+      "Flower": 0,
+      "Creature": 3,
+      "TouchFoliage": 4,
+      "SweepFoliage": 6,
+      "TouchRigid": 0,
+      "WaterTouchSurface": 26,
+      "NoHit": 0
+    },
+    "block_type": {
+      "NotBlocked": 77,
+      "CutShort": 46,
+      "NoStart": 32
+    },
+    "block_reason": {
+      "NotBlocked": 77,
+      "BarrierDenseSlope": 24,
+      "BarrierWater": 31,
+      "BarrierUnlabeled": 0,
+      "StepUp": 0,
+      "DropTooHigh": 0,
+      "TooSteep": 23,
+      "NoGround": 0
+    },
+    "blocked_n": 78,
+    "is_touched_TRUE_n": 6
+  },
+  "look": [
+    {
+      "look_type": "Drag",
+      "segments_n": 130,
+      "touch_ids_n": 97,
+      "duration_sum_s": 275.6359999999993,
+      "duration_median_s": 1.7019999999999982,
+      "yaw_path_sum_deg": 4574.400000000001,
+      "pitch_path_sum_deg": 1699.4
+    },
+    {
+      "look_type": "Tap",
+      "segments_n": 114,
+      "touch_ids_n": 113,
+      "duration_sum_s": 154.51600000000053,
+      "duration_median_s": 1.1324999999999932,
+      "yaw_path_sum_deg": 2194.6,
+      "pitch_path_sum_deg": 583.3
+    }
+  ],
+  "backstep": [
+    {
+      "touch_id": 139,
+      "t_session": 438.854,
+      "t_device": 1792724183.966,
+      "cam_x": 52.24,
+      "cam_y": 3.12,
+      "cam_z": 36.41,
+      "back_dist": 1.0,
+      "block_type": "NotBlocked",
+      "block_reason": "NotBlocked"
+    }
+  ],
+  "world_event": [
+    {
+      "t_session": 383.341,
+      "t_device": 1792724128.453,
+      "event_name": "ScriptedEvent_bird_r3-r2",
+      "action": "Fired",
+      "cam_x": 39.3,
+      "cam_y": 4.22,
+      "cam_z": 29.33,
+      "detail": null
+    },
+    {
+      "t_session": 572.511,
+      "t_device": 1792724317.623,
+      "event_name": "ScriptedEvent_R1-2_butterfly",
+      "action": "Fired",
+      "cam_x": 56.58,
+      "cam_y": 3.1,
+      "cam_z": 51.29,
+      "detail": null
+    },
+    {
+      "t_session": 817.667,
+      "t_device": 1792724562.779,
+      "event_name": "ScriptedEvent_R1_east_butterfly",
+      "action": "NotFired",
+      "cam_x": 55.27,
+      "cam_y": 4.13,
+      "cam_z": 65.62,
+      "detail": "NeverEntered"
+    },
+    {
+      "t_session": 817.668,
+      "t_device": 1792724562.78,
+      "event_name": "ScriptedEvent_bird_r1-r2",
+      "action": "NotFired",
+      "cam_x": 55.27,
+      "cam_y": 4.13,
+      "cam_z": 65.62,
+      "detail": "NoSight"
+    }
+  ],
+  "tech_glitch": [
+    {
+      "t_session": 817.419,
+      "t_device": 1792724562.531,
+      "status": "Background",
+      "duration": 0.25
+    }
+  ],
+  "quality": {
+    "missing_cells": {
+      "session": {},
+      "spacetime": {},
+      "tap": {},
+      "backstep": {},
+      "look": {},
+      "world_event": {
+        "detail": 2
+      },
+      "tech_glitch": {}
+    },
+    "monotonic_time": {
+      "spacetime": true,
+      "tap": true,
+      "backstep": true,
+      "look": true,
+      "world_event": true,
+      "tech_glitch": true
+    },
+    "observed_touch_ids_n": 252,
+    "touch_id_range": [
+      1,
+      252
+    ],
+    "missing_touch_ids_in_observed_range": [],
+    "notes": []
+  },
+  "methods": {
+    "trajectory": "adjacent_xz",
+    "time_bin_seconds": 60.0,
+    "scope": "description only; no new behavioral metric or threshold"
+  }
+}
