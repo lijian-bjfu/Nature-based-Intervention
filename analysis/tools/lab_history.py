@@ -39,7 +39,7 @@ def collect(since=None, until=None, object_name=None):
     rows = []
     for path in sorted(DATA_LAB.rglob("*.py")):
         relative = path.relative_to(DATA_LAB)
-        if set(relative.parts)&{"outputs","archive","source_snapshot","__pycache__"}:
+        if set(relative.parts)&{"outputs","archive","source_snapshot","uncommitted_sources","__pycache__"}:
             continue
         if object_name and relative.parts[0]!=object_name:
             continue

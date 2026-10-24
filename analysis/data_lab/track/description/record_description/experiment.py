@@ -7,6 +7,7 @@ sys.path[:0] = [str(PROJECT), str(PROJECT/"analysis"), str(PROJECT/"analysis/too
 
 SCRIPT_HISTORY = [
     {"at": "2026-10-23T20:48:27+08:00", "action": "created", "summary": "建立局部实验调度，解除根目录参数和运行入口依赖；为每步记录时间、Git 信息及源码快照。"},
+    {"at": "2026-10-24T12:55:00+08:00", "action": "modified", "summary": "源码记录改为提交号加 SHA-256，只复制未提交的源码（uncommitted_sources），不再整份快照。"},
 ]
 
 from copy import deepcopy
@@ -22,7 +23,7 @@ import global_settings as settings
 from artifacts import sha256, write_json, settings_snapshot
 from options import FigureOptions, figure_options, positive, string_list, valid_colors
 from paths import ROOT, ANALYSIS, DATASETS, raw, processed_root, final_root, lab_output_root
-from run_records import now, run_id, git_state, snapshot_sources, script_history
+from run_records import now, run_id, git_state, record_sources, script_history
 from workflow import resolve_steps as resolve_dependencies, script_path, load_script
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent
@@ -154,7 +155,7 @@ def execute(config):
     metadata_roots = [processed] + ([output] if has_report else [])
     primary = output if has_report else processed
     files = source_files()
-    sources = snapshot_sources(ROOT,files,primary/"source_snapshot")
+    sources, copied = record_sources(ROOT,files,primary/"uncommitted_sources")
     raw_hashes = {str(path.relative_to(ROOT)):sha256(path) for folder in sessions
                   for name in settings.TRACK_TABLES if (path:=folder/settings.TRACK_FILES[name]).is_file()}
     effective = asdict(config)
@@ -166,7 +167,8 @@ def execute(config):
         "selection":effective, "resolved_steps":steps,
         "processed_output":str(processed), "final_output":None,
         "report_output":str(output) if has_report else None,
-        "source_snapshot":str(primary/"source_snapshot"), "script_sha256":sources,
+        "uncommitted_sources":str(primary/"uncommitted_sources"), "uncommitted_copied":copied,
+        "script_sha256":sources,
         "source_sha256":raw_hashes, "git":git_state(ROOT,files),
         "script_history":{str(p.relative_to(ROOT)):script_history(p) for p in files
                           if p.is_relative_to(ANALYSIS/"data_lab")},

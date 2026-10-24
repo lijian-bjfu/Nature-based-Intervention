@@ -129,7 +129,7 @@ data/<数据集根>/processed/app/data_lab/record_description/<run_id>/
 
 图表和文字写入实验自己的 outputs/formal 或 outputs/pilot_and_test 下。报告按工作内容归属，不在结果目录中再套 logging_test 或 pilot 数据集目录。输入数据集记录在 manifest 中。只核对或清理时只写处理数据及复现信息，不创建描述报告目录。
 
-本次运行的结果目录保存 index.md、分会话描述表、图和报告，以及 manifest.json、global_settings_snapshot.json、parameters_snapshot.json、source_snapshot。每次新建运行目录，不覆盖旧结果。处理数据目录也保存相应清单和快照信息，指向同次结果与源码快照。
+本次运行的结果目录保存 index.md、分会话描述表、图和报告，以及 manifest.json、global_settings_snapshot.json、parameters_snapshot.json；若当次用到有未提交修改的源码，另含 uncommitted_sources。每次新建运行目录，不覆盖旧结果。处理数据目录也保存相应清单和快照信息，指向同次结果。
 
 ## 时间检索和版本追溯
 
@@ -147,9 +147,11 @@ python3 analysis/tools/lab_history.py --since 2026-10-23 --until 2026-10-23 --ob
 
 每次运行的 manifest 另记整次运行及每个步骤的开始、结束时间、状态和错误。工程时间使用 Asia/Shanghai 的 ISO 表示；它与原始数据中的 t_session、t_device 是不同用途，不能混为数据同步依据。
 
-版本库为 [lijian-bjfu/Nature-based-Intervention](https://github.com/lijian-bjfu/Nature-based-Intervention)。运行时记录 Git 提交号、分支和源码工作树状态；即使存在未提交修改，也会把当次实际源码逐文件复制到 source_snapshot 并保存 SHA-256，提交号不能代替这份快照。Git 不可用时也可运行，但会明确记录缺失原因。
+版本库为 [lijian-bjfu/Nature-based-Intervention](https://github.com/lijian-bjfu/Nature-based-Intervention)。运行时记录 Git 提交号、分支、源码工作树状态和每个源码文件的 SHA-256。已提交的源码凭提交号即可还原，不再整份复制；只有当次有未提交修改或尚未纳入版本库的文件，才逐个复制到 uncommitted_sources。Git 不可用时全部复制，并明确记录缺失原因。
 
-日常可在 GitHub Desktop 查看改动、提交与历史，代码改动和 SCRIPT_HISTORY 一起提交即可。无需依赖命令行管理版本。新生成 outputs、缓存和本机元数据由 .gitignore 排除；已有被 Git 跟踪的历史文件不会因加入忽略规则自动消失。
+日常可在 GitHub Desktop 查看改动、提交与历史，代码改动和 SCRIPT_HISTORY 一起提交即可。无需依赖命令行管理版本。入库与不入库的划分：
+- **入库**：table_flows 的流程与工具、data_lab 的脚本、global_settings.py、说明文档。GitHub 端的价值在于制表规范流程和工具。
+- **不入库，只存本机硬盘**：data/ 下的全部数据（只保留目录骨架与说明文件）；data_lab 的 outputs 与 archive；缓存和本机元数据。数据不上传到 GitHub 是出于被试隐私与伦理要求：伦理申请中的存储位置是 iPad 本机与研究者电脑，GitHub 属第三方服务器。数据另用移动硬盘备份。
 
 ## 公共工具、命名与废弃工具
 
@@ -163,7 +165,7 @@ deprecated 只放已确认弃用的源码，文件中记录日期、原因和替
 
 ## 验证与分析约定
 
-运行 analysis/tools/track_check.py 检查原始读取、局部参数传递、依赖、弃用隔离、运行时间和源码快照。检查结果放在本实验 outputs/pilot_and_test/checks。先运行一次当前记录描述，再运行检查。
+运行 analysis/tools/track_check.py 检查原始读取、局部参数传递、依赖、弃用隔离、运行时间和源码记录。检查结果放在本实验 outputs/pilot_and_test/checks。先运行一次当前记录描述，再运行检查。
 
 引用数值须说明表和字段，空间数据须出图。网格覆盖率对原点敏感，不用于被试排名。描述与解释分开，技术异常不自动转成被试排除或心理分类。分析文字用完整句子，先说明原理、再写方法。不将分析脚本或结果放 /tmp。
 

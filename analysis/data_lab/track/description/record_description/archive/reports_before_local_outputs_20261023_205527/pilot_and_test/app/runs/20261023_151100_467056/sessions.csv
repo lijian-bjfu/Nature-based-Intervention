@@ -1,5 +1,0 @@
-session_dir,duration_s,spacetime_rows,tap_rows,touched_TRUE_rows,blocked_tap_rows,warnings
-sub-P000_ses-S001_mod-Interactive_run-001,106.15,0,,,,5
-sub-P000_ses-S001_mod-Interactive_run-002,173.925,1739,,,,5
-sub-P999_ses-S001_mod-Interactive_run-001,480.391,4804,97.0,3.0,56.0,0
-sub-P999_ses-S001_mod-Interactive_run-002,817.689,8177,155.0,6.0,78.0,0

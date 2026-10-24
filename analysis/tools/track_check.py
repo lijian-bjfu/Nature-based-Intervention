@@ -140,9 +140,9 @@ def main():
         previous=right
     assert completed["git"]["available"]
     assert completed["raw_files_unchanged"] and completed["source_files_unchanged"]
-    for path,digest in completed["script_sha256"].items():
-        assert sha256(Path(completed["source_snapshot"])/path)==digest
-    checks.append("运行与各步骤时间有序，Git 信息和源码快照校验完整")
+    for path in completed.get("uncommitted_copied",[]):
+        assert sha256(Path(completed["uncommitted_sources"])/path)==completed["script_sha256"][path]
+    checks.append("运行与各步骤时间有序，Git 提交号与未提交源码副本校验完整")
     path=base/("track_check_"+run_id()+".json")
     write_json(path,{"passed":True,"checks":checks,"raw_data_written":False})
     print(path)

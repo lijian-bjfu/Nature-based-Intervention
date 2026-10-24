@@ -1,4 +1,4 @@
-"""运行时间、Git 状态、源码快照和脚本历史读取；不依赖具体研究对象。"""
+"""运行时间、Git 状态、源码记录和脚本历史读取；不依赖具体研究对象。"""
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -42,15 +42,29 @@ def git_state(root, source_files):
     except (OSError, subprocess.TimeoutExpired, RuntimeError) as error:
         return {"available": False, "reason": str(error)}
 
-def snapshot_sources(root, files, destination):
-    """即使工作树尚未提交，也保存当次实际使用的文件内容。"""
-    hashes = {}
-    for source in sorted(set(Path(path).resolve() for path in files)):
-        relative = source.relative_to(root)
-        target = Path(destination) / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
-        hashes[str(relative)] = sha256(target)
-        if sha256(source) != hashes[str(relative)]:
-            raise RuntimeError(f"制作快照时源码发生变化：{relative}")
-    return hashes
+def record_sources(root, files, destination):
+    """记录当次使用的源码，不整份复制。
+
+    已提交的文件靠 Git 提交号即可还原，只记 SHA-256；有未提交修改或尚未纳入版本库的文件，
+    才复制到 destination（通常只有当次正在改的一两个脚本）。Git 不可用时全部复制。
+    返回 (全部文件的 SHA-256, 被复制的文件列表)。
+    """
+    sources = sorted(set(Path(path).resolve() for path in files))
+    relatives = [str(source.relative_to(root)) for source in sources]
+    try:
+        status = subprocess.run(["git", "status", "--porcelain=v1", "--untracked-files=all", "--", *relatives],
+                                cwd=root, capture_output=True, text=True, timeout=10, check=True).stdout
+        changed = {line[3:].strip().strip('"') for line in status.splitlines() if line.strip()}
+    except (OSError, subprocess.SubprocessError):
+        changed = set(relatives)
+    hashes, copied = {}, []
+    for source, relative in zip(sources, relatives):
+        hashes[relative] = sha256(source)
+        if relative in changed:
+            target = Path(destination) / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+            if sha256(target) != hashes[relative]:
+                raise RuntimeError(f"复制时源码发生变化：{relative}")
+            copied.append(relative)
+    return hashes, copied

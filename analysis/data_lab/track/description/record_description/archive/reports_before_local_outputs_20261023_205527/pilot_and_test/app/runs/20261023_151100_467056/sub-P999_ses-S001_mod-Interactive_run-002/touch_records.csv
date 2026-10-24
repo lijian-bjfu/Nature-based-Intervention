@@ -1,7 +1,0 @@
-touch_id,t_session,t_device,cam_x,cam_y,cam_z,intent,hit_layer,hit_x,hit_y,hit_z,is_touched,block_type,block_reason
-7,18.702,1792723763.814,51.88,3.63,65.19,LookAt,WaterTouchSurface,51.31,2.0,64.97,True,NotBlocked,NotBlocked
-102,334.958,1792724080.07,36.53,3.07,32.13,LookAt,WaterTouchSurface,36.79,1.48,32.55,True,NotBlocked,NotBlocked
-105,349.095,1792724094.207,36.53,3.07,32.13,LookAt,WaterTouchSurface,36.97,1.48,32.27,True,NotBlocked,NotBlocked
-148,480.293,1792724225.404,53.67,3.49,35.55,LookAt,SweepFoliage,53.1,2.96,35.78,True,NotBlocked,NotBlocked
-168,544.283,1792724289.395,51.44,2.45,49.7,LookAt,WaterTouchSurface,50.89,0.85,49.34,True,NotBlocked,NotBlocked
-176,571.075,1792724316.187,56.58,3.22,51.29,LookAt,Creature,57.14,2.37,51.32,True,NotBlocked,NotBlocked

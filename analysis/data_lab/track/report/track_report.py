@@ -4,6 +4,8 @@ SCRIPT_HISTORY = [
      "summary": "已有报告工具首次纳入 Git；原始创建时间未知。", "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
     {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
      "summary": "改用共享原始字段规范及实验自己的方法登记，更新本地参数、输出与运行追溯说明。"},
+    {"at": "2026-10-24T12:55:00+08:00", "action": "modified",
+     "summary": "运行追溯说明改为：已提交源码凭提交号还原，只复制未提交的源码。"},
 ]
 
 from pathlib import Path
@@ -73,7 +75,7 @@ def make_report(summary,layers,look_stats,bins,tables,dest,images,language,optio
         if image:
             fragments += [f"[{image}]({image})" if image.endswith(".pdf") else f"![{image}]({image})"]
     fragments += ["## "+text("复现","Reproduction"),
-        text("本次结果目录含 manifest.json、global_settings_snapshot.json、parameters_snapshot.json 及 source_snapshot。manifest 记录整次和各步骤的起止时间、Git 提交号、工作树状态与输入/源码 SHA-256；源码快照保留当次未提交的修改。原始数据不改写，文字与图表由同次计算生成。",
-             "The result directory contains manifest.json, global_settings_snapshot.json, parameters_snapshot.json and source_snapshot. It records run and step timestamps, Git commit and working-tree status, and input/source SHA-256. Source snapshots preserve uncommitted edits. Raw data remain unchanged; text and figures derive from the same computation.")]
+        text("本次结果目录含 manifest.json、global_settings_snapshot.json、parameters_snapshot.json，若有未提交的源码修改另含 uncommitted_sources。manifest 记录整次和各步骤的起止时间、Git 提交号、工作树状态与输入/源码 SHA-256；已提交的源码凭提交号还原，未提交的修改单独保存副本。原始数据不改写，文字与图表由同次计算生成。",
+             "The result directory contains manifest.json, global_settings_snapshot.json and parameters_snapshot.json, plus uncommitted_sources when sources had uncommitted edits. It records run and step timestamps, Git commit and working-tree status, and input/source SHA-256. Committed sources are recoverable from the commit; uncommitted edits are copied. Raw data remain unchanged; text and figures derive from the same computation.")]
     (dest/"report.md").write_text("\n\n".join(fragments)+"\n",encoding="utf-8")
 

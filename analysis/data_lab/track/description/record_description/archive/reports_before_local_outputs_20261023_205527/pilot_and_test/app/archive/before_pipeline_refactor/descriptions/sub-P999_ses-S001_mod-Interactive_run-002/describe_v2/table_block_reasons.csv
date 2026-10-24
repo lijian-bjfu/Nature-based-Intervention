@@ -1,9 +1,0 @@
-block_reason,NotBlocked,CutShort,NoStart
-NotBlocked,77,0,0
-BarrierDenseSlope,0,14,10
-BarrierWater,0,18,13
-BarrierUnlabeled,0,0,0
-StepUp,0,0,0
-DropTooHigh,0,0,0
-TooSteep,0,14,9
-NoGround,0,0,0

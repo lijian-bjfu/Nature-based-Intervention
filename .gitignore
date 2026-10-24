@@ -7,3 +7,12 @@ __pycache__/
 # 每次运行的本地结果含源码/参数快照，不自动加入版本库。
 analysis/**/outputs/
 analysis/data_lab/history_index.csv
+
+# 数据一律不入库（被试隐私与伦理要求）：只保留目录骨架与说明文件。
+data/**
+!data/**/
+!data/**/README.md
+!data/**/.gitkeep
+
+# data_lab 的历史副本只存本机。
+analysis/**/archive/
