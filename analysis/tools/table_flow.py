@@ -14,6 +14,8 @@ def run_flow(name, parameters):
         raise ValueError(f"未知流程 {name}")
     if parameters["dataset"] not in DATASETS:
         raise ValueError(f"dataset 应为 {tuple(DATASETS)}")
+    if name == "track":
+        raise NotImplementedError("track 制表已实现，入口为 analysis/table_flows/track/02_run.py")
     raise NotImplementedError(f"{FLOW_LABELS[name]}尚未实现；等待预测试后确定细节，未生成数据或报告。")
 
 def cli(name, parameter_file, argv=None):

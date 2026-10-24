@@ -178,7 +178,7 @@ METRICS = {
             "inputs": ("spacetime.t_session", "spacetime.cam_x", "spacetime.cam_z", "geo_annotation.polygons"),
             "parameters": {"brush_radius_m": 0.7},
             "brush_radius_source": "场景手部水平可达距离 reach radius（IndicatorHand.reachRadius）",
-            "denominator": "场景可达范围：从出生点与各桥中心出发，不穿过空气墙、不越出区域与桥的多边形能到达的范围；整个场景只算一次，所有被试共用",
+            "denominator": "场景可达范围：从各桥中心出发，不穿过空气墙、不越出区域与桥的多边形能到达的范围；整个场景只算一次，所有被试共用",
             "output": "行动范围（m²），各区域/桥覆盖面积（m²），占场景可达范围比例，累计曲线",
             "status": "已定；可达范围在部分靠地形阻挡的边缘偏大，区域间比较前需收紧这些区域边界",
             "source": "研究思路/实验记录-埋点.md 10.3",

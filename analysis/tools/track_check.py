@@ -80,14 +80,14 @@ def main():
     else:
         raise AssertionError("废弃工具可进入调度")
     checks.append("废弃工具不能被执行")
-    for name in ("track","psycho","physio","integration"):
+    for name in ("psycho","physio","integration"):
         try:
             run_flow(name,{"dataset":"pilot"})
         except NotImplementedError:
             pass
         else:
             raise AssertionError("未实现的制表流程伪装为成功")
-    checks.append("四个制表流程均明确标为预留")
+    checks.append("psycho、physio、integration 三个制表流程均明确标为预留（track 已由 table_flows/track/02_run.py 实现）")
     source_digest=sha256(ENTRY)
     configured=load_config(parameters,{"time_bin_seconds":30,"language":"en"})
     assert configured.description.time_bin_seconds==30 and configured.language=="en"

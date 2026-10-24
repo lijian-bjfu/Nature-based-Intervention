@@ -47,6 +47,7 @@ import pandas as pd
 
 import global_settings as settings
 from data_access import find, load, load_geo
+from track_metrics import clean_legacy, Pose, classify_taps, classify_drags, pauses
 from artifacts import sha256, write_json, settings_snapshot
 from options import positive
 from paths import ROOT, ANALYSIS, DATASETS, GEO_ANNOTATION
@@ -96,30 +97,13 @@ def r(v, n):
     return None if v is None or (isinstance(v, float) and not np.isfinite(v)) else round(float(v), n)
 
 
-def stays(t, x, z, step_m, min_s, tap_t, touched_t):
-    """相邻采样水平位移 ≤ step_m 算没动；连续没动、持续 ≥ min_s 的一段画成一次停留。"""
-    step = np.hypot(np.diff(x), np.diff(z))
-    still = step <= step_m
-    out, s = [], None
-    for i in range(len(still) + 1):
-        if i < len(still) and still[i]:
-            if s is None: s = i
-            continue
-        if s is not None:
-            a, b = t[s], t[i]
-            if b - a >= min_s:
-                out.append({"t0": r(a, 2), "t1": r(b, 2), "dur": r(b - a, 2),
-                            "x": r(x[s:i + 1].mean(), 2), "z": r(z[s:i + 1].mean(), 2),
-                            "taps": int(((tap_t >= a) & (tap_t <= b)).sum()),
-                            "touched": int(((touched_t >= a) & (touched_t <= b)).sum())})
-            s = None
-    return out
-
-
 def build(cfg):
     settings.validate()
     folder = find(cfg["dataset"], "track", [cfg["subject"]], run=cfg["run"])[cfg["subject"]]
-    tb = load(cfg["dataset"], "track", cfg["subject"], run=cfg["run"], formatted=True)
+    tb = clean_legacy(load(cfg["dataset"], "track", cfg["subject"], run=cfg["run"], formatted=True))
+    pose = Pose.from_tables(tb)
+    tap_c = classify_taps(tb, pose)                 # 无位移点击等：与制表同一套计算
+    drag_c = classify_drags(tb, pose, tap_c)        # 环视：与制表同一套计算
     geo = load_geo()
 
     t, x, z, yaw = (col(tb, "spacetime", f) for f in ("t_session", "cam_x", "cam_z", "view_yaw"))
@@ -138,14 +122,8 @@ def build(cfg):
         touched_t = tt[touched]
         cols = {f: col(tb, "tap", f) for f in ("touch_id", "cam_x", "cam_z", "hit_x", "hit_z")}
         intent, layer, btype, reason = (txt(tb, "tap", f) for f in ("intent", "hit_layer", "block_type", "block_reason"))
-        nm = settings.METRICS["track"]["no_move_tap"]["parameters"]
-        cum = np.r_[0, np.cumsum(np.hypot(np.diff(x), np.diff(z)))]
-        nxt = np.r_[tt[1:], t[-1]]
-        moved = np.interp(np.minimum(nxt, tt + nm["window_seconds"]), t, cum) - np.interp(tt, t, cum)
         for i in range(len(tt)):
-            no_move = (btype[i] == "NoStart" or intent[i] == "NoHit"
-                       or (btype[i] == "NotBlocked" and layer[i] in nm["ground_layers"] and moved[i] < nm["min_move_m"]))
-            taps.append({"no_move": bool(no_move), "moved": r(moved[i], 2), "id": int(cols["touch_id"][i]), "t": r(tt[i], 3), "x": r(cols["cam_x"][i], 2), "z": r(cols["cam_z"][i], 2),
+            taps.append({"no_move": bool(tap_c.no_move.iloc[i]), "moved": r(tap_c.moved_m.iloc[i], 2), "id": int(cols["touch_id"][i]), "t": r(tt[i], 3), "x": r(cols["cam_x"][i], 2), "z": r(cols["cam_z"][i], 2),
                          "hx": r(cols["hit_x"][i], 2), "hz": r(cols["hit_z"][i], 2), "intent": intent[i], "layer": layer[i],
                          "touched": bool(touched[i]), "block": btype[i], "reason": reason[i]})
     looks = []
@@ -154,34 +132,9 @@ def build(cfg):
         lty = txt(tb, "look", "look_type")
         looks = [{"t0": r(lt0[i], 2), "t1": r(lt1[i], 2), "yaw_end": r(ye[i], 1), "yaw_path": r(yp[i], 1),
                   "yaw_delta": r(yd[i], 1), "pitch_path": r(pp[i], 1), "type": lty[i]} for i in range(len(lt0))]
-    drags = []
-    if tb["look"].attrs["present"] and len(tb["look"]):
-        lk = tb["look"]
-        tid = lk[settings.column("look", "touch_id")].to_numpy(dtype=float, na_value=np.nan)
-        ltype = lk[settings.column("look", "look_type")].astype("string").fillna("").to_numpy()
-        lt0 = col(tb, "look", "t_session_start"); lt1 = col(tb, "look", "t_session_end")
-        lyp = col(tb, "look", "yaw_path"); lpp = col(tb, "look", "pitch_path"); lye = col(tb, "look", "yaw_end")
-        sw = settings.METRICS["track"]["stay_walk"]["parameters"]
-        step_xy = np.hypot(np.diff(x), np.diff(z)); tmid = t[1:]
-        cum_xy = np.r_[0, np.cumsum(step_xy)]
-        win = float(cfg["look_window"])
-        tap_times = np.array([tp["t"] for tp in taps]) if taps else np.array([])
-        for g in sorted({v for v, ty in zip(tid, ltype) if ty == "Drag" and np.isfinite(v)}):
-            m = (tid == g) & (ltype == "Drag")
-            a, b = float(np.nanmin(lt0[m])), float(np.nanmax(lt1[m]))
-            walking = bool((step_xy[(tmid > a - win) & (tmid <= a + 0.05)] > sw["still_step_m"]).any())
-            stuck = False
-            if not walking and len(tap_times):
-                prev = np.flatnonzero(tap_times < a)
-                if len(prev):
-                    i = prev[-1]
-                    stuck = bool(taps[i]["no_move"]) and (np.interp(a, t, cum_xy) - np.interp(tap_times[i], t, cum_xy)) < 0.3
-            kind = "walking" if walking else "look"
-            k0 = min(int(np.searchsorted(t, a)), len(t) - 1)
-            dur = b - a; yp = float(np.nansum(lyp[m]))
-            drags.append({"id": int(g), "t0": r(a, 2), "t1": r(b, 2), "x": r(x[k0], 2), "z": r(z[k0], 2),
-                          "yaw_end": r(lye[m][-1], 1), "yaw": r(yp, 1), "pitch": r(float(np.nansum(lpp[m])), 1),
-                          "speed": r(yp / dur if dur > 0 else 0.0, 1), "kind": kind, "after_no_move": bool(stuck)})
+    drags = [{"id": int(d.touch_id), "t0": r(d.t0, 2), "t1": r(d.t1, 2), "x": r(d.x, 2), "z": r(d.z, 2), "yaw_end": r(d.yaw_end, 1),
+              "yaw": r(d.yaw_deg, 1), "pitch": r(d.pitch_deg, 1), "speed": r(d.yaw_deg / (d.t1 - d.t0) if d.t1 > d.t0 else 0.0, 1),
+              "kind": "look" if d.is_look else "walking", "after_no_move": bool(d.after_no_move)} for d in drag_c.itertuples()]
     backsteps = []
     if tb["backstep"].attrs["present"] and len(tb["backstep"]):
         bt, bx, bz, bd = (col(tb, "backstep", f) for f in ("t_session", "cam_x", "cam_z", "back_dist"))
@@ -198,9 +151,18 @@ def build(cfg):
         gs = txt(tb, "tech_glitch", "status")
         glitches = [{"t": r(gt[i], 2), "dur": r(gd[i], 2), "status": gs[i]} for i in range(len(gt))]
 
-    stay_list = stays(t, x, z, cfg["still_step"], cfg["min_stay"], tap_t, touched_t)
+    sp = {**settings.METRICS["track"]["stay_walk"]["parameters"], "still_step_m": cfg["still_step"], "min_stay_seconds": cfg["min_stay"]}
+    stay_list = []
+    for a, e in pauses(pose, sp):                   # 停留：与制表同一套计算
+        t0, t1 = pose.t[a], pose.t[e]
+        if t1 - t0 < cfg["min_stay"]:
+            continue
+        stay_list.append({"t0": r(t0, 2), "t1": r(t1, 2), "dur": r(t1 - t0, 1),
+                          "x": r(pose.x[a:e + 1].mean(), 2), "z": r(pose.z[a:e + 1].mean(), 2),
+                          "taps": int(((tap_t >= t0) & (tap_t <= t1)).sum()),
+                          "touched": int(((touched_t >= t0) & (touched_t <= t1)).sum())})
     notes = [
-        f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留。暂定口径，尚未写入规范。",
+        f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留，见《实验记录-埋点》10.1。",
         f"逗留：把相邻的停顿（不动片段，长短不限）串起来，从第一次停顿到最后一次停顿，所有采样到平均位置的距离不超过 R、持续不少于 T，记为一次；中间的小移动算在内，走进来、走出去的路不算。默认 T = {cfg['dwell_t']:g} s、R = {cfg['dwell_r']:g} m（{'global_settings 登记值，见《实验记录-埋点》10.2' if cfg['dwell_registered'] else '本次临时覆盖，非登记值'}），可在页面上调整。阈值暂定，待预实验数据重新评估。",
         "环视：拖动开始时没在移动的手动拖动（拖动开始前 0.3 s 内有移动的算行进中拖动，不计入），角度、速度不限，见《实验记录-埋点》10.12。悬停提示中标出受阻后环视（无位移点击之后、一直没走动），仅供观察。",
         "点击默认画在点击时被试所在的位置，可切换为命中位置；「点击 → 命中连线」连接两者。",
