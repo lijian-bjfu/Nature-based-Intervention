@@ -7,6 +7,7 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-24T12:55:00+08:00", "action": "modified",
      "summary": "运行追溯说明改为：已提交源码凭提交号还原，只复制未提交的源码。"},
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/report/track_report.py"},
+    {"at": "2026-10-24T17:28:32+08:00", "action": "moved", "summary": "data_lab 按 pipeline／环节／研究问题三级组织：本问题（埋点原始记录的基本描述）移入 track/description/base/。", "previous_path": "analysis/data_lab/track/description/track_report.py"}
 ]
 
 from pathlib import Path
@@ -17,7 +18,7 @@ sys.path[:0] = [str(PROJECT),str(PROJECT/"analysis"),str(PROJECT/"analysis/tools
 import pandas as pd
 import global_settings as settings
 from artifacts import markdown_table
-from data_lab.track.description.experiment import TrackDescribeOptions, FIGURES
+from data_lab.track.description.base.experiment import TrackDescribeOptions, FIGURES
 
 def make_report(summary,layers,look_stats,bins,tables,dest,images,language,options: TrackDescribeOptions):
     zh=language=="zh"

@@ -1,4 +1,4 @@
-# 埋点原始记录的描述
+# 埋点原始记录的基本描述
 
 ## 一、问题
 
@@ -31,7 +31,7 @@ APP 记录下来的原始数据（七张表，规范见《研究思路/实验记
 | `track_report.py` | 把描述结果写成每场会话的报告（report.md） |
 | `experiment.py` | 参数检查与各步的调度，研究者一般不需要打开 |
 
-数据通过项目统一的 `analysis/tools/data_access.py` 调取。清理和格式两步的中间数据写在 `data/<dataset>/processed/track/data_lab/description/`，供检查用。
+数据通过项目统一的 `analysis/tools/data_access.py` 调取。清理和格式两步的中间数据写在 `data/<dataset>/processed/track/data_lab/description/base/`，供检查用。
 
 ## 四、怎么运行、怎么设置参数
 

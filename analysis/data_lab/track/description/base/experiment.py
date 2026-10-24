@@ -11,6 +11,7 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。 结果改为只保留最近一次（results/，每次覆盖），追溯信息放 results/_provenance/。", "previous_path": "analysis/data_lab/track/description/record_description/experiment.py"},
     {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "参数 sessions/modules 改为单一的 session（完整文件夹名）；找不到时列出可选记录。"},
     {"at": "2026-10-24T17:30:00+08:00", "action": "modified", "summary": "改用 tools/data_access.py 统一调取数据（dataset / pipeline / subject），不再自行查找文件夹。"},
+    {"at": "2026-10-24T17:28:32+08:00", "action": "moved", "summary": "data_lab 按 pipeline／环节／研究问题三级组织：本问题（埋点原始记录的基本描述）移入 track/description/base/。", "previous_path": "analysis/data_lab/track/description/experiment.py"}
 ]
 
 from copy import deepcopy
@@ -32,16 +33,16 @@ from workflow import resolve_steps as resolve_dependencies, script_path, load_sc
 from data_access import find
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent
-EXPERIMENT_NAME = "description"
+EXPERIMENT_NAME = "description/base"
 DESCRIPTION_METHOD = "adjacent_xz"
 FIGURES = {"space": "fig1_space", "time": "fig2_time", "actions": "fig3_actions"}
 STAGE_TABLE_FOLDER = "tables"
 STEP_ORDER = ("01_import", "02_clean", "03_format", "06_analysis")
 STAGES = {
-    "01_import": {"script": "data_lab/track/description/track_inventory.py", "requires": ()},
-    "02_clean": {"script": "data_lab/track/description/track_clean.py", "requires": ("01_import",)},
-    "03_format": {"script": "data_lab/track/description/track_format.py", "requires": ("02_clean",)},
-    "06_analysis": {"script": "data_lab/track/description/track_describe.py", "requires": ("03_format",)},
+    "01_import": {"script": "data_lab/track/description/base/track_inventory.py", "requires": ()},
+    "02_clean": {"script": "data_lab/track/description/base/track_clean.py", "requires": ("01_import",)},
+    "03_format": {"script": "data_lab/track/description/base/track_format.py", "requires": ("02_clean",)},
+    "06_analysis": {"script": "data_lab/track/description/base/track_describe.py", "requires": ("03_format",)},
 }
 TASKS = {
     "track_inventory": {"stage": "01_import", "label": "核对埋点文件"},
@@ -156,7 +157,7 @@ def execute(config):
         if folder.exists():
             shutil.rmtree(folder)
         folder.mkdir(parents=True)
-    context = RunContext(config,sessions,output,processed,final_root(config.dataset)/("data_lab_"+EXPERIMENT_NAME))
+    context = RunContext(config,sessions,output,processed,final_root(config.dataset)/("data_lab_"+EXPERIMENT_NAME.replace("/","_")))
     metadata_roots = [processed/"_provenance"] + ([output/"_provenance"] if has_report else [])
     primary = metadata_roots[-1]
     files = source_files()

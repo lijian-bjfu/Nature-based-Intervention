@@ -18,7 +18,7 @@ from workflow import load_script, resolve_steps, script_path
 from table_flow import run_flow
 from run_records import run_id, script_history
 from lab_history import collect
-from data_lab.track.description.experiment import (
+from data_lab.track.description.base.experiment import (
     EXPERIMENT_DIR, STAGES, STEP_ORDER, resolve_tasks, load_config,
 )
 ENTRY=EXPERIMENT_DIR/"track_describe.py"

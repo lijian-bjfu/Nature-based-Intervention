@@ -5,6 +5,7 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
      "summary": "改用 global_settings 原始数据规范与调用方上下文，移除根入口和固定参数依赖；处理规则不变。"},
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/processing/track_inventory.py"},
+    {"at": "2026-10-24T17:28:32+08:00", "action": "moved", "summary": "data_lab 按 pipeline／环节／研究问题三级组织：本问题（埋点原始记录的基本描述）移入 track/description/base/。", "previous_path": "analysis/data_lab/track/description/track_inventory.py"}
 ]
 
 from pathlib import Path
@@ -29,4 +30,4 @@ def run(context):
     context.inventory = entries
 
 if __name__ == "__main__":
-    print("这是实验工具。请运行 data_lab/track/description/track_describe.py；选择相应 tasks 可单独检查本环节。")
+    print("这是实验工具。请运行 data_lab/track/description/base/track_describe.py；选择相应 tasks 可单独检查本环节。")

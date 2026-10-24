@@ -34,3 +34,7 @@
 数据集 logging_test 改名为 test；参数改为 dataset / subject / run（如 test、P999、002），数据通过 analysis/tools/data_access.py 调取。上文中的 logging_test 即现在的 test。
 
 当前 results/ 中的分析使用：test ／ P999 ／ run 002。
+
+## 2026-10-24　移入 description/base/
+
+data_lab 改为 pipeline／环节／研究问题三级：description 是环节，下面每个研究问题一个文件夹。本问题（原始记录的基本描述）移到 track/description/base/；驻留等行为分类的探索是另一个问题，放在 track/description/behavior/。脚本路径随之更新，中间数据改写在 processed/track/data_lab/description/base/。移动后用同一份数据（test ／ P999 ／ run 002）重跑，报告、summary.json 和各表与移动前逐字节一致。

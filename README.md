@@ -72,9 +72,7 @@ table_flows 的前三个对象流程原则上包含载入、清理、指标计�
 
 ## data_lab 的使用
 
-每个研究问题文件夹里的 README.md 说明该问题的运行入口、参数和结果，以那里为准。目前有一个：
-
-- [analysis/data_lab/track/description/](analysis/data_lab/track/description/README.md)：埋点原始记录的描述。在 VS Code 打开 track_describe.py，修改顶部 PARAMETERS（数据集、要分析的那一份实验记录等），保存后点 Run，结果在同一文件夹的 results/。
+data_lab 按 pipeline／环节／研究问题三级组织，研究问题在工作中逐步生成，组织原则与全部问题的清单见 [analysis/data_lab/README.md](analysis/data_lab/README.md)。每个研究问题文件夹里的 README.md 说明该问题的运行入口、参数和结果，以那里为准。用法都一样：在 VS Code 打开入口脚本，修改顶部 PARAMETERS（数据集、被试、run 等），保存后点 Run，结果在同一文件夹的 results/。
 
 入口同时支持命令行，命令行选项只覆盖当次运行，不回写脚本；`--list` 查看可选项。制表入口中的 --list 只是查看状态，不带 --list 执行时会说明尚未实现并停止。本机需 Python 3.10+ 和 requirements.txt 的依赖，在 VS Code 选择已装依赖的解释器即可。
 

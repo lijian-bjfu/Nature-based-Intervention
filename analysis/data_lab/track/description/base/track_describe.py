@@ -54,10 +54,10 @@ from artifacts import records, write_json, markdown_table
 from paths import stage_dir
 from plotting import pyplot, save_figure
 from options import FigureOptions
-from data_lab.track.description.experiment import (
+from data_lab.track.description.base.experiment import (
     TrackDescribeOptions, RunContext, DESCRIPTION_METHOD, FIGURES,
 )
-from data_lab.track.description.track_report import make_report
+from data_lab.track.description.base.track_report import make_report
 
 def series(tables, table, field):
     return tables[table][settings.column(table,field)]
@@ -324,12 +324,13 @@ SCRIPT_HISTORY = [
      "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
     {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
      "summary": "迁入 record_description 工作目录；将参数放回本脚本，使用共享原始数据规范与局部调度，计算口径不变。",
-     "previous_path": "analysis/data_lab/track/description/track_describe.py"},
+     "previous_path": "analysis/data_lab/track/description/base/track_describe.py"},
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/description/record_description/track_describe.py"},
     {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "一次只分析一份实验记录（参数 selection.session），结果直接写在 results/ 下，不再按记录分文件夹或生成总览。"},
     {"at": "2026-10-24T17:30:00+08:00", "action": "modified", "summary": "参数改为按项目数据命名规范选择：dataset（test/pilot/formal）、subject（如 P999）、run（仅多份记录时填）。"},
+    {"at": "2026-10-24T17:28:32+08:00", "action": "moved", "summary": "data_lab 按 pipeline／环节／研究问题三级组织：本问题（埋点原始记录的基本描述）移入 track/description/base/。", "previous_path": "analysis/data_lab/track/description/track_describe.py"}
 ]
 
 if __name__=="__main__":
-    from data_lab.track.description.experiment import cli
+    from data_lab.track.description.base.experiment import cli
     cli(PARAMETERS)
