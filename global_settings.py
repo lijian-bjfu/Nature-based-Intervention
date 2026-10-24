@@ -151,6 +151,16 @@ GEO_ANNOTATION_SPEC = {
 # 登记应包含名称、定义、输入字段、输出单位、计算口径和规范出处；计算函数不放在这里。
 METRICS = {
     "track": {
+        "stay_walk": {
+            "name": "停留与行走",
+            "definition": "相邻采样水平位移不超过 still_step_m（且单步间隔不超过 max_gap_s）算没动，连续没动为一次停顿；"
+                          "持续不少于 min_stay_seconds 的停顿为停留，其余时间为行走。二者切分全程",
+            "inputs": ("spacetime.t_session", "spacetime.cam_x", "spacetime.cam_z"),
+            "parameters": {"still_step_m": 0.03, "min_stay_seconds": 2.0, "max_gap_s": 1.0},
+            "output": "停留：次数、总时长（s）、占比；行走：总时长（s）、占比、行走路程（m）",
+            "status": "已定；2 秒为概念决定，数据中无自然断档",
+            "source": "研究思路/实验记录-埋点.md 10.1",
+        },
         "dwell": {
             "name": "逗留",
             "definition": "把相邻的停顿串起来，从第一次停顿到最后一次停顿，所有位置到其平均位置的水平距离不超过 radius_m，"
@@ -160,7 +170,7 @@ METRICS = {
             "parameters": {"min_seconds": 15.0, "radius_m": 3.0, "still_step_m": 0.03},
             "output": "逗留段：起止 t_session（s）、中心 [x, z]（m）、活动半径（m）",
             "status": "暂定：由研究者人工判断校准（一名熟练操作者的一次记录），须用预实验数据重新评估",
-            "source": "研究思路/实验记录-埋点.md 10.2",
+            "source": "研究思路/实验记录-埋点.md 10.2（停顿见 10.1）",
         },
         "footprint": {
             "name": "行动范围",
