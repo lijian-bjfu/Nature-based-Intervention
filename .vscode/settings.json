@@ -1,0 +1,5 @@
+{
+    // 本项目在 VS Code 中直接点 Run 运行。指定装好依赖（numpy、pandas、matplotlib）的 Python，
+    // 避免 VS Code 选中系统自带的 /usr/bin/python3（没有这些库，会报 No module named 'pandas'）。
+    "python.defaultInterpreterPath": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3"
+}
