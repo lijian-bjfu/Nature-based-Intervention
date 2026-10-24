@@ -100,6 +100,8 @@ find("test", "track", ["P999"], run="002")   # 被试 → 记录位置
 load("test", "track", "P999", run="002")     # 载入这名被试的七张埋点表
 ```
 
+地理空间标注（区域、桥、景点、空气墙）描述场景，对所有被试相同，不属于任何 dataset：由虚拟自然工程 `Tools ▸ NBI ▸ 地理空间标注` 导出到 Unity 工程的 `Assets/_Project/Interaction/GeoAnnotation~/geo_annotation.json`，随 Unity 代码库留版本；分析端用 `load_geo()` 读取，位置登记在 paths.py 的 `GEO_ANNOTATION`，格式规范在 global_settings 的 `GEO_ANNOTATION_SPEC`。
+
 track 下一名被试对应他在实验条件中的那一份记录（实验组 Interactive、对照组 Passive）；练习场记录不用于分析，不会返回。同一被试有多份记录（如测试中重跑）时须用 run 指明。psycho、physio 在原始格式确定后接入同一接口。数据在哪由 analysis/tools/paths.py 与 data_access.py 管理，数据是什么由 global_settings.py 规定，二者分开。
 
 data_lab 的清理和格式中间表写入 data/<dataset>/processed/track/data_lab/<研究问题>/。

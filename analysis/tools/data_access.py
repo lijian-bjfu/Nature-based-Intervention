@@ -90,6 +90,23 @@ def load(dataset, pipeline, subject, layer="raw", run=None, formatted=False):
     _not_yet(pipeline)
 
 
+def load_geo():
+    """载入地理空间标注（区域、桥、景点多边形与空气墙折线），并按 global_settings.GEO_ANNOTATION_SPEC 核对。"""
+    import json
+    from paths import GEO_ANNOTATION
+    spec = settings.GEO_ANNOTATION_SPEC
+    if not GEO_ANNOTATION.is_file():
+        raise FileNotFoundError(f"找不到地理空间标注：{GEO_ANNOTATION}。在 Unity 里用 Tools ▸ NBI ▸ 地理空间标注 导出。")
+    geo = json.loads(GEO_ANNOTATION.read_text(encoding="utf-8"))
+    if geo.get("format") != spec["format"] or geo.get("format_version") != spec["format_version"]:
+        raise ValueError(f"地理空间标注格式为 {geo.get('format')} v{geo.get('format_version')}，"
+                         f"规范要求 {spec['format']} v{spec['format_version']}；导出于 Unity 提交 {geo.get('unity_commit')}")
+    for poly in geo["polygons"]:
+        if poly["kind"] not in spec["kinds"] or not re.fullmatch(spec["id_regex"][poly["kind"]], poly["id"]):
+            raise ValueError(f"地理空间标注中有不合规的范围：{poly['kind']} {poly['id']}")
+    return geo
+
+
 def _check(pipeline, layer):
     if pipeline not in PIPELINES:
         raise ValueError(f"未知 pipeline：{pipeline}；可选 {PIPELINES}")

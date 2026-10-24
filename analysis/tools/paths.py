@@ -29,6 +29,9 @@ DATASETS = {
     "pilot":  {"root": DATA / "pilot_and_test" / "pilot", "kind": "pilot_and_test", "label": "预实验数据"},
     "test":   {"root": DATA / "pilot_and_test" / "test", "kind": "pilot_and_test", "label": "开发测试数据"},
 }
+# 地理空间标注（区域、桥、景点、空气墙）由虚拟自然工程导出，不属于任何 dataset：它描述场景，
+# 对所有被试相同。导出位置固定在 Unity 工程内，随 Unity 代码库留版本；格式规范见 global_settings.GEO_ANNOTATION_SPEC。
+GEO_ANNOTATION = Path("/Users/lijian/Working Projects/NBI proj/nature/Assets/_Project/Interaction/GeoAnnotation~/geo_annotation.json")
 LAYERS = ("raw", "processed", "final")
 PIPELINES = ("track", "psycho", "physio")
 # raw 下除三个 pipeline 外，还有不属于任何 pipeline 的原始材料

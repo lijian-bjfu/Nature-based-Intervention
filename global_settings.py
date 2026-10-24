@@ -135,6 +135,18 @@ TRACK_REQUIRED_TABLES = {
     "Interactive": TRACK_TABLES, "Practice": ("session",), "Passive": ("session",),
 }
 
+# 地理空间标注：叠加在 Unity 世界坐标上的空间结构（区域、桥、景点、空气墙），由虚拟自然工程
+# Tools ▸ NBI ▸ 地理空间标注 导出为一个 JSON 文件；文件位置见 analysis/tools/paths.py 的 GEO_ANNOTATION。
+# 区域与桥互不重叠、合起来覆盖能走到的地方；景点与区域相互独立，可越出区域边界；
+# 编号由研究者手动指定，代表空间设计意图。空气墙只有折线位置，不区分阻挡类型。
+GEO_ANNOTATION_SPEC = {
+    "format": "nbi_geo_annotation",
+    "format_version": 3,
+    "kinds": {"region": "区域", "bridge": "桥", "attractive_point": "景点"},
+    "id_regex": {"region": r"^R[1-9]\d*$", "bridge": r"^B[1-9]\d*$", "attractive_point": r"^AP[1-9]\d*$"},
+    "coordinates": "Unity 世界坐标，米；points 为水平坐标 [x, z]",
+}
+
 # 指标须经过研究讨论后逐项登记；候选指标及其试验阈值留在具体实验中。
 # 登记应包含名称、定义、输入字段、输出单位、计算口径和规范出处；计算函数不放在这里。
 METRICS = {"track": {}, "psycho": {}, "physio": {}}
