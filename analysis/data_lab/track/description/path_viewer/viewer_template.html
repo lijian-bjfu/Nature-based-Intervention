@@ -83,7 +83,7 @@ svg#map.drag{cursor:grabbing}
         <div class="row"><span class="hint" id="dwInfo" style="flex:1;margin:0"></span><button class="focus" id="dwReset">恢复默认</button></div>
       </div>
       <div class="hint" style="margin-top:8px">点击筛选：</div>
-      <div class="seg" id="tapFilter"><button data-v="all" class="on">全部</button><button data-v="blocked">只看受阻</button><button data-v="touched">只看摸到</button></div>
+      <div class="seg" id="tapFilter"><button data-v="all" class="on">全部</button><button data-v="nomove">只看无位移点击</button><button data-v="touched">只看摸到</button></div>
       <div class="hint">点击画在：</div>
       <div class="seg" id="tapPos"><button data-v="cam" class="on">被试位置</button><button data-v="hit">命中位置</button></div>
       <div class="hint">轨迹颜色：</div>
@@ -263,7 +263,7 @@ D.taps.forEach(tp=>{
   let ring=null, cross=null;
   if(tp.touched) ring=el("circle",{fill:"none",stroke:"#e0a800","stroke-width":2.4,"vector-effect":"non-scaling-stroke"},g);
   if(tp.block==="CutShort") cross=el("circle",{fill:"none",stroke:"#e07b00","stroke-width":2,"stroke-dasharray":"2 1.5","vector-effect":"non-scaling-stroke"},g);
-  if(tp.block==="NoStart") cross=el("path",{stroke:"#d03030","stroke-width":2.2,fill:"none","vector-effect":"non-scaling-stroke"},g);
+  if(tp.no_move) cross=el("path",{stroke:"#d03030","stroke-width":2.2,fill:"none","vector-effect":"non-scaling-stroke"},g);
   const link=(tp.hx!==null)?el("line",{x1:tp.x,y1:-tp.z,x2:tp.hx,y2:-tp.hz,stroke:INTENT_COLOR[tp.intent]||"#777","stroke-width":1,"stroke-dasharray":"3 2","vector-effect":"non-scaling-stroke","stroke-opacity":0.7},layers.taplinks):null;
   g.addEventListener("mousemove",ev=>showTip(ev,tapsTip(ev)));
   g.addEventListener("mouseleave",hideTip);
@@ -275,7 +275,7 @@ D.taps.forEach(tp=>{
 function tapText(tp){
   const d=tp.hx!==null?Math.hypot(tp.hx-tp.x,tp.hz-tp.z):null;
   return `<b>点击 #${tp.id}</b> ${fmt(tp.t)}　${INTENT_TEXT[tp.intent]||tp.intent} · ${tp.layer}${d!==null?` · 目标 ${d.toFixed(1)} m 外`:""}<br>`+
-         `　${tp.touched?"<b>摸到</b> · ":""}${BLOCK_TEXT[tp.block]||tp.block}${REASON_TEXT[tp.reason]?" · "+REASON_TEXT[tp.reason]:""}`;
+         `　${tp.touched?"<b>摸到</b> · ":""}${tp.no_move?"<b>无位移点击</b> · ":""}${BLOCK_TEXT[tp.block]||tp.block}${REASON_TEXT[tp.reason]?" · "+REASON_TEXT[tp.reason]:""} · 点后移动 ${tp.moved.toFixed(2)} m`;
 }
 function tapsTip(ev){
   const r=svg.getBoundingClientRect(), k=pxToWorld();
@@ -402,7 +402,7 @@ BEH.forEach(b=>{ if(behOn[b.key]===undefined) behOn[b.key]=b.on; });
     box.appendChild(r); });
   const leg=document.createElement("div"); leg.className="hint";
   leg.innerHTML=`点击颜色：<span style="color:#4a6fa5">●走过去</span>　<span style="color:#2e9a6b">●走近去看</span>　<span style="color:#9aa0a6">○没打中</span><br>
-    <span style="color:#e0a800">◎ 金色外圈＝摸到</span>　<span style="color:#e07b00">◌ 橙色虚圈＝半路被截</span>　<span style="color:#d03030">✕ 红叉＝起步受阻</span><br>受阻＝半路被截 + 起步受阻`;
+    <span style="color:#e0a800">◎ 金色外圈＝摸到</span>　<span style="color:#e07b00">◌ 橙色虚圈＝半路被截</span>　<span style="color:#d03030">✕ 红叉＝无位移点击</span><br>无位移点击＝起步受阻，或点地面/路面没被挡却原地没动`;
   box.appendChild(leg);
 })();
 
@@ -411,7 +411,7 @@ function inWin(t0,t1){ return t1>=tWin[0] && t0<=tWin[1]; }
 function refresh(){
   layers.path.style.display=behOn.path?"":"none";
   chunks.forEach(c=>c.e.style.display=inWin(c.t0,c.t1)?"":"none");
-  const tapOk=tp=>tapFilter==="all" || (tapFilter==="blocked" ? tp.block!=="NotBlocked" : tp.touched);
+  const tapOk=tp=>tapFilter==="all" || (tapFilter==="nomove" ? tp.no_move : tp.touched);
   marks.forEach(m=>{ const on = behOn[m.kind] && (!m.tp || tapOk(m.tp));
     m.e.style.display = on && inWin(m.t0,m.t1) ? "" : "none"; });
   dwellMarks.forEach(m=>m.e.style.display=behOn.dwells && inWin(m.t0,m.t1)?"":"none");
@@ -438,7 +438,8 @@ function updateStats(){
     ["停留",`${st.length} 段，${st.reduce((a,s)=>a+Math.min(s.t1,tWin[1])-Math.max(s.t0,tWin[0]),0).toFixed(1)} s`],
     ["点击",`${tp.length}（走过去 ${cnt("WalkTo")} / 走近去看 ${cnt("LookAt")} / 没打中 ${cnt("NoHit")}）`],
     ["摸到",tp.filter(x=>x.touched).length],
-    ["受阻",`半路被截 ${tp.filter(x=>x.block==="CutShort").length} / 起步受阻 ${tp.filter(x=>x.block==="NoStart").length}`],
+    ["无位移点击",`${tp.filter(x=>x.no_move).length}（起步受阻 ${tp.filter(x=>x.block==="NoStart").length}）`],
+    ["半路被截",tp.filter(x=>x.block==="CutShort").length],
   ];
   const regRows=regions.concat(bridges).map(p=>[p.id,samplesIn(p)]).filter(r=>r[1]>0.05).map(r=>[`　在 ${r[0]}`,`${r[1].toFixed(1)} s`]);
   $("#stats").innerHTML="<table>"+rows.concat(regRows.length?[["各区域/桥停留时间",""]].concat(regRows):[]).map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("")+"</table>";
