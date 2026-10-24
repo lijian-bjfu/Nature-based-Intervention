@@ -40,15 +40,13 @@ Nature-based Intervention/
 │   │   │   │   ├── track_describe.py     入口，顶部有 PARAMETERS；本问题用到的其他脚本也直接放在这一层
 │   │   │   │   ├── results/              最近一次结果，每次运行覆盖（本机）
 │   │   │   │   └── save/                 研究者认可的结果，按含义命名（本机）
-│   │   │   ├── processing/、analysis/、report/   环节目录，具体问题出现后再在下面建
-│   │   │   └── deprecated/               弃用源码，不参与运行
-│   │   ├── psycho/                       同样有五个环节目录
-│   │   └── physico/                      同样有五个环节目录
+│   │   ├── psycho/                       尚无研究问题
+│   │   └── physico/                      尚无研究问题
 │   └── tools/                            通用操作及带对象前缀的适配器
 └── 研究思路/                             科学依据与已同意的研究规范
 ```
 
-track 表示虚拟自然行为，psycho 表示问卷，physico 表示生理测量。data_lab 的二级目录按对象划分，第三级按环节划分。
+track 表示虚拟自然行为，psycho 表示问卷，physico 表示生理测量。data_lab 的二级目录按对象划分，第三级是环节（processing、description、analysis、report）或弃用源码（deprecated）。环节文件夹不预先建立，出现这类研究问题时再建。
 
 data_lab 的组织原则是**先研究，再整理**：一个文件夹对应一个研究问题，不预设子目录。本问题用到的脚本直接放在该文件夹下；README.md 总结问题、方法和结论；log.md 记录研究过程（试了什么、为什么、看到了什么）；results/ 只保留最近一次运行的结果，每次覆盖，不按时间建文件夹；研究者认可、要保留的结果手动复制到 save/，按含义命名，作为日后晋升为正式规范的依据。每次运行的参数、提交号等追溯信息自动写在 results/_provenance/，平时不用打开。results/ 与 save/ 只存本机，不入库。
 
