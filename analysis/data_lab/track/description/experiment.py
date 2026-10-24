@@ -9,6 +9,7 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-23T20:48:27+08:00", "action": "created", "summary": "建立局部实验调度，解除根目录参数和运行入口依赖；为每步记录时间、Git 信息及源码快照。"},
     {"at": "2026-10-24T12:55:00+08:00", "action": "modified", "summary": "源码记录改为提交号加 SHA-256，只复制未提交的源码（uncommitted_sources），不再整份快照。"},
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。 结果改为只保留最近一次（results/，每次覆盖），追溯信息放 results/_provenance/。", "previous_path": "analysis/data_lab/track/description/record_description/experiment.py"},
+    {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "参数 sessions/modules 改为单一的 session（完整文件夹名）；找不到时列出可选记录。"},
 ]
 
 from copy import deepcopy
@@ -98,10 +99,11 @@ def load_config(parameters, overrides=None, default_tasks=None):
     dataset = overrides.get("dataset", select["dataset"])
     if dataset not in DATASETS:
         raise ValueError(f"selection.dataset 应为 {choice_help('dataset')}")
-    sessions = string_list(overrides.get("sessions", select["sessions"]), "selection.sessions")
-    modules = string_list(overrides.get("modules", select["modules"]), "selection.modules")
-    if set(modules)-set(settings.TRACK_LEVELS["session"]["module"]):
-        raise ValueError(f"selection.modules 应为 {choice_help('modules')}")
+    session = overrides.get("session", select["session"])
+    if not isinstance(session, str) or not session.strip() or any(c in session for c in "*?[]"):
+        raise ValueError("selection.session 应是一份实验记录的完整文件夹名（一次只分析一份，不用通配符）")
+    sessions = [session.strip()]
+    modules = list(settings.TRACK_LEVELS["session"]["module"])
     language = overrides.get("language", configured["report_language"])
     if language == "auto":
         language = "en" if DATASETS[dataset]["kind"] == "formal" else "zh"
@@ -126,10 +128,10 @@ def discover(config):
     base = raw(config.dataset, "track")
     matches = [folder for folder in sorted(base.glob(settings.TRACK_SESSION_GLOB))
                if folder.is_dir() and (match := re.fullmatch(settings.TRACK_SESSION_REGEX, folder.name))
-               and any(fnmatchcase(folder.name, pattern) for pattern in config.sessions)
-               and match["module"] in config.modules]
+               and folder.name in config.sessions]
     if not matches:
-        raise FileNotFoundError(f"没有匹配的埋点数据：{base}；请检查当前脚本 PARAMETERS 中的 selection")
+        available = "、".join(p.name for p in sorted(base.glob(settings.TRACK_SESSION_GLOB)) if p.is_dir()) or "（无）"
+        raise FileNotFoundError(f"{base} 下没有名为 {config.sessions[0]} 的实验记录。可选：{available}")
     return matches
 
 def resolve_tasks(tasks):
@@ -186,7 +188,7 @@ def execute(config):
         write_json(folder/"parameters_snapshot.json",{"configured":config.configured_parameters,
                    "effective":effective,"command_line_overrides":config.overrides})
         write_json(folder/"manifest.json",manifest)
-    print(f"实验：{EXPERIMENT_NAME}；数据：{config.dataset}；会话：{len(sessions)} 场",flush=True)
+    print(f"实验：{EXPERIMENT_NAME}；数据：{config.dataset}／{sessions[0].name}",flush=True)
     try:
         for step in steps:
             record = {"step":step,"script":str(scripts[step].relative_to(ROOT)),
@@ -220,15 +222,14 @@ def execute(config):
             write_json(folder/"manifest.json",manifest)
     print(f"处理数据：{processed}",flush=True)
     if has_report:
-        print(f"打开报告：{output/'index.md'}",flush=True)
+        print(f"打开报告：{output/'report.md'}",flush=True)
     return output if has_report else processed
 
 def cli(parameters, default_tasks=None, argv=None):
     parser = argparse.ArgumentParser(description="修改当前实验脚本的 PARAMETERS 后点 Run，或使用命令行临时覆盖。")
     parser.add_argument("--tasks",nargs="+")
     parser.add_argument("--dataset",choices=tuple(DATASETS))
-    parser.add_argument("--sessions",nargs="+")
-    parser.add_argument("--modules",nargs="+")
+    parser.add_argument("--session")
     parser.add_argument("--language",choices=("auto","zh","en"))
     parser.add_argument("--time-bin-seconds",type=float)
     parser.add_argument("--figure-dpi",type=int)
@@ -236,7 +237,7 @@ def cli(parameters, default_tasks=None, argv=None):
     parser.add_argument("--list",action="store_true")
     args = vars(parser.parse_args(argv))
     if args.pop("list"):
-        for kind in ("tasks","dataset","modules"):
+        for kind in ("tasks","dataset"):
             print(kind+": "+choice_help(kind))
         print("局部参数：当前 track_describe.py 的 PARAMETERS；不读取 table_flows 参数。")
         return

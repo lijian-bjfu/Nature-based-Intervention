@@ -7,22 +7,20 @@ SCRIPT_HISTORY = [
      "summary": "迁入 record_description 工作目录；将参数放回本脚本，使用共享原始数据规范与局部调度，计算口径不变。",
      "previous_path": "analysis/data_lab/track/description/track_describe.py"},
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/description/record_description/track_describe.py"},
+    {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "一次只分析一份实验记录（参数 selection.session），结果直接写在 results/ 下，不再按记录分文件夹或生成总览。"},
 ]
 
 # 本实验的局部参数，可以反复比较；每次运行自动保存实际生效值和源码。
 # tasks：track_describe=描述/绘图/报告（含前三项）；track_inventory=核对；
 #        track_clean=已定历史取值清理；track_format=生成标准输入表。可组合，依赖只运行一次。
 # dataset：logging_test=开发测试，pilot=被试预实验，formal=正式数据。
-# sessions：["*"] 全部；["sub-P999*"] 通配符；也可填一个或多个完整会话名。
-# modules：Interactive=自由交互，Practice=练习，Passive=视频；不是实验组别。
-# Practice/Passive 当前只有会话信息，不会补出未采集的行为表。
+# session：要分析的那一份实验记录（数据集 raw/app/ 下的文件夹名）。一次只分析一份；
+#          想看别的记录，改这里重跑。用了哪份数据，在 log.md 里记下。
 PARAMETERS = {
     "selection": {
         "tasks": ["track_describe"],
         "dataset": "logging_test",
-        "sessions": ["*"],
-        # 单场：["sub-P999_ses-S001_mod-Interactive_run-002"]
-        "modules": ["Interactive"],
+        "session": "sub-P999_ses-S001_mod-Interactive_run-002",
     },
     "report_language": "auto",  # auto：正式 en，其余 zh；也可明确选 en / zh。
     "figure": {
@@ -306,31 +304,18 @@ def plots(tables, summary, layers, bins, look_stats, dest, lang, options: TrackD
 
 
 def run(context: RunContext):
-    overview=[]
-    for source in context.sessions:
-        incoming=stage_dir(context,"03_format",source.name)/context.table_folder
-        tables=read_session(incoming,formatted=True)
-        summary,layers,look_stats,bins,touched=describe(tables,source.name,context.config.description)
-        dest=stage_dir(context,"06_analysis",source.name)
-        dest.mkdir(parents=True,exist_ok=False)
-        write_json(dest/"summary.json",summary)
-        for filename,frame in [("table_layers.csv",layers),("table_look.csv",look_stats),
-                               ("table_time_bins.csv",bins),("touch_records.csv",touched)]:
-            frame.to_csv(dest/filename,index=False,na_rep="")
-        images=plots(tables,summary,layers,bins,look_stats,dest,context.language,context.config.description,context.config.figure)
-        make_report(summary,layers,look_stats,bins,tables,dest,images,context.language,context.config.description)
-        overview.append({"session_dir":source.name,"duration_s":summary["duration_s"],
-                         "spacetime_rows":summary["tables"]["spacetime"]["rows"],
-                         "tap_rows":summary["tables"]["tap"]["rows"],
-                         "touched_TRUE_rows":summary["tap"]["is_touched_TRUE_n"],
-                         "blocked_tap_rows":summary["tap"]["blocked_n"],
-                         "warnings":len(summary["quality"]["notes"])})
-    base=stage_dir(context,"06_analysis")
-    frame=pd.DataFrame(overview)
-    frame.to_csv(base/"sessions.csv",index=False,na_rep="")
-    title="埋点描述运行索引" if context.language=="zh" else "Track description run index"
-    links="\n".join(f"- [{row['session_dir']}]({row['session_dir']}/report.md)" for row in overview)
-    (base/"index.md").write_text("# "+title+"\n\n"+markdown_table(frame)+"\n\n"+links+"\n",encoding="utf-8")
+    # 一次只分析一份实验记录，结果直接写在 results/ 下（不按记录分文件夹）。
+    source=context.sessions[0]
+    incoming=stage_dir(context,"03_format",source.name)/context.table_folder
+    tables=read_session(incoming,formatted=True)
+    summary,layers,look_stats,bins,touched=describe(tables,source.name,context.config.description)
+    dest=stage_dir(context,"06_analysis")
+    write_json(dest/"summary.json",summary)
+    for filename,frame in [("table_layers.csv",layers),("table_look.csv",look_stats),
+                           ("table_time_bins.csv",bins),("touch_records.csv",touched)]:
+        frame.to_csv(dest/filename,index=False,na_rep="")
+    images=plots(tables,summary,layers,bins,look_stats,dest,context.language,context.config.description,context.config.figure)
+    make_report(summary,layers,look_stats,bins,tables,dest,images,context.language,context.config.description)
 
 if __name__=="__main__":
     from data_lab.track.description.experiment import cli

@@ -93,7 +93,7 @@ def main():
     assert configured.description.time_bin_seconds==30 and configured.language=="en"
     assert parameters==module.PARAMETERS and sha256(ENTRY)==source_digest
     checks.append("CLI 覆盖与脚本参数共用加载器，原参数与源码不回写")
-    for override in ({"tasks":["unknown"]},{"dataset":"unknown"},{"modules":["unknown"]},
+    for override in ({"tasks":["unknown"]},{"dataset":"unknown"},{"session":"sub-*"},
                      {"time_bin_seconds":-1}):
         try:
             load_config(parameters,override)

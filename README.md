@@ -70,45 +70,13 @@ table_flows 的前三个对象流程原则上包含载入、清理、指标计�
 
 **目前四个制表流程都只是结构预留。** 入口可以显示状态，但执行制表会明确提示尚未实现并以非零状态结束，不创建数据、报告，也不调用 Lab 描述充当制表。清理、切窗、计分、指标和合表参数待规范确定后再加入。未来需要的生成效果观察结果，可保存在对应流程自己的 outputs，当前不预先实现报告体系。
 
-## 当前 Lab 记录描述：在 VS Code 运行
+## data_lab 的使用
 
-目前可执行的是 Track 的记录描述（track/description）。入口是：
+每个研究问题文件夹里的 README.md 说明该问题的运行入口、参数和结果，以那里为准。目前有一个：
 
-[analysis/data_lab/track/description/track_describe.py](analysis/data_lab/track/description/track_describe.py)
+- [analysis/data_lab/track/description/](analysis/data_lab/track/description/README.md)：埋点原始记录的描述。在 VS Code 打开 track_describe.py，修改顶部 PARAMETERS（数据集、要分析的那一份实验记录等），保存后点 Run，结果在同一文件夹的 results/。
 
-1. 打开该脚本，在顶部 PARAMETERS 修改本次数据选择和候选参数。
-2. 保存，在这个脚本点击 VS Code 的 Run Python File。
-3. 运行结束后，打开控制台打印的 index.md 路径。
-
-无需修改 global_settings.py、table_flows 参数或 experiment.py。简单探索的参数就放在当前脚本，复杂探索可以再拆局部文件，但不得重回全 Lab 共用固定参数。可执行入口同时支持点 Run 和命令行；processing、report 中的函数模块由入口调用，不是用户运行入口。
-
-| 局部参数 | 可选内容与含义 |
-|---|---|
-| selection.tasks | track_describe：描述、绘图与报告，自动包含前三项；track_inventory：核对文件；track_clean：清理已定历史值；track_format：生成标准输入表。可组合，公共依赖只执行一次。 |
-| selection.dataset | logging_test：开发测试；pilot：被试预实验；formal：正式数据。 |
-| selection.sessions | ["*"]：全部；["sub-P999*"]：通配符；也可填一个或多个完整会话名。 |
-| selection.modules | Interactive：自由交互；Practice：练习；Passive：视频。它们不是实验组别，后两者当前没有操作行为表。 |
-| report_language | auto：正式数据用英文，其余中文；也可显式选 zh 或 en。 |
-| figure | dpi、formats、font、font_size 控制展示。 |
-| description | time_bin_seconds 控制展示分箱；interval_quantiles 控制采样间隔描述分位数；colors 控制配色。 |
-
-默认描述 logging_test 中所有 Interactive 会话。只看指定一场时，设置 sessions 为 ["sub-P999_ses-S001_mod-Interactive_run-002"]。分箱宽度是展示参数，不改变 0.1 秒原始采样规范。当前标准表不是最终研究分析表，本实验未设计新的行为指标。
-
-本机需 Python 3.10+ 和 requirements.txt 的依赖；在 VS Code 选择已装依赖的解释器即可。路径按文件位置解析，不要求工作目录是项目根目录。
-
-## 命令行执行
-
-命令行和 VS Code 共用参数校验与调度逻辑。明确提供的命令行选项只覆盖当次运行，不回写入口脚本。
-
-```bash
-python3 analysis/data_lab/track/description/track_describe.py
-python3 analysis/data_lab/track/description/track_describe.py --list
-python3 analysis/data_lab/track/description/track_describe.py --sessions sub-P999_ses-S001_mod-Interactive_run-002 --time-bin-seconds 30
-python3 analysis/data_lab/track/description/track_describe.py --tasks track_clean
-python3 analysis/table_flows/integration/02_run.py --list
-```
-
-制表入口中的 --list 只是查看状态；不带 --list 执行时，当前会说明预留状态并停止。
+入口同时支持命令行，命令行选项只覆盖当次运行，不回写脚本；`--list` 查看可选项。制表入口中的 --list 只是查看状态，不带 --list 执行时会说明尚未实现并停止。本机需 Python 3.10+ 和 requirements.txt 的依赖，在 VS Code 选择已装依赖的解释器即可。
 
 ## 数据与结果位置
 
@@ -122,9 +90,7 @@ python3 analysis/table_flows/integration/02_run.py --list
 data/<数据集根>/processed/app/data_lab/description/
 ```
 
-图表和文字写入 track/description/results/，每次运行先清空再写，处理数据目录同样只保留最近一次。输入数据集记录在 results/_provenance/manifest.json 中。只核对或清理时只写处理数据，不创建描述结果。
-
-results/ 保存 index.md、分会话描述表、图和报告；追溯信息在 results/_provenance/（manifest.json、global_settings_snapshot.json、parameters_snapshot.json，有未提交修改的源码时另含 uncommitted_sources）。想保留某次结果，手动复制到 save/ 并按含义命名。
+data_lab 的图表和文字写入各研究问题的 results/，每次运行先清空再写，处理数据目录同样只保留最近一次。所用数据记录在 results/_provenance/manifest.json 中，并在该问题的 log.md 里注明。想保留某次结果，手动复制到 save/ 并按含义命名。
 
 ## 时间检索和版本追溯
 
