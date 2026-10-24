@@ -10,9 +10,8 @@
 # stay：浏览页上"停留"图层的画法（暂定口径，见 description/behavior 的讨论，尚未写入规范）。
 #   still_step_m：相邻两个采样之间水平位置变化不超过多少米，算这一步没动。
 #   min_seconds：连续没动至少多久，才画成一次停留。
-# dwell：浏览页上"逗留"的默认识别参数（暂定规则；页面上可以临时调高调低，这里只定打开时的默认值）。
-#   min_seconds：持续不少于多少秒。
-#   radius_m：活动始终在多大半径以内（米）。
+# dwell：浏览页打开时"逗留"的识别参数。None = 用 global_settings.METRICS 中登记的逗留阈值（推荐）；
+#   想临时试别的值，可写成 {"min_seconds": 10.0, "radius_m": 2.0}。页面上也可以随时拖动调整。
 PARAMETERS = {
     "selection": {
         "dataset": "test",
@@ -23,10 +22,7 @@ PARAMETERS = {
         "still_step_m": 0.03,
         "min_seconds": 2.0,
     },
-    "dwell": {
-        "min_seconds": 15.0,
-        "radius_m": 3.0,
-    },
+    "dwell": None,
 }
 
 # ════════════════════════════════════════════════════════════════════
@@ -73,8 +69,16 @@ def check(parameters):
     return {"dataset": sel["dataset"], "subject": str(sel["subject"]),
             "run": None if run in (None, "") else str(run),
             "still_step": step, "min_stay": positive(stay["min_seconds"], "stay.min_seconds"),
-            "dwell_t": positive(parameters["dwell"]["min_seconds"], "dwell.min_seconds"),
-            "dwell_r": positive(parameters["dwell"]["radius_m"], "dwell.radius_m")}
+            **dwell_params(parameters.get("dwell"))}
+
+
+def dwell_params(override):
+    """逗留阈值：默认取 global_settings.METRICS 中登记的值，PARAMETERS.dwell 可临时覆盖。"""
+    reg = settings.METRICS["track"]["dwell"]["parameters"]
+    o = override or {}
+    return {"dwell_t": positive(o.get("min_seconds", reg["min_seconds"]), "dwell.min_seconds"),
+            "dwell_r": positive(o.get("radius_m", reg["radius_m"]), "dwell.radius_m"),
+            "dwell_step": float(reg["still_step_m"]), "dwell_registered": not override}
 
 
 def col(tables, table, field, dtype=float):
@@ -160,7 +164,7 @@ def build(cfg):
     stay_list = stays(t, x, z, cfg["still_step"], cfg["min_stay"], tap_t, touched_t)
     notes = [
         f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留。暂定口径，尚未写入规范。",
-        f"逗留：把相邻的停顿（不动片段，长短不限）串起来，从第一次停顿到最后一次停顿，所有采样到平均位置的距离不超过 R、持续不少于 T，记为一次；中间的小移动算在内，走进来、走出去的路不算。默认 T = {cfg['dwell_t']:g} s、R = {cfg['dwell_r']:g} m，可在页面上调整。暂定规则，由页面计算，尚未写入规范。",
+        f"逗留：把相邻的停顿（不动片段，长短不限）串起来，从第一次停顿到最后一次停顿，所有采样到平均位置的距离不超过 R、持续不少于 T，记为一次；中间的小移动算在内，走进来、走出去的路不算。默认 T = {cfg['dwell_t']:g} s、R = {cfg['dwell_r']:g} m（{'global_settings 登记值，见《实验记录-埋点》10.2' if cfg['dwell_registered'] else '本次临时覆盖，非登记值'}），可在页面上调整。阈值暂定，待预实验数据重新评估。",
         "点击默认画在点击时被试所在的位置，可切换为命中位置；「点击 → 命中连线」连接两者。",
         "环视线段从环视开始时的位置出发，指向停稳后的朝向，长 1.6 m，只表示方向。",
         "空间结构来自 Unity 地理空间标注导出，" + f"导出于 {geo.get('exported_at')}（Unity 提交 {str(geo.get('unity_commit'))[:8]}）。",
@@ -171,7 +175,7 @@ def build(cfg):
         "meta": {"dataset": cfg["dataset"], "record": folder.name, "duration": r(duration, 2), "generated": now()[:16].replace("T", " "),
                  "notes": notes},
         "params": {"still_step_m": cfg["still_step"], "min_stay_s": cfg["min_stay"],
-                   "dwell_min_s": cfg["dwell_t"], "dwell_radius_m": cfg["dwell_r"]},
+                   "dwell_min_s": cfg["dwell_t"], "dwell_radius_m": cfg["dwell_r"], "dwell_still_step_m": cfg["dwell_step"]},
         "geo": {"polygons": geo["polygons"], "air_walls": geo["air_walls"], "bounds": geo["bounds"]},
         "path": {"t": [r(v, 2) for v in t], "x": [r(v, 2) for v in x], "z": [r(v, 2) for v in z], "yaw": [r(v, 1) for v in yaw]},
         "stays": stay_list, "taps": taps, "looks": looks, "backsteps": backsteps, "events": events, "glitches": glitches,
@@ -217,6 +221,8 @@ SCRIPT_HISTORY = [
      "summary": "路径浏览页：一份实验记录叠加在地理空间标注（区域、桥、景点、空气墙）上，生成单文件交互页面；支持图层开关、颜色与透明度调整、时间窗筛选与播放、范围聚焦。"},
     {"at": "2026-10-24T22:23:42+08:00", "action": "modified",
      "summary": "增加逗留图层：页面内按时长 T、半径 R 识别逗留，参数可在页面上实时调整，默认值由 PARAMETERS.dwell 给出。"},
+    {"at": "2026-10-24T22:35:56+08:00", "action": "modified",
+     "summary": "逗留定义已登记到 global_settings.METRICS；页面默认阈值与停顿口径改为读取登记值，PARAMETERS.dwell 仅作临时覆盖。"},
 ]
 
 if __name__ == "__main__":

@@ -149,7 +149,22 @@ GEO_ANNOTATION_SPEC = {
 
 # 指标须经过研究讨论后逐项登记；候选指标及其试验阈值留在具体实验中。
 # 登记应包含名称、定义、输入字段、输出单位、计算口径和规范出处；计算函数不放在这里。
-METRICS = {"track": {}, "psycho": {}, "physio": {}}
+METRICS = {
+    "track": {
+        "dwell": {
+            "name": "逗留",
+            "definition": "把相邻的停顿串起来，从第一次停顿到最后一次停顿，所有位置到其平均位置的水平距离不超过 radius_m，"
+                          "且持续不少于 min_seconds，记为一次逗留；中间的小移动算在内，进出的路不算。",
+            "pause_definition": "相邻采样水平位移不超过 still_step_m 算没动，连续没动为一次停顿，长短不限",
+            "inputs": ("spacetime.t_session", "spacetime.cam_x", "spacetime.cam_z"),
+            "parameters": {"min_seconds": 15.0, "radius_m": 3.0, "still_step_m": 0.03},
+            "output": "逗留段：起止 t_session（s）、中心 [x, z]（m）、活动半径（m）",
+            "status": "暂定：由研究者人工判断校准（一名熟练操作者的一次记录），须用预实验数据重新评估",
+            "source": "研究思路/实验记录-埋点.md 10.2",
+        },
+    },
+    "psycho": {}, "physio": {},
+}
 SCHEMAS = {"track": TRACK_SCHEMA}
 
 def column(table, field, source="track"):

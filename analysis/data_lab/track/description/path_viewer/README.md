@@ -44,10 +44,9 @@
 | `selection.run` | 同一被试多份记录时选哪份 | 如 `"004"`；只有一份时填 `None` |
 | `stay.still_step_m` | 相邻采样水平位移不超过多少米算没动 | 默认 0.03（暂定） |
 | `stay.min_seconds` | 连续没动至少多久画成一次停留 | 默认 2（暂定） |
-| `dwell.min_seconds` | 逗留识别的默认时长 T（秒），页面上可临时调整 | 默认 15（暂定） |
-| `dwell.radius_m` | 逗留识别的默认半径 R（米），页面上可临时调整 | 默认 3（暂定） |
+| `dwell` | 页面打开时的逗留阈值 | `None`＝用 global_settings 登记值（T 15 s、R 3 m，见《实验记录-埋点》10.2）；临时试别的值写 `{"min_seconds": 10.0, "radius_m": 2.0}`。页面上也可随时拖动调整 |
 
-停留的口径还在 `description/behavior` 中讨论，尚未写入规范；这里只决定页面上怎么画。
+停留的口径还在 `description/behavior` 中讨论，尚未写入规范；这里只决定页面上怎么画。逗留的定义已写入规范（《实验记录-埋点》10.2，登记在 `global_settings.METRICS`），阈值暂定，待预实验数据重新评估；它的来历见 `description/behavior/README.md`。
 
 ## 五、结果
 

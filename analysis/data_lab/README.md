@@ -55,5 +55,5 @@ results/ 与 save/ 只存本机，不入库；脚本、README.md、log.md 入库
 | 文件夹 | 问题 | 脚本（入口） | 结论 |
 |---|---|---|---|
 | track/description/base | 埋点原始记录的基本描述：七张表是否齐全、记录了哪些行为、行为在时间和空间上如何分布 | `track_describe.py`（入口），调用 `track_inventory.py`、`track_clean.py`、`track_format.py`、`track_report.py`、`experiment.py` | 进行中 |
-| track/description/behavior | 被试行为的分类方式：驻留在数据上是什么样子，是否存在可切分的阈值 | `dwell_range.py` | 进行中 |
+| track/description/behavior | 被试行为的分类方式：停留、行走与逗留在数据上是什么样子，是否存在可切分的阈值 | `dwell_range.py`；逗留识别在 `path_viewer` 中 | 逗留已定（T 15 s、R 3 m，暂定，待预实验重新评估）；停留与行走讨论中 |
 | track/description/path_viewer | 把一份记录放回空间结构里看：交互式路径浏览页（信息叠加、时间窗与聚焦） | `path_viewer.py`（入口），`viewer_template.html` | 工具，持续改进 |

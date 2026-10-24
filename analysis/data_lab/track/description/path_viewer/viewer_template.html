@@ -76,7 +76,7 @@ svg#map.drag{cursor:grabbing}
     <details open><summary>行为数据</summary>
       <div id="behRows"></div>
       <div class="box">
-        <div style="font-weight:600;margin-bottom:2px">逗留识别（暂定规则）</div>
+        <div style="font-weight:600;margin-bottom:2px">逗留识别</div>
         <div class="hint">把相邻的停顿串起来：从第一次停顿到最后一次停顿，活动始终在半径 R 以内、持续不少于 T，记为一次逗留。中间的小移动算在内，走进来、走出去的路不算。</div>
         <div class="param"><span>时长 T (s)</span><input type="range" id="dwT" min="3" max="60" step="1"><input type="number" id="dwTn" min="3" max="60" step="1"></div>
         <div class="param"><span>半径 R (m)</span><input type="range" id="dwR" min="0.5" max="10" step="0.5"><input type="number" id="dwRn" min="0.5" max="10" step="0.5"></div>
@@ -309,7 +309,7 @@ function placeSmall(){
 // 单步间隔超过 1 s（切后台等）的不算停顿。
 let dwells=[], dwellMarks=[];
 function computeDwells(T,R){
-  const eps=D.params.still_step_m, segs=[]; let s0=null;
+  const eps=D.params.dwell_still_step_m, segs=[]; let s0=null;
   for(let k=1;k<N;k++){
     const st=Math.hypot(path.x[k]-path.x[k-1],path.z[k]-path.z[k-1])<=eps && path.t[k]-path.t[k-1]<=1.0;
     if(st){ if(s0===null) s0=k-1; } else if(s0!==null){ segs.push([s0,k-1]); s0=null; }
