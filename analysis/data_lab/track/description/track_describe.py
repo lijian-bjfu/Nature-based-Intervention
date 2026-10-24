@@ -1,16 +1,9 @@
 """data_lab/track：从标准表描述记录，生成描述表、图，并调用报告工具。"""
-SCRIPT_HISTORY = [
-    {"at": "2026-10-23T20:36:13+08:00", "action": "first_versioned",
-     "summary": "已有描述脚本首次纳入 Git；原始创建时间未知。",
-     "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
-    {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
-     "summary": "迁入 record_description 工作目录；将参数放回本脚本，使用共享原始数据规范与局部调度，计算口径不变。",
-     "previous_path": "analysis/data_lab/track/description/track_describe.py"},
-    {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/description/record_description/track_describe.py"},
-    {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "一次只分析一份实验记录（参数 selection.session），结果直接写在 results/ 下，不再按记录分文件夹或生成总览。"},
-    {"at": "2026-10-24T17:30:00+08:00", "action": "modified", "summary": "参数改为按项目数据命名规范选择：dataset（test/pilot/formal）、subject（如 P999）、run（仅多份记录时填）。"},
-]
 
+# ════════════════════════════════════════════════════════════════════
+# ▼▼▼ 研究者只需要改这一段 PARAMETERS，改完保存，点右上角 Run ▼▼▼
+#     选数据：改 selection 里的 dataset、subject、run 三项
+# ════════════════════════════════════════════════════════════════════
 # 本实验的局部参数，可以反复比较；每次运行自动保存实际生效值和源码。
 # tasks：track_describe=描述/绘图/报告（含前三项）；track_inventory=核对；
 #        track_clean=已定历史取值清理；track_format=生成标准输入表。可组合，依赖只运行一次。
@@ -41,6 +34,10 @@ PARAMETERS = {
         },
     },
 }
+
+# ════════════════════════════════════════════════════════════════════
+# ▲▲▲ 以上是参数。以下是程序本身，日常使用不需要修改 ▲▲▲
+# ════════════════════════════════════════════════════════════════════
 
 from pathlib import Path
 import sys
@@ -319,6 +316,19 @@ def run(context: RunContext):
         frame.to_csv(dest/filename,index=False,na_rep="")
     images=plots(tables,summary,layers,bins,look_stats,dest,context.language,context.config.description,context.config.figure)
     make_report(summary,layers,look_stats,bins,tables,dest,images,context.language,context.config.description)
+
+# 脚本的修改记录（供 analysis/tools/lab_history.py 按时间检索），日常使用不必看。
+SCRIPT_HISTORY = [
+    {"at": "2026-10-23T20:36:13+08:00", "action": "first_versioned",
+     "summary": "已有描述脚本首次纳入 Git；原始创建时间未知。",
+     "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
+    {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
+     "summary": "迁入 record_description 工作目录；将参数放回本脚本，使用共享原始数据规范与局部调度，计算口径不变。",
+     "previous_path": "analysis/data_lab/track/description/track_describe.py"},
+    {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/description/record_description/track_describe.py"},
+    {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "一次只分析一份实验记录（参数 selection.session），结果直接写在 results/ 下，不再按记录分文件夹或生成总览。"},
+    {"at": "2026-10-24T17:30:00+08:00", "action": "modified", "summary": "参数改为按项目数据命名规范选择：dataset（test/pilot/formal）、subject（如 P999）、run（仅多份记录时填）。"},
+]
 
 if __name__=="__main__":
     from data_lab.track.description.experiment import cli
