@@ -5,7 +5,7 @@ table_flows 与 data_lab 共用本文件。运行选择、试验参数、任务�
 """
 from dataclasses import dataclass
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 DATA_OBJECTS = ("track", "psycho", "physico")
 MODULE_LABELS = {
     "Interactive": "自由交互体验",
@@ -35,6 +35,9 @@ TRACK_SCHEMA = {
         'module': Field('module', 'string', levels=('Practice', 'Interactive', 'Passive')),
         't_device_start': Field('t_device_start', 'Float64', unit='s'),
         't_device_end': Field('t_device_end', 'Float64', unit='s'),
+        # 产生这份数据的虚拟自然 APP 代码版本（Git 提交号，可带 -dirty）。两项目间的约定机制，
+        # 见虚拟自然工程 Assets/_Project/Interaction/README.md 第十五节。
+        'app_commit': Field('app_commit', 'string'),
     },
     'spacetime': {
         't_session': Field('t_session', 'Float64', unit='s'),
@@ -123,6 +126,8 @@ TRACK_LEGACY_VALUES = {
             "block_type": {"None": "NotBlocked"}, "block_reason": {"None": "NotBlocked"}},
     "backstep": {"block_type": {"None": "NotBlocked"}, "block_reason": {"None": "NotBlocked"}},
 }
+# 早期数据缺少的列（加列之前录制的数据）：读取时补为空，不报错。
+TRACK_LEGACY_MISSING = {"session": ("app_commit",)}
 TRACK_TRUE = "TRUE"
 TRACK_FALSE = "FALSE"
 TRACK_CSV = {"encoding": "utf-8-sig", "keep_default_na": False, "na_values": [""]}

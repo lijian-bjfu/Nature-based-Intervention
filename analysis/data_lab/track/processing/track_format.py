@@ -4,6 +4,7 @@ SCRIPT_HISTORY = [
      "summary": "已有工具首次纳入 Git；原始创建时间未知。", "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
     {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
      "summary": "改用 global_settings 原始数据规范与调用方上下文，移除根入口和固定参数依赖；处理规则不变。"},
+    {"at": "2026-10-24T14:00:00+08:00", "action": "modified", "summary": "规范外取值的记录附上 app_commit，定位产生数据的 APP 代码版本。"},
 ]
 
 from pathlib import Path
@@ -14,7 +15,7 @@ sys.path[:0] = [str(PROJECT),str(PROJECT/"analysis"),str(PROJECT/"analysis/tools
 import global_settings as settings
 
 import pandas as pd
-from track_io import read_session, convert_types, write_table
+from track_io import read_session, convert_types, write_table, app_commit
 from artifacts import write_json
 from paths import stage_dir
 
@@ -32,7 +33,8 @@ def run(context):
                 name = settings.column(table,field)
                 extra = frame[name].dropna()[~frame[name].dropna().isin(levels)].unique().tolist()
                 if extra:
-                    notes.append({"session_dir":source.name,"field":f"{table}.{name}","unknown_values":extra})
+                    notes.append({"session_dir":source.name,"field":f"{table}.{name}","unknown_values":extra,
+                                  "app_commit":app_commit(incoming)})
             write_table(dest,table,frame)
     write_json(stage_dir(context,"03_format")/"format_notes.json",notes)
 
