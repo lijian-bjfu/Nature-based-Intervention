@@ -23,6 +23,8 @@ PARAMETERS = {
         "min_seconds": 2.0,
     },
     "dwell": None,
+    # look：环视（候选定义，讨论中）。拖动开始前 walking_window_s 秒内有移动，算"行进中拖动"。
+    "look": {"walking_window_s": 0.3},
 }
 
 # ════════════════════════════════════════════════════════════════════
@@ -69,6 +71,7 @@ def check(parameters):
     return {"dataset": sel["dataset"], "subject": str(sel["subject"]),
             "run": None if run in (None, "") else str(run),
             "still_step": step, "min_stay": positive(stay["min_seconds"], "stay.min_seconds"),
+            "look_window": positive(parameters["look"]["walking_window_s"], "look.walking_window_s"),
             **dwell_params(parameters.get("dwell"))}
 
 
@@ -151,6 +154,34 @@ def build(cfg):
         lty = txt(tb, "look", "look_type")
         looks = [{"t0": r(lt0[i], 2), "t1": r(lt1[i], 2), "yaw_end": r(ye[i], 1), "yaw_path": r(yp[i], 1),
                   "yaw_delta": r(yd[i], 1), "pitch_path": r(pp[i], 1), "type": lty[i]} for i in range(len(lt0))]
+    drags = []
+    if tb["look"].attrs["present"] and len(tb["look"]):
+        lk = tb["look"]
+        tid = lk[settings.column("look", "touch_id")].to_numpy(dtype=float, na_value=np.nan)
+        ltype = lk[settings.column("look", "look_type")].astype("string").fillna("").to_numpy()
+        lt0 = col(tb, "look", "t_session_start"); lt1 = col(tb, "look", "t_session_end")
+        lyp = col(tb, "look", "yaw_path"); lpp = col(tb, "look", "pitch_path"); lye = col(tb, "look", "yaw_end")
+        sw = settings.METRICS["track"]["stay_walk"]["parameters"]
+        step_xy = np.hypot(np.diff(x), np.diff(z)); tmid = t[1:]
+        cum_xy = np.r_[0, np.cumsum(step_xy)]
+        win = float(cfg["look_window"])
+        tap_times = np.array([tp["t"] for tp in taps]) if taps else np.array([])
+        for g in sorted({v for v, ty in zip(tid, ltype) if ty == "Drag" and np.isfinite(v)}):
+            m = (tid == g) & (ltype == "Drag")
+            a, b = float(np.nanmin(lt0[m])), float(np.nanmax(lt1[m]))
+            walking = bool((step_xy[(tmid > a - win) & (tmid <= a + 0.05)] > sw["still_step_m"]).any())
+            stuck = False
+            if not walking and len(tap_times):
+                prev = np.flatnonzero(tap_times < a)
+                if len(prev):
+                    i = prev[-1]
+                    stuck = bool(taps[i]["no_move"]) and (np.interp(a, t, cum_xy) - np.interp(tap_times[i], t, cum_xy)) < 0.3
+            kind = "walking" if walking else ("stuck" if stuck else "look")
+            k0 = min(int(np.searchsorted(t, a)), len(t) - 1)
+            dur = b - a; yp = float(np.nansum(lyp[m]))
+            drags.append({"id": int(g), "t0": r(a, 2), "t1": r(b, 2), "x": r(x[k0], 2), "z": r(z[k0], 2),
+                          "yaw_end": r(lye[m][-1], 1), "yaw": r(yp, 1), "pitch": r(float(np.nansum(lpp[m])), 1),
+                          "speed": r(yp / dur if dur > 0 else 0.0, 1), "kind": kind})
     backsteps = []
     if tb["backstep"].attrs["present"] and len(tb["backstep"]):
         bt, bx, bz, bd = (col(tb, "backstep", f) for f in ("t_session", "cam_x", "cam_z", "back_dist"))
@@ -171,6 +202,7 @@ def build(cfg):
     notes = [
         f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留。暂定口径，尚未写入规范。",
         f"逗留：把相邻的停顿（不动片段，长短不限）串起来，从第一次停顿到最后一次停顿，所有采样到平均位置的距离不超过 R、持续不少于 T，记为一次；中间的小移动算在内，走进来、走出去的路不算。默认 T = {cfg['dwell_t']:g} s、R = {cfg['dwell_r']:g} m（{'global_settings 登记值，见《实验记录-埋点》10.2' if cfg['dwell_registered'] else '本次临时覆盖，非登记值'}），可在页面上调整。阈值暂定，待预实验数据重新评估。",
+        "环视（候选定义，讨论中）：手动拖屏产生的转动，只计拖动开始时没在移动的；若拖动前最近一次点击是无位移点击、且之后一直没走动，算受阻后拖动，不计入环视。拖动开始前 0.3 s 内有移动的算行进中拖动。角度、速度不限。",
         "点击默认画在点击时被试所在的位置，可切换为命中位置；「点击 → 命中连线」连接两者。",
         "环视线段从环视开始时的位置出发，指向停稳后的朝向，长 1.6 m，只表示方向。",
         "空间结构来自 Unity 地理空间标注导出，" + f"导出于 {geo.get('exported_at')}（Unity 提交 {str(geo.get('unity_commit'))[:8]}）。",
@@ -184,7 +216,7 @@ def build(cfg):
                    "dwell_min_s": cfg["dwell_t"], "dwell_radius_m": cfg["dwell_r"], "dwell_still_step_m": cfg["dwell_step"]},
         "geo": {"polygons": geo["polygons"], "air_walls": geo["air_walls"], "bounds": geo["bounds"]},
         "path": {"t": [r(v, 2) for v in t], "x": [r(v, 2) for v in x], "z": [r(v, 2) for v in z], "yaw": [r(v, 1) for v in yaw]},
-        "stays": stay_list, "taps": taps, "looks": looks, "backsteps": backsteps, "events": events, "glitches": glitches,
+        "stays": stay_list, "taps": taps, "looks": looks, "drags": drags, "backsteps": backsteps, "events": events, "glitches": glitches,
     }
     return folder, data
 
@@ -236,6 +268,7 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-24T23:41:19+08:00", "action": "modified",
      "summary": "按 global_settings 登记的无位移点击口径给每次点击打标；红叉改为表示无位移点击，筛选「只看受阻」改为「只看无位移点击」。"},
     {"at": "2026-10-25T00:12:11+08:00", "action": "modified", "summary": "无位移点击口径加入没打中（intent = NoHit）。"},
+    {"at": "2026-10-25T00:32:52+08:00", "action": "modified", "summary": "按候选的环视定义把每次拖动分为环视 / 行进中拖动 / 受阻后拖动，分层显示，供研究者对照检验。"},
 ]
 
 if __name__ == "__main__":
