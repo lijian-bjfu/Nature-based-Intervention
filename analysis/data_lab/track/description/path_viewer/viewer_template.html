@@ -299,7 +299,7 @@ function placeTaps(){
 }
 // 环视（拖拽式）：从当时位置指向停稳后的朝向
 // 拖动：按候选的环视定义分三类，画在拖动开始的位置；圆点大小随左右转动量，短线指向停稳后的朝向
-const DRAG_STYLE={look:{c:"#2e8b57",name:"环视"},walking:{c:"#e08a1e",name:"行进中拖动（可能是为了停下）"},stuck:{c:"#8a8f99",name:"受阻后拖动（无位移点击之后、一直没走动）"}};
+const DRAG_STYLE={look:{c:"#2e8b57",name:"环视"},walking:{c:"#e08a1e",name:"行进中拖动（不计入环视）"}};
 D.drags.forEach(dg=>{
   const st=DRAG_STYLE[dg.kind]; const g=el("g",{class:"hit"},layers.looks); g.dataset.x=dg.x; g.dataset.z=dg.z; g.dataset.yaw=dg.yaw_end; g.dataset.amt=dg.yaw;
   el("circle",{fill:st.c,"fill-opacity":0.35,stroke:st.c,"stroke-width":1.4,"vector-effect":"non-scaling-stroke"},g);
@@ -313,7 +313,7 @@ function dragsTip(ev,self){
   const k=pxToWorld(); const [wx,wz]=toWorld(ev);
   let list=[...layers.looks.querySelectorAll(":scope > g")].filter(g=>g.dg && g.style.display!=="none" && Math.hypot(g.dg.x-wx,g.dg.z-wz)<=10*k).map(g=>g.dg).sort((a,b)=>a.t0-b.t0);
   if(!list.length) list=[self];
-  const line=dg=>`<b>${DRAG_STYLE[dg.kind].name}</b> #${dg.id}　${fmt(dg.t0)} – ${fmt(dg.t1)}（${(dg.t1-dg.t0).toFixed(1)} s）<br>　左右 ${dg.yaw.toFixed(0)}° · 上下 ${dg.pitch.toFixed(0)}° · 平均 ${dg.speed.toFixed(0)}°/s`;
+  const line=dg=>`<b>${DRAG_STYLE[dg.kind].name}</b>${dg.after_no_move?"（受阻后）":""} #${dg.id}　${fmt(dg.t0)} – ${fmt(dg.t1)}（${(dg.t1-dg.t0).toFixed(1)} s）<br>　左右 ${dg.yaw.toFixed(0)}° · 上下 ${dg.pitch.toFixed(0)}° · 平均 ${dg.speed.toFixed(0)}°/s`;
   if(list.length<=1) return list.length?line(list[0]):"";
   return `<b>此处 ${list.length} 次拖动</b><br>`+list.slice(0,12).map(line).join("<br>")+(list.length>12?`<br>…另有 ${list.length-12} 次`:"");
 }
@@ -408,9 +408,8 @@ const BEH=[
   {key:"stays",name:"停留（≥ 最短时长）",sym:'<svg class="sym"><circle cx="7" cy="7" r="5.5" fill="#7b4fa3" fill-opacity=".3" stroke="#7b4fa3"/></svg>',on:true},
   {key:"taps",name:"点击",sym:'<svg class="sym"><circle cx="5" cy="7" r="3.5" fill="#4a6fa5"/><circle cx="11" cy="7" r="3" fill="#2e9a6b"/></svg>',on:true},
   {key:"taplinks",name:"点击 → 命中连线",sym:'<svg class="sym"><line x1="1" y1="12" x2="13" y2="2" stroke="#4a6fa5" stroke-dasharray="3 2"/></svg>',on:false},
-  {key:"drag_look",name:"环视（候选定义）",sym:'<svg class="sym"><circle cx="6" cy="8" r="4" fill="#2e8b57" fill-opacity=".35" stroke="#2e8b57"/><line x1="6" y1="8" x2="12" y2="2" stroke="#2e8b57" stroke-width="2"/></svg>',on:true},
+  {key:"drag_look",name:"环视",sym:'<svg class="sym"><circle cx="6" cy="8" r="4" fill="#2e8b57" fill-opacity=".35" stroke="#2e8b57"/><line x1="6" y1="8" x2="12" y2="2" stroke="#2e8b57" stroke-width="2"/></svg>',on:true},
   {key:"drag_walking",name:"行进中拖动",sym:'<svg class="sym"><circle cx="6" cy="8" r="4" fill="#e08a1e" fill-opacity=".35" stroke="#e08a1e"/><line x1="6" y1="8" x2="12" y2="2" stroke="#e08a1e" stroke-width="2"/></svg>',on:true},
-  {key:"drag_stuck",name:"受阻后拖动",sym:'<svg class="sym"><circle cx="6" cy="8" r="4" fill="#8a8f99" fill-opacity=".35" stroke="#8a8f99"/><line x1="6" y1="8" x2="12" y2="2" stroke="#8a8f99" stroke-width="2"/></svg>',on:true},
   {key:"lookTap",name:"点击式环视（朝向）",sym:'<svg class="sym"><line x1="3" y1="11" x2="12" y2="3" stroke="#8aa2b8" stroke-width="2"/></svg>',on:false},
   {key:"backsteps",name:"长按后退",sym:'<svg class="sym"><rect x="3" y="3" width="8" height="8" fill="#8a6a4a"/></svg>',on:true},
   {key:"events",name:"世界事件",sym:'<svg class="sym"><rect x="3" y="3" width="8" height="8" fill="#8e44ad" transform="rotate(45 7 7)"/></svg>',on:true},
@@ -463,8 +462,8 @@ function updateStats(){
     ["停留",`${st.length} 段，${st.reduce((a,s)=>a+Math.min(s.t1,tWin[1])-Math.max(s.t0,tWin[0]),0).toFixed(1)} s`],
     ["点击",`${tp.length}（走过去 ${cnt("WalkTo")} / 走近去看 ${cnt("LookAt")} / 没打中 ${cnt("NoHit")}）`],
     ["摸到",tp.filter(x=>x.touched).length],
-    ["环视（候选）",(()=>{ const dg=D.drags.filter(d=>d.t0>=tWin[0]&&d.t0<=tWin[1]); const lo=dg.filter(d=>d.kind==="look");
-       return `${lo.length} 次，左右 ${lo.reduce((a,d)=>a+d.yaw,0).toFixed(0)}°（行进中 ${dg.filter(d=>d.kind==="walking").length} / 受阻后 ${dg.filter(d=>d.kind==="stuck").length}）`; })()],
+    ["环视",(()=>{ const dg=D.drags.filter(d=>d.t0>=tWin[0]&&d.t0<=tWin[1]); const lo=dg.filter(d=>d.kind==="look");
+       return `${lo.length} 次，左右 ${lo.reduce((a,d)=>a+d.yaw,0).toFixed(0)}° / 上下 ${lo.reduce((a,d)=>a+d.pitch,0).toFixed(0)}°（另有行进中拖动 ${dg.filter(d=>d.kind==="walking").length}）`; })()],
     ["无位移点击",`${tp.filter(x=>x.no_move).length}（起步受阻 ${tp.filter(x=>x.block==="NoStart").length}）`],
     ["半路被截",tp.filter(x=>x.block==="CutShort").length],
   ];

@@ -257,6 +257,17 @@ METRICS = {
             "status": "已定",
             "source": "研究思路/实验记录-埋点.md 10.11",
         },
+        "look": {
+            "name": "环视",
+            "definition": "拖动开始前 walking_window_s 秒内没有移动（相邻采样位移不超过 still_step_m）的手动拖动（look_type = Drag），"
+                          "按 touch_id 合并为一次；角度、速度不限",
+            "inputs": ("look.touch_id", "look.look_type", "look.t_session_start", "look.yaw_path", "look.pitch_path",
+                       "spacetime.t_session", "spacetime.cam_x", "spacetime.cam_z"),
+            "parameters": {"walking_window_s": 0.3, "still_step_m": 0.03},
+            "output": "环视次数（次）；环视量：左右累计（°）、上下累计（°），分开报告",
+            "status": "已定；受阻后环视、混乱旋转待有更多数据再观察",
+            "source": "研究思路/实验记录-埋点.md 10.12",
+        },
     },
     "psycho": {}, "physio": {},
 }
