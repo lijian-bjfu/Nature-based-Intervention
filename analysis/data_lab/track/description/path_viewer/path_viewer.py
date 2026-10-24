@@ -223,6 +223,8 @@ SCRIPT_HISTORY = [
      "summary": "增加逗留图层：页面内按时长 T、半径 R 识别逗留，参数可在页面上实时调整，默认值由 PARAMETERS.dwell 给出。"},
     {"at": "2026-10-24T22:35:56+08:00", "action": "modified",
      "summary": "逗留定义已登记到 global_settings.METRICS；页面默认阈值与停顿口径改为读取登记值，PARAMETERS.dwell 仅作临时覆盖。"},
+    {"at": "2026-10-24T23:21:55+08:00", "action": "modified",
+     "summary": "技术故障改用红色感叹三角（红叉只表示起步受阻）；增加点击筛选：全部 / 只看受阻 / 只看摸到。"},
 ]
 
 if __name__ == "__main__":
