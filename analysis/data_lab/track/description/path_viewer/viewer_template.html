@@ -56,6 +56,10 @@ svg#map.drag{cursor:grabbing}
 #tip{position:fixed;pointer-events:none;background:rgba(25,28,32,.94);color:#fff;font-size:12px;padding:6px 8px;border-radius:5px;max-width:300px;display:none;z-index:9;line-height:1.5}
 #tip b{color:#ffd479}
 .hit{cursor:pointer}
+.param{display:grid;grid-template-columns:70px 1fr 54px;align-items:center;gap:6px;margin:5px 0}
+.param input[type=range]{width:100%}
+.param input[type=number]{width:54px;border:1px solid var(--line);border-radius:4px;padding:1px 3px}
+.box{border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:8px 0;background:#fcfbf8}
 </style>
 </head>
 <body>
@@ -71,6 +75,13 @@ svg#map.drag{cursor:grabbing}
 
     <details open><summary>行为数据</summary>
       <div id="behRows"></div>
+      <div class="box">
+        <div style="font-weight:600;margin-bottom:2px">逗留识别（暂定规则）</div>
+        <div class="hint">把相邻的停顿串起来：从第一次停顿到最后一次停顿，活动始终在半径 R 以内、持续不少于 T，记为一次逗留。中间的小移动算在内，走进来、走出去的路不算。</div>
+        <div class="param"><span>时长 T (s)</span><input type="range" id="dwT" min="3" max="60" step="1"><input type="number" id="dwTn" min="3" max="60" step="1"></div>
+        <div class="param"><span>半径 R (m)</span><input type="range" id="dwR" min="0.5" max="10" step="0.5"><input type="number" id="dwRn" min="0.5" max="10" step="0.5"></div>
+        <div class="row"><span class="hint" id="dwInfo" style="flex:1;margin:0"></span><button class="focus" id="dwReset">恢复默认</button></div>
+      </div>
       <div class="hint" style="margin-top:8px">点击画在：</div>
       <div class="seg" id="tapPos"><button data-v="cam" class="on">被试位置</button><button data-v="hit">命中位置</button></div>
       <div class="hint">轨迹颜色：</div>
@@ -137,7 +148,7 @@ const full=[B.x_min-PAD, -(B.z_max+PAD), (B.x_max-B.x_min)+2*PAD, (B.z_max-B.z_m
 let vb=full.slice();
 const P = (x,z) => `${x},${-z}`;
 const layers={};
-["regions","bridges","aps","aplabels","walls","path","looks","stays","taplinks","taps","backsteps","events","glitches","now"].forEach(k=>layers[k]=el("g",{id:"L_"+k},svg));
+["regions","bridges","aps","aplabels","walls","dwells","path","looks","stays","taplinks","taps","backsteps","events","glitches","now"].forEach(k=>layers[k]=el("g",{id:"L_"+k},svg));
 
 // ---------- 空间结构 ----------
 const REGION_PALETTE=["#5b8fd6","#e0995e","#6fb38a","#c07fbf","#d9c55a","#5fb7c4","#d47a7a","#8f8fd9"];
@@ -292,6 +303,54 @@ function placeSmall(){
   layers.glitches.querySelectorAll("path").forEach(e=>{ const d=5*k, x=+e.dataset.x, y=-e.dataset.z; e.setAttribute("d",`M${x-d},${y-d}L${x+d},${y+d}M${x-d},${y+d}L${x+d},${y-d}`); });
   marks.filter(m=>m.kind==="stays").forEach(m=>m.e.setAttribute("r",m.rpx*k));
 }
+// 逗留：把相邻的停顿（不动片段，长短不限）串起来，只要从第一次停顿开始到最后一次停顿结束，
+// 所有采样到它们平均位置的距离都不超过 R，就并为一段；持续不少于 T 记为一次逗留。
+// 因此逗留总是从一次停顿开始、到一次停顿结束：走进来、走出去的路不算在内，中间的小移动算在内。
+// 单步间隔超过 1 s（切后台等）的不算停顿。
+let dwells=[], dwellMarks=[];
+function computeDwells(T,R){
+  const eps=D.params.still_step_m, segs=[]; let s0=null;
+  for(let k=1;k<N;k++){
+    const st=Math.hypot(path.x[k]-path.x[k-1],path.z[k]-path.z[k-1])<=eps && path.t[k]-path.t[k-1]<=1.0;
+    if(st){ if(s0===null) s0=k-1; } else if(s0!==null){ segs.push([s0,k-1]); s0=null; }
+  }
+  if(s0!==null) segs.push([s0,N-1]);
+  const extent=(a,e)=>{ let sx=0,sz=0; for(let k=a;k<=e;k++){ sx+=path.x[k]; sz+=path.z[k]; } const n=e-a+1, cx=sx/n, cz=sz/n; let r=0;
+    for(let k=a;k<=e;k++) r=Math.max(r,Math.hypot(path.x[k]-cx,path.z[k]-cz)); return {cx,cz,r}; };
+  const out=[]; let g=0;
+  while(g<segs.length){
+    let h=g; while(h+1<segs.length && extent(segs[g][0],segs[h+1][1]).r<=R) h++;
+    const a=segs[g][0], e=segs[h][1];
+    if(path.t[e]-path.t[a]>=T){ const x=extent(a,e); out.push({i:a,j:e,t0:path.t[a],t1:path.t[e],x:x.cx,z:x.cz,r:x.r,pauses:h-g+1}); }
+    g=h+1;
+  }
+  out.forEach(d=>{
+    const tp=D.taps.filter(x=>x.t>=d.t0&&x.t<=d.t1), lk=D.looks.filter(l=>l.type==="Drag"&&l.t0>=d.t0&&l.t0<=d.t1);
+    let path_m=0; for(let k=d.i+1;k<=d.j;k++) path_m+=Math.hypot(path.x[k]-path.x[k-1],path.z[k]-path.z[k-1]);
+    Object.assign(d,{dur:d.t1-d.t0,path_m,taps:tp.length,lookat:tp.filter(x=>x.intent==="LookAt").length,touched:tp.filter(x=>x.touched).length,
+      blocked:tp.filter(x=>x.block!=="NotBlocked").length,stays:D.stays.filter(s=>s.t0>=d.t0-0.05&&s.t1<=d.t1+0.05).length,moves:d.pauses-1,yaw:lk.reduce((a,l)=>a+l.yaw_path,0)});
+  });
+  return out;
+}
+function drawDwells(){
+  layers.dwells.innerHTML=""; dwellMarks=[];
+  dwells.forEach((d,n)=>{
+    const c=el("circle",{cx:d.x,cy:-d.z,r:Math.max(0.6,d.r+0.3),fill:"#f0a030","fill-opacity":0.22,stroke:"#d07a10","stroke-width":1.6,"stroke-dasharray":"5 3","vector-effect":"non-scaling-stroke",class:"hit"},layers.dwells);
+    c.addEventListener("mousemove",ev=>showTip(ev,`<b>逗留 ${n+1}</b> ${fmt(d.t0)} – ${fmt(d.t1)}<br>持续 ${d.dur.toFixed(1)} s · 活动半径 ${d.r.toFixed(2)} m · 路程 ${d.path_m.toFixed(1)} m<br>停顿 ${d.pauses} 次（其中停留 ${d.stays} 段），中间小移动 ${d.moves} 次<br>点击 ${d.taps}（走近去看 ${d.lookat}）· 摸到 ${d.touched} · 受阻 ${d.blocked}<br>拖拽环视累计 ${d.yaw.toFixed(0)}°`));
+    c.addEventListener("mouseleave",hideTip);
+    c.addEventListener("dblclick",ev=>{ev.stopPropagation(); focusBox([d.x-d.r,d.z-d.r,d.x+d.r,d.z+d.r],6);});
+    dwellMarks.push({e:c,t0:d.t0,t1:d.t1});
+  });
+  const tot=dwells.reduce((a,d)=>a+d.dur,0);
+  $("#dwInfo").textContent=`全程识别出 ${dwells.length} 次，合计 ${tot.toFixed(0)} s（${(tot/T_END*100).toFixed(0)}%）`;
+}
+const dwDefault={T:D.params.dwell_min_s, R:D.params.dwell_radius_m};
+function setDwell(T,R){
+  T=Math.min(60,Math.max(3,+T||dwDefault.T)); R=Math.min(10,Math.max(0.5,+R||dwDefault.R));
+  $("#dwT").value=$("#dwTn").value=T; $("#dwR").value=$("#dwRn").value=R;
+  dwells=computeDwells(T,R); drawDwells(); drawTimeline(); refresh();
+}
+
 // 当前位置（时间窗终点）
 const nowG=layers.now; const nowDot=el("circle",{fill:"#111",stroke:"#fff","stroke-width":2,"vector-effect":"non-scaling-stroke"},nowG);
 const nowDir=el("line",{stroke:"#111","stroke-width":2.5,"stroke-linecap":"round","vector-effect":"non-scaling-stroke"},nowG);
@@ -301,6 +360,7 @@ function placeNow(){ const k=pxToWorld(); const [x,z,yaw]=posAt(tWin[1]); const 
 
 const BEH=[
   {key:"path",name:"轨迹",sym:'<svg class="sym"><line x1="1" y1="12" x2="13" y2="2" stroke="#31688e" stroke-width="2.5"/></svg>',on:true},
+  {key:"dwells",name:"逗留",sym:'<svg class="sym"><circle cx="7" cy="7" r="5.5" fill="#f0a030" fill-opacity=".25" stroke="#d07a10" stroke-dasharray="2 1.5"/></svg>',on:true},
   {key:"stays",name:"停留（≥ 最短时长）",sym:'<svg class="sym"><circle cx="7" cy="7" r="5.5" fill="#7b4fa3" fill-opacity=".3" stroke="#7b4fa3"/></svg>',on:true},
   {key:"taps",name:"点击",sym:'<svg class="sym"><circle cx="5" cy="7" r="3.5" fill="#4a6fa5"/><circle cx="11" cy="7" r="3" fill="#2e9a6b"/></svg>',on:true},
   {key:"taplinks",name:"点击 → 命中连线",sym:'<svg class="sym"><line x1="1" y1="12" x2="13" y2="2" stroke="#4a6fa5" stroke-dasharray="3 2"/></svg>',on:false},
@@ -332,6 +392,7 @@ function refresh(){
   chunks.forEach(c=>c.e.style.display=inWin(c.t0,c.t1)?"":"none");
   marks.forEach(m=>{ const on = m.kind==="lookDrag"||m.kind==="lookTap" ? behOn[m.kind] : behOn[m.kind];
     m.e.style.display = on && inWin(m.t0,m.t1) ? "" : "none"; });
+  dwellMarks.forEach(m=>m.e.style.display=behOn.dwells && inWin(m.t0,m.t1)?"":"none");
   layers.now.style.display=behOn.now?"":"none";
   placeNow(); updateTimebar(); updateStats();
 }
@@ -351,6 +412,7 @@ function updateStats(){
   const rows=[
     ["时间窗",`${fmt(tWin[0])} – ${fmt(tWin[1])}`],["时长",`${(tWin[1]-tWin[0]).toFixed(1)} s`],
     ["水平路程",`${len.toFixed(1)} m`],["移动时间（动了的步）",`${moveT.toFixed(1)} s`],
+    ["逗留",(()=>{ const dw=dwells.filter(d=>inWin(d.t0,d.t1)); return `${dw.length} 次，${dw.reduce((a,d)=>a+Math.min(d.t1,tWin[1])-Math.max(d.t0,tWin[0]),0).toFixed(1)} s`; })()],
     ["停留",`${st.length} 段，${st.reduce((a,s)=>a+Math.min(s.t1,tWin[1])-Math.max(s.t0,tWin[0]),0).toFixed(1)} s`],
     ["点击",`${tp.length}（走过去 ${cnt("WalkTo")} / 走近去看 ${cnt("LookAt")} / 没打中 ${cnt("NoHit")}）`],
     ["摸到",tp.filter(x=>x.touched).length],
@@ -394,6 +456,7 @@ function drawTimeline(){
   const c=cv.getContext("2d"); c.scale(devicePixelRatio,devicePixelRatio); const W=r.width,H=r.height;
   for(let x=0;x<W;x++){ c.fillStyle=viridis(x/W); c.fillRect(x,0,1,H*0.42); }
   c.fillStyle="#eef0f2"; c.fillRect(0,H*0.42,W,H*0.58);
+  dwells.forEach(d=>{ c.fillStyle="rgba(240,160,48,.75)"; c.fillRect(d.t0/T_END*W,H*0.42,Math.max(1,(d.t1-d.t0)/T_END*W),H*0.06); });
   D.stays.forEach(s=>{ c.fillStyle="rgba(123,79,163,.45)"; c.fillRect(s.t0/T_END*W,H*0.46,Math.max(1,(s.t1-s.t0)/T_END*W),H*0.22); });
   D.taps.forEach(tp=>{ c.fillStyle=tp.touched?"#e0a800":(tp.block==="NotBlocked"?"#4a6fa5":"#d03030"); c.fillRect(tp.t/T_END*W,H*0.72,1.4,H*0.28); });
   c.fillStyle="#555"; c.font="10px sans-serif"; for(let m=0;m<=T_END/60;m++){ const x=m*60/T_END*W; c.fillRect(x,0,1,4); if(m>0) c.fillText(m+"′",x+2,10); }
@@ -421,7 +484,10 @@ document.querySelectorAll(".seg").forEach(seg=>seg.querySelectorAll("button").fo
 $("#meta").innerHTML=`${D.meta.dataset} ／ ${D.meta.record}<br>时长 ${fmt(T_END)} · 生成于 ${D.meta.generated}`;
 $("#notes").innerHTML=D.meta.notes.map(n=>"· "+n).join("<br>");
 applyGeo(); colorPath();
-requestAnimationFrame(()=>{ fitBox(B.x_min,B.z_min,B.x_max,B.z_max,PAD); drawTimeline(); refresh(); });
+$("#dwT").oninput=e=>setDwell(e.target.value,$("#dwR").value); $("#dwTn").onchange=e=>setDwell(e.target.value,$("#dwR").value);
+$("#dwR").oninput=e=>setDwell($("#dwT").value,e.target.value); $("#dwRn").onchange=e=>setDwell($("#dwT").value,e.target.value);
+$("#dwReset").onclick=()=>setDwell(dwDefault.T,dwDefault.R);
+requestAnimationFrame(()=>{ fitBox(B.x_min,B.z_min,B.x_max,B.z_max,PAD); setDwell(dwDefault.T,dwDefault.R); });
 window.addEventListener("resize",()=>{ drawTimeline(); updateTimebar(); });
 </script>
 </body>

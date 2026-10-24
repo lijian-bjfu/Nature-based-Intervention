@@ -10,6 +10,9 @@
 # stay：浏览页上"停留"图层的画法（暂定口径，见 description/behavior 的讨论，尚未写入规范）。
 #   still_step_m：相邻两个采样之间水平位置变化不超过多少米，算这一步没动。
 #   min_seconds：连续没动至少多久，才画成一次停留。
+# dwell：浏览页上"逗留"的默认识别参数（暂定规则；页面上可以临时调高调低，这里只定打开时的默认值）。
+#   min_seconds：持续不少于多少秒。
+#   radius_m：活动始终在多大半径以内（米）。
 PARAMETERS = {
     "selection": {
         "dataset": "test",
@@ -19,6 +22,10 @@ PARAMETERS = {
     "stay": {
         "still_step_m": 0.03,
         "min_seconds": 2.0,
+    },
+    "dwell": {
+        "min_seconds": 15.0,
+        "radius_m": 3.0,
     },
 }
 
@@ -65,7 +72,9 @@ def check(parameters):
         raise ValueError("stay.still_step_m 应在 0 到 1 米之间")
     return {"dataset": sel["dataset"], "subject": str(sel["subject"]),
             "run": None if run in (None, "") else str(run),
-            "still_step": step, "min_stay": positive(stay["min_seconds"], "stay.min_seconds")}
+            "still_step": step, "min_stay": positive(stay["min_seconds"], "stay.min_seconds"),
+            "dwell_t": positive(parameters["dwell"]["min_seconds"], "dwell.min_seconds"),
+            "dwell_r": positive(parameters["dwell"]["radius_m"], "dwell.radius_m")}
 
 
 def col(tables, table, field, dtype=float):
@@ -151,6 +160,7 @@ def build(cfg):
     stay_list = stays(t, x, z, cfg["still_step"], cfg["min_stay"], tap_t, touched_t)
     notes = [
         f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留。暂定口径，尚未写入规范。",
+        f"逗留：把相邻的停顿（不动片段，长短不限）串起来，从第一次停顿到最后一次停顿，所有采样到平均位置的距离不超过 R、持续不少于 T，记为一次；中间的小移动算在内，走进来、走出去的路不算。默认 T = {cfg['dwell_t']:g} s、R = {cfg['dwell_r']:g} m，可在页面上调整。暂定规则，由页面计算，尚未写入规范。",
         "点击默认画在点击时被试所在的位置，可切换为命中位置；「点击 → 命中连线」连接两者。",
         "环视线段从环视开始时的位置出发，指向停稳后的朝向，长 1.6 m，只表示方向。",
         "空间结构来自 Unity 地理空间标注导出，" + f"导出于 {geo.get('exported_at')}（Unity 提交 {str(geo.get('unity_commit'))[:8]}）。",
@@ -160,7 +170,8 @@ def build(cfg):
     data = {
         "meta": {"dataset": cfg["dataset"], "record": folder.name, "duration": r(duration, 2), "generated": now()[:16].replace("T", " "),
                  "notes": notes},
-        "params": {"still_step_m": cfg["still_step"], "min_stay_s": cfg["min_stay"]},
+        "params": {"still_step_m": cfg["still_step"], "min_stay_s": cfg["min_stay"],
+                   "dwell_min_s": cfg["dwell_t"], "dwell_radius_m": cfg["dwell_r"]},
         "geo": {"polygons": geo["polygons"], "air_walls": geo["air_walls"], "bounds": geo["bounds"]},
         "path": {"t": [r(v, 2) for v in t], "x": [r(v, 2) for v in x], "z": [r(v, 2) for v in z], "yaw": [r(v, 1) for v in yaw]},
         "stays": stay_list, "taps": taps, "looks": looks, "backsteps": backsteps, "events": events, "glitches": glitches,
@@ -204,6 +215,8 @@ def main():
 SCRIPT_HISTORY = [
     {"at": "2026-10-24T21:17:11+08:00", "action": "created",
      "summary": "路径浏览页：一份实验记录叠加在地理空间标注（区域、桥、景点、空气墙）上，生成单文件交互页面；支持图层开关、颜色与透明度调整、时间窗筛选与播放、范围聚焦。"},
+    {"at": "2026-10-24T22:23:42+08:00", "action": "modified",
+     "summary": "增加逗留图层：页面内按时长 T、半径 R 识别逗留，参数可在页面上实时调整，默认值由 PARAMETERS.dwell 给出。"},
 ]
 
 if __name__ == "__main__":
