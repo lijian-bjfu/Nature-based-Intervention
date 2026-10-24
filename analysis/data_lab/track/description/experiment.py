@@ -8,12 +8,14 @@ sys.path[:0] = [str(PROJECT), str(PROJECT/"analysis"), str(PROJECT/"analysis/too
 SCRIPT_HISTORY = [
     {"at": "2026-10-23T20:48:27+08:00", "action": "created", "summary": "建立局部实验调度，解除根目录参数和运行入口依赖；为每步记录时间、Git 信息及源码快照。"},
     {"at": "2026-10-24T12:55:00+08:00", "action": "modified", "summary": "源码记录改为提交号加 SHA-256，只复制未提交的源码（uncommitted_sources），不再整份快照。"},
+    {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。 结果改为只保留最近一次（results/，每次覆盖），追溯信息放 results/_provenance/。", "previous_path": "analysis/data_lab/track/description/record_description/experiment.py"},
 ]
 
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from fnmatch import fnmatchcase
 import argparse
+import shutil
 import importlib.metadata
 import math
 import numbers
@@ -27,16 +29,16 @@ from run_records import now, run_id, git_state, record_sources, script_history
 from workflow import resolve_steps as resolve_dependencies, script_path, load_script
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent
-EXPERIMENT_NAME = "record_description"
+EXPERIMENT_NAME = "description"
 DESCRIPTION_METHOD = "adjacent_xz"
 FIGURES = {"space": "fig1_space", "time": "fig2_time", "actions": "fig3_actions"}
 STAGE_TABLE_FOLDER = "tables"
 STEP_ORDER = ("01_import", "02_clean", "03_format", "06_analysis")
 STAGES = {
-    "01_import": {"script": "data_lab/track/processing/track_inventory.py", "requires": ()},
-    "02_clean": {"script": "data_lab/track/processing/track_clean.py", "requires": ("01_import",)},
-    "03_format": {"script": "data_lab/track/processing/track_format.py", "requires": ("02_clean",)},
-    "06_analysis": {"script": "data_lab/track/description/record_description/track_describe.py", "requires": ("03_format",)},
+    "01_import": {"script": "data_lab/track/description/track_inventory.py", "requires": ()},
+    "02_clean": {"script": "data_lab/track/description/track_clean.py", "requires": ("01_import",)},
+    "03_format": {"script": "data_lab/track/description/track_format.py", "requires": ("02_clean",)},
+    "06_analysis": {"script": "data_lab/track/description/track_describe.py", "requires": ("03_format",)},
 }
 TASKS = {
     "track_inventory": {"stage": "01_import", "label": "核对埋点文件"},
@@ -145,15 +147,18 @@ def execute(config):
     scripts = {step:script_path(ANALYSIS, STAGES[step]["script"]) for step in steps}
     sessions = discover(config)
     stamp = run_id()
-    output = lab_output_root(EXPERIMENT_DIR,config.dataset) / stamp
-    processed = processed_root(config.dataset,"track") / "data_lab" / EXPERIMENT_NAME / stamp
+    # 结果只保留最近一次：每次运行先清空 results/ 和对应的处理数据目录，不按时间戳堆文件夹。
+    # 想保留的结果由研究者手动复制到 save/，按含义命名。追溯信息放在 _provenance/，平时不用打开。
+    output = EXPERIMENT_DIR / "results"
+    processed = processed_root(config.dataset,"track") / "data_lab" / EXPERIMENT_NAME
     has_report = "06_analysis" in steps
-    processed.mkdir(parents=True,exist_ok=False)
-    if has_report:
-        output.mkdir(parents=True,exist_ok=False)
-    context = RunContext(config,sessions,output,processed,final_root(config.dataset)/stamp)
-    metadata_roots = [processed] + ([output] if has_report else [])
-    primary = output if has_report else processed
+    for folder in [processed] + ([output] if has_report else []):
+        if folder.exists():
+            shutil.rmtree(folder)
+        folder.mkdir(parents=True)
+    context = RunContext(config,sessions,output,processed,final_root(config.dataset)/("data_lab_"+EXPERIMENT_NAME))
+    metadata_roots = [processed/"_provenance"] + ([output/"_provenance"] if has_report else [])
+    primary = metadata_roots[-1]
     files = source_files()
     sources, copied = record_sources(ROOT,files,primary/"uncommitted_sources")
     raw_hashes = {str(path.relative_to(ROOT)):sha256(path) for folder in sessions
@@ -216,7 +221,7 @@ def execute(config):
     print(f"处理数据：{processed}",flush=True)
     if has_report:
         print(f"打开报告：{output/'index.md'}",flush=True)
-    return primary
+    return output if has_report else processed
 
 def cli(parameters, default_tasks=None, argv=None):
     parser = argparse.ArgumentParser(description="修改当前实验脚本的 PARAMETERS 后点 Run，或使用命令行临时覆盖。")

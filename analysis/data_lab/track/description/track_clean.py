@@ -4,6 +4,7 @@ SCRIPT_HISTORY = [
      "summary": "已有工具首次纳入 Git；原始创建时间未知。", "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},
     {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
      "summary": "改用 global_settings 原始数据规范与调用方上下文，移除根入口和固定参数依赖；处理规则不变。"},
+    {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/processing/track_clean.py"},
 ]
 
 from pathlib import Path
@@ -37,4 +38,4 @@ def run(context):
     write_json(stage_dir(context,"02_clean")/"cleaning_log.json",changes)
 
 if __name__ == "__main__":
-    print("这是实验工具。请运行 data_lab/track/description/record_description/track_describe.py；选择相应 tasks 可单独检查本环节。")
+    print("这是实验工具。请运行 data_lab/track/description/track_describe.py；选择相应 tasks 可单独检查本环节。")

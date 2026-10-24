@@ -6,6 +6,7 @@ SCRIPT_HISTORY = [
      "summary": "改用共享原始字段规范及实验自己的方法登记，更新本地参数、输出与运行追溯说明。"},
     {"at": "2026-10-24T12:55:00+08:00", "action": "modified",
      "summary": "运行追溯说明改为：已提交源码凭提交号还原，只复制未提交的源码。"},
+    {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/report/track_report.py"},
 ]
 
 from pathlib import Path
@@ -16,7 +17,7 @@ sys.path[:0] = [str(PROJECT),str(PROJECT/"analysis"),str(PROJECT/"analysis/tools
 import pandas as pd
 import global_settings as settings
 from artifacts import markdown_table
-from data_lab.track.description.record_description.experiment import TrackDescribeOptions, FIGURES
+from data_lab.track.description.experiment import TrackDescribeOptions, FIGURES
 
 def make_report(summary,layers,look_stats,bins,tables,dest,images,language,options: TrackDescribeOptions):
     zh=language=="zh"
@@ -75,7 +76,7 @@ def make_report(summary,layers,look_stats,bins,tables,dest,images,language,optio
         if image:
             fragments += [f"[{image}]({image})" if image.endswith(".pdf") else f"![{image}]({image})"]
     fragments += ["## "+text("复现","Reproduction"),
-        text("本次结果目录含 manifest.json、global_settings_snapshot.json、parameters_snapshot.json，若有未提交的源码修改另含 uncommitted_sources。manifest 记录整次和各步骤的起止时间、Git 提交号、工作树状态与输入/源码 SHA-256；已提交的源码凭提交号还原，未提交的修改单独保存副本。原始数据不改写，文字与图表由同次计算生成。",
-             "The result directory contains manifest.json, global_settings_snapshot.json and parameters_snapshot.json, plus uncommitted_sources when sources had uncommitted edits. It records run and step timestamps, Git commit and working-tree status, and input/source SHA-256. Committed sources are recoverable from the commit; uncommitted edits are copied. Raw data remain unchanged; text and figures derive from the same computation.")]
+        text("追溯信息在 results/_provenance/：manifest.json、global_settings_snapshot.json、parameters_snapshot.json，若有未提交的源码修改另含 uncommitted_sources。manifest 记录整次和各步骤的起止时间、Git 提交号、工作树状态与输入/源码 SHA-256；已提交的源码凭提交号还原，未提交的修改单独保存副本。原始数据不改写，文字与图表由同次计算生成。",
+             "Provenance is in results/_provenance/: manifest.json, global_settings_snapshot.json and parameters_snapshot.json, plus uncommitted_sources when sources had uncommitted edits. It records run and step timestamps, Git commit and working-tree status, and input/source SHA-256. Committed sources are recoverable from the commit; uncommitted edits are copied. Raw data remain unchanged; text and figures derive from the same computation.")]
     (dest/"report.md").write_text("\n\n".join(fragments)+"\n",encoding="utf-8")
 

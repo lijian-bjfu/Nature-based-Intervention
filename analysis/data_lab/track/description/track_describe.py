@@ -6,6 +6,7 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-23T20:48:27+08:00", "action": "refactor",
      "summary": "迁入 record_description 工作目录；将参数放回本脚本，使用共享原始数据规范与局部调度，计算口径不变。",
      "previous_path": "analysis/data_lab/track/description/track_describe.py"},
+    {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/description/record_description/track_describe.py"},
 ]
 
 # 本实验的局部参数，可以反复比较；每次运行自动保存实际生效值和源码。
@@ -55,10 +56,10 @@ from artifacts import records, write_json, markdown_table
 from paths import stage_dir
 from plotting import pyplot, save_figure
 from options import FigureOptions
-from data_lab.track.description.record_description.experiment import (
+from data_lab.track.description.experiment import (
     TrackDescribeOptions, RunContext, DESCRIPTION_METHOD, FIGURES,
 )
-from data_lab.track.report.track_report import make_report
+from data_lab.track.description.track_report import make_report
 
 def series(tables, table, field):
     return tables[table][settings.column(table,field)]
@@ -332,5 +333,5 @@ def run(context: RunContext):
     (base/"index.md").write_text("# "+title+"\n\n"+markdown_table(frame)+"\n\n"+links+"\n",encoding="utf-8")
 
 if __name__=="__main__":
-    from data_lab.track.description.record_description.experiment import cli
+    from data_lab.track.description.experiment import cli
     cli(PARAMETERS)

@@ -33,19 +33,14 @@ Nature-based Intervention/
 │   │   └── integration/                  01_parameters.py、02_run.py
 │   ├── data_lab/
 │   │   ├── README.md
-│   │   ├── history_index.csv             由工具生成的时间检索表
 │   │   ├── track/
-│   │   │   ├── processing/               当前记录描述所用处理工具
-│   │   │   ├── description/
-│   │   │   │   └── record_description/
-│   │   │   │       ├── track_describe.py  当前入口，顶部有 PARAMETERS
-│   │   │   │       ├── experiment.py     本实验的校验、依赖和调度
-│   │   │   │       ├── outputs/
-│   │   │   │       │   ├── formal/<run_id>/
-│   │   │   │       │   └── pilot_and_test/<run_id>/
-│   │   │   │       └── archive/          迁入的旧报告与旧工程文件
-│   │   │   ├── analysis/                 快速检验、专门分析，当前预留
-│   │   │   ├── report/                   从描述结果组织文字
+│   │   │   ├── description/              一个研究问题：埋点原始记录的描述
+│   │   │   │   ├── README.md             问题、方法、结论
+│   │   │   │   ├── log.md                研究过程日志
+│   │   │   │   ├── track_describe.py     入口，顶部有 PARAMETERS；本问题用到的其他脚本也直接放在这一层
+│   │   │   │   ├── results/              最近一次结果，每次运行覆盖（本机）
+│   │   │   │   └── save/                 研究者认可的结果，按含义命名（本机）
+│   │   │   ├── processing/、analysis/、report/   环节目录，具体问题出现后再在下面建
 │   │   │   └── deprecated/               弃用源码，不参与运行
 │   │   ├── psycho/                       同样有五个环节目录
 │   │   └── physico/                      同样有五个环节目录
@@ -53,9 +48,11 @@ Nature-based Intervention/
 └── 研究思路/                             科学依据与已同意的研究规范
 ```
 
-track 表示虚拟自然行为，psycho 表示问卷，physico 表示生理测量。data_lab 的二级目录按对象划分，第三级按 processing、description、analysis、report 划分，另有 deprecated。具体工作可以在相应环节下拥有自己的目录、入口、参数和结果。四个环节不要求每次全部执行，例如记录描述无需先做回归。
+track 表示虚拟自然行为，psycho 表示问卷，physico 表示生理测量。data_lab 的二级目录按对象划分，第三级按环节划分。
 
-analysis 现在可以保存本项工作的图表和文字，原先“analysis 只放脚本”的约定已更新。数据用途决定其位置：供后续处理使用的清理、格式转换、切窗及特征表放 data/processed；最终研究分析表放 data/final；用于展示处理效果或说明分析结果的描述表、图、文字放该项工作的 outputs。不能仅按 CSV 文件格式判断它属于数据还是报告。
+data_lab 的组织原则是**先研究，再整理**：一个文件夹对应一个研究问题，不预设子目录。本问题用到的脚本直接放在该文件夹下；README.md 总结问题、方法和结论；log.md 记录研究过程（试了什么、为什么、看到了什么）；results/ 只保留最近一次运行的结果，每次覆盖，不按时间建文件夹；研究者认可、要保留的结果手动复制到 save/，按含义命名，作为日后晋升为正式规范的依据。每次运行的参数、提交号等追溯信息自动写在 results/_provenance/，平时不用打开。results/ 与 save/ 只存本机，不入库。
+
+analysis 现在可以保存本项工作的图表和文字，原先“analysis 只放脚本”的约定已更新。数据用途决定其位置：供后续处理使用的清理、格式转换、切窗及特征表放 data/processed；最终研究分析表放 data/final；用于展示处理效果或说明分析结果的描述表、图、文字放该研究问题的 results/（认可的放 save/）。不能仅按 CSV 文件格式判断它属于数据还是报告。
 
 ## 共享数据规范
 
@@ -77,9 +74,9 @@ table_flows 的前三个对象流程原则上包含载入、清理、指标计�
 
 ## 当前 Lab 记录描述：在 VS Code 运行
 
-目前可执行的是 Track 的 record_description 实验。入口是：
+目前可执行的是 Track 的记录描述（track/description）。入口是：
 
-[analysis/data_lab/track/description/record_description/track_describe.py](analysis/data_lab/track/description/record_description/track_describe.py)
+[analysis/data_lab/track/description/track_describe.py](analysis/data_lab/track/description/track_describe.py)
 
 1. 打开该脚本，在顶部 PARAMETERS 修改本次数据选择和候选参数。
 2. 保存，在这个脚本点击 VS Code 的 Run Python File。
@@ -106,10 +103,10 @@ table_flows 的前三个对象流程原则上包含载入、清理、指标计�
 命令行和 VS Code 共用参数校验与调度逻辑。明确提供的命令行选项只覆盖当次运行，不回写入口脚本。
 
 ```bash
-python3 analysis/data_lab/track/description/record_description/track_describe.py
-python3 analysis/data_lab/track/description/record_description/track_describe.py --list
-python3 analysis/data_lab/track/description/record_description/track_describe.py --sessions sub-P999_ses-S001_mod-Interactive_run-002 --time-bin-seconds 30
-python3 analysis/data_lab/track/description/record_description/track_describe.py --tasks track_clean
+python3 analysis/data_lab/track/description/track_describe.py
+python3 analysis/data_lab/track/description/track_describe.py --list
+python3 analysis/data_lab/track/description/track_describe.py --sessions sub-P999_ses-S001_mod-Interactive_run-002 --time-bin-seconds 30
+python3 analysis/data_lab/track/description/track_describe.py --tasks track_clean
 python3 analysis/table_flows/integration/02_run.py --list
 ```
 
@@ -124,12 +121,12 @@ python3 analysis/table_flows/integration/02_run.py --list
 当前实验清理和格式表写入：
 
 ```text
-data/<数据集根>/processed/app/data_lab/record_description/<run_id>/
+data/<数据集根>/processed/app/data_lab/description/
 ```
 
-图表和文字写入实验自己的 outputs/formal 或 outputs/pilot_and_test 下。报告按工作内容归属，不在结果目录中再套 logging_test 或 pilot 数据集目录。输入数据集记录在 manifest 中。只核对或清理时只写处理数据及复现信息，不创建描述报告目录。
+图表和文字写入 track/description/results/，每次运行先清空再写，处理数据目录同样只保留最近一次。输入数据集记录在 results/_provenance/manifest.json 中。只核对或清理时只写处理数据，不创建描述结果。
 
-本次运行的结果目录保存 index.md、分会话描述表、图和报告，以及 manifest.json、global_settings_snapshot.json、parameters_snapshot.json；若当次用到有未提交修改的源码，另含 uncommitted_sources。每次新建运行目录，不覆盖旧结果。处理数据目录也保存相应清单和快照信息，指向同次结果。
+results/ 保存 index.md、分会话描述表、图和报告；追溯信息在 results/_provenance/（manifest.json、global_settings_snapshot.json、parameters_snapshot.json，有未提交修改的源码时另含 uncommitted_sources）。想保留某次结果，手动复制到 save/ 并按含义命名。
 
 ## 时间检索和版本追溯
 
@@ -140,10 +137,10 @@ data/<数据集根>/processed/app/data_lab/record_description/<run_id>/
 [analysis/tools/lab_history.py](analysis/tools/lab_history.py) 只解析历史声明，不执行实验。直接在 VS Code 运行它会生成 analysis/data_lab/history_index.csv；可在其顶部 PARAMETERS 设置起止日期及对象，也可以使用：
 
 ```bash
-python3 analysis/tools/lab_history.py --since 2026-10-23 --until 2026-10-23 --object track
+python3 analysis/tools/lab_history.py --since 2026-10-23 --until 2026-10-23 --object track   # 生成的 history_index.csv 只存本机
 ```
 
-索引按登记时间排序，包含对象、环节、脚本、事件、原因、已有提交号及原路径；不扫描 archive 或 outputs 中的历史副本。deprecated 中有历史声明的源码仍可检索，并标记弃用状态。同一次批量调整可能登记同一时间，不能据此臆造更细的操作顺序。
+索引按登记时间排序，包含对象、环节、脚本、事件、原因、已有提交号及原路径；不扫描 results、save 等结果目录。deprecated 中有历史声明的源码仍可检索，并标记弃用状态。同一次批量调整可能登记同一时间，不能据此臆造更细的操作顺序。
 
 每次运行的 manifest 另记整次运行及每个步骤的开始、结束时间、状态和错误。工程时间使用 Asia/Shanghai 的 ISO 表示；它与原始数据中的 t_session、t_device 是不同用途，不能混为数据同步依据。
 
@@ -151,7 +148,7 @@ python3 analysis/tools/lab_history.py --since 2026-10-23 --until 2026-10-23 --ob
 
 日常可在 GitHub Desktop 查看改动、提交与历史，代码改动和 SCRIPT_HISTORY 一起提交即可。无需依赖命令行管理版本。入库与不入库的划分：
 - **入库**：table_flows 的流程与工具、data_lab 的脚本、global_settings.py、说明文档。GitHub 端的价值在于制表规范流程和工具。
-- **不入库，只存本机硬盘**：data/ 下的全部数据（只保留目录骨架与说明文件）；data_lab 的 outputs 与 archive；缓存和本机元数据。数据不上传到 GitHub 是出于被试隐私与伦理要求：伦理申请中的存储位置是 iPad 本机与研究者电脑，GitHub 属第三方服务器。数据另用移动硬盘备份。
+- **不入库，只存本机硬盘**：data/ 下的全部数据（只保留目录骨架与说明文件）；data_lab 各研究问题的 results/ 与 save/；缓存和本机元数据。数据不上传到 GitHub 是出于被试隐私与伦理要求：伦理申请中的存储位置是 iPad 本机与研究者电脑，GitHub 属第三方服务器。数据另用移动硬盘备份。
 
 ## 公共工具、命名与废弃工具
 
@@ -161,12 +158,10 @@ python3 analysis/tools/lab_history.py --since 2026-10-23 --until 2026-10-23 --ob
 
 对象无关工具不反向依赖具体实验。对象之间不直接借用对方分析脚本。脚本用“对象_动作.py”，具体实验目录按工作问题命名；不同候选版本通过局部参数与 Git 追踪，不以被试编号命名共用工具。
 
-deprecated 只放已确认弃用的源码，文件中记录日期、原因和替代工具。调度器拒绝执行 deprecated、archive、outputs 中的代码，历史快照仅供查阅或有意识地恢复。历史成果与工程备份放 archive，不与弃用方法混淆。
+deprecated 只放已确认弃用的源码，文件中记录日期、原因和替代工具。调度器拒绝执行 deprecated、results、save 中的代码。
 
 ## 验证与分析约定
 
-运行 analysis/tools/track_check.py 检查原始读取、局部参数传递、依赖、弃用隔离、运行时间和源码记录。检查结果放在本实验 outputs/pilot_and_test/checks。先运行一次当前记录描述，再运行检查。
+运行 analysis/tools/track_check.py 检查原始读取、局部参数传递、依赖、弃用隔离、运行时间和源码记录。检查结果放在 track/description/results/_provenance/checks。先运行一次当前记录描述，再运行检查。
 
 引用数值须说明表和字段，空间数据须出图。网格覆盖率对原点敏感，不用于被试排名。描述与解释分开，技术异常不自动转成被试排除或心理分类。分析文字用完整句子，先说明原理、再写方法。不将分析脚本或结果放 /tmp。
-
-原根目录 reports 已原样迁入当前记录描述的 archive/reports_before_local_outputs_*，迁移清单记录旧新位置、迁移时间和全部文件 SHA-256。历史文件内容与旧清单中的绝对路径不改写，追溯时按迁移清单定位。尚未开展原两份描述的对照评估。

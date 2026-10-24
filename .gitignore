@@ -16,3 +16,7 @@ data/**
 
 # data_lab 的历史副本只存本机。
 analysis/**/archive/
+
+# data_lab 的结果只存本机：每个研究问题的 results/（最近一次）与 save/（研究者认可的结果）。
+analysis/data_lab/**/results/
+analysis/data_lab/**/save/

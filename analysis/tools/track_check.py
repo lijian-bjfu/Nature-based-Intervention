@@ -18,18 +18,18 @@ from workflow import load_script, resolve_steps, script_path
 from table_flow import run_flow
 from run_records import run_id, script_history
 from lab_history import collect
-from data_lab.track.description.record_description.experiment import (
+from data_lab.track.description.experiment import (
     EXPERIMENT_DIR, STAGES, STEP_ORDER, resolve_tasks, load_config,
 )
 ENTRY=EXPERIMENT_DIR/"track_describe.py"
 
 def main():
     checks=[]
-    base=EXPERIMENT_DIR/"outputs/pilot_and_test/checks"
+    base=EXPERIMENT_DIR/"results/_provenance/checks"   # 检查结果随最近一次结果存放，下次运行时一并清空
     base.mkdir(parents=True,exist_ok=True)
     module=load_script(ENTRY,"track_check_description")
     parameters=deepcopy(module.PARAMETERS)
-    with tempfile.TemporaryDirectory(dir=base,prefix="fixture_") as temporary:
+    with tempfile.TemporaryDirectory(prefix="nbi_track_fixture_") as temporary:
         folder=Path(temporary)
         absent=read_table(folder,"tap")
         assert absent.attrs["present"] is False
@@ -125,12 +125,13 @@ def main():
     assert events and all(datetime.fromisoformat(row["at"]).tzinfo for row in events)
     assert any(row["action"]=="first_versioned" for row in events)
     for path in (ANALYSIS/"data_lab/track").rglob("*.py"):
-        if not set(path.relative_to(ANALYSIS).parts)&{"archive","outputs","deprecated"}:
+        if not set(path.relative_to(ANALYSIS).parts)&{"archive","outputs","results","save","deprecated"}:
             assert script_history(path),path
     checks.append("活跃 Lab 脚本有带时区的历史登记，可按时间检索")
-    manifests=sorted((EXPERIMENT_DIR/"outputs").glob("*/*/manifest.json"),reverse=True)
-    assert manifests,"先运行一次新实验以验证运行记录"
-    completed=next(read_json(path) for path in manifests if read_json(path)["status"]=="complete")
+    manifest_path=EXPERIMENT_DIR/"results/_provenance/manifest.json"
+    assert manifest_path.is_file(),"先运行一次记录描述以验证运行记录"
+    completed=read_json(manifest_path)
+    assert completed["status"]=="complete"
     start,end=map(datetime.fromisoformat,(completed["started_at"],completed["finished_at"]))
     assert start<=end
     previous=start
