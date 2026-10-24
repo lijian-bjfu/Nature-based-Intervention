@@ -191,6 +191,16 @@ METRICS = {
             "status": "已定；不含半路被截（CutShort），与日志字段 block_type 不同",
             "source": "研究思路/实验记录-埋点.md 10.5",
         },
+        "ap_visit": {
+            "name": "景点到访",
+            "definition": "一次逗留期间任一位置到某景点多边形的水平距离不超过 reach_m（多边形内为 0），记为在该景点逗留一次；"
+                          "到访景点数＝逗留过的不同景点个数，景点逗留次数＝（逗留, 景点）组合数",
+            "inputs": ("METRICS.track.dwell", "spacetime.cam_x", "spacetime.cam_z", "geo_annotation.polygons[attractive_point]"),
+            "parameters": {"reach_m": 0.7},
+            "output": "到访景点数（个），景点逗留次数（次）；分景点明细仅用于评估景点设计",
+            "status": "已定",
+            "source": "研究思路/实验记录-埋点.md 10.6",
+        },
     },
     "psycho": {}, "physio": {},
 }
