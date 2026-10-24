@@ -18,7 +18,7 @@ from run_records import script_history, TIMEZONE
 
 PARAMETERS = {"since": None, "until": None, "object": None, "write_csv": True}
 # since / until：None 表示不限；可填 "2026-10-23" 或带时区的 ISO 时间。
-# object：None 表示全部，也可填 "track" / "psycho" / "physico"。
+# object：None 表示全部，也可填 "track" / "psycho" / "physio"。
 # 日期的 until 包含当天；精确时间按给定时刻截止。
 
 def boundary(value, end=False):
@@ -62,7 +62,7 @@ def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--since",default=PARAMETERS["since"])
     parser.add_argument("--until",default=PARAMETERS["until"])
-    parser.add_argument("--object",choices=("track","psycho","physico"),default=PARAMETERS["object"])
+    parser.add_argument("--object",choices=("track","psycho","physio"),default=PARAMETERS["object"])
     parser.add_argument("--no-write",action="store_true")
     args=parser.parse_args(argv)
     try:

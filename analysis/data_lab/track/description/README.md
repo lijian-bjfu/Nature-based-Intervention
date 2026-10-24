@@ -31,7 +31,7 @@ APP 记录下来的原始数据（七张表，规范见《研究思路/实验记
 | `track_report.py` | 把描述结果写成每场会话的报告（report.md） |
 | `experiment.py` | 参数检查与各步的调度，研究者一般不需要打开 |
 
-清理和格式两步的中间数据写在 `data/<数据集>/processed/app/data_lab/description/`，供检查用。
+数据通过项目统一的 `analysis/tools/data_access.py` 调取。清理和格式两步的中间数据写在 `data/<dataset>/processed/track/data_lab/description/`，供检查用。
 
 ## 四、怎么运行、怎么设置参数
 
@@ -42,8 +42,9 @@ APP 记录下来的原始数据（七张表，规范见《研究思路/实验记
 
 | 参数 | 含义 | 可选值 |
 |---|---|---|
-| `selection.dataset` | 描述哪个数据集 | `logging_test`（埋点开发测试）、`pilot`（预实验）、`formal`（正式实验） |
-| `selection.session` | 分析哪一份实验记录 | 数据集 `raw/app/` 下的完整文件夹名，如 `sub-P999_ses-S001_mod-Interactive_run-002`。一次只分析一份；写错时会列出可选的记录 |
+| `selection.dataset` | 分析哪一套数据 | `test`（开发测试）、`pilot`（预实验）、`formal`（正式实验） |
+| `selection.subject` | 分析哪一名被试 | 被试编号，如 `P999`。一次只分析一名；写错时会列出现有的被试 |
+| `selection.run` | 同一被试有多份记录时选哪一份 | 只在多份记录时需要（如测试中重跑），如 `"002"`；只有一份时填 `None` |
 | `selection.tasks` | 跑到哪一步 | 通常保持 `["track_describe"]`（自动包含前三步）；只想核对文件可选 `track_inventory` |
 | `report_language` | 报告语言 | `auto`（正式数据用英文，其余用中文）、`zh`、`en` |
 | `description.time_bin_seconds` | 时间轴分段的宽度（秒） | 默认 60；只影响 `fig2_time` 和 `table_time_bins.csv` 的分段，不改变原始数据 |
@@ -53,7 +54,7 @@ APP 记录下来的原始数据（七张表，规范见《研究思路/实验记
 
 ## 五、结果
 
-一次只分析一份实验记录（被试进入一次实验条件所产生的一份原始数据），由参数 `selection.session` 指定。这个脚本对任何一份记录都按同样的逻辑处理；想看别的记录，改参数重跑即可。用了哪份数据记在 `log.md` 里。
+一次只分析一名被试在实验条件中的那一份记录，由参数 `selection.dataset`、`selection.subject`（必要时加 `selection.run`）指定。这个脚本对任何一份记录都按同样的逻辑处理；想看别的记录，改参数重跑即可。用了哪份数据记在 `log.md` 里。
 
 每次运行先清空 `results/` 再写入，只保留最近一次。想保留某次结果，把它复制到 `save/` 并按含义命名。
 

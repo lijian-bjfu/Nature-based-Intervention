@@ -80,7 +80,7 @@ def main():
     else:
         raise AssertionError("废弃工具可进入调度")
     checks.append("废弃工具不能被执行")
-    for name in ("track","psycho","physico","integration"):
+    for name in ("track","psycho","physio","integration"):
         try:
             run_flow(name,{"dataset":"pilot"})
         except NotImplementedError:
@@ -93,7 +93,7 @@ def main():
     assert configured.description.time_bin_seconds==30 and configured.language=="en"
     assert parameters==module.PARAMETERS and sha256(ENTRY)==source_digest
     checks.append("CLI 覆盖与脚本参数共用加载器，原参数与源码不回写")
-    for override in ({"tasks":["unknown"]},{"dataset":"unknown"},{"session":"sub-*"},
+    for override in ({"tasks":["unknown"]},{"dataset":"unknown"},{"subject":"P*"},
                      {"time_bin_seconds":-1}):
         try:
             load_config(parameters,override)
@@ -102,7 +102,7 @@ def main():
         else:
             raise AssertionError("非法参数被接受")
     checks.append("非法选择及数值在输出前被拒绝")
-    candidates=sorted(processed_root("logging_test","track").glob("**/03_format/*/tables"),reverse=True)
+    candidates=sorted(processed_root("test","track").glob("**/03_format/*/tables"),reverse=True)
     for candidate in candidates:
         tables=read_session(candidate,formatted=True)
         if tables["tap"].attrs["present"] and not tables["tap"].empty:

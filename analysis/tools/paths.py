@@ -1,4 +1,20 @@
-"""工程路径工具：数据位置集中映射，结果由各项工作的目录决定。"""
+"""工程路径与数据命名规范（项目规范，制表与数据实验都按此调用数据）。
+
+数据由四个名字定位：
+
+    dataset   哪一套数据：formal（正式实验）、pilot（预实验）、test（开发测试）
+              formal 与另外两者绝对隔离：formal 在 data/formal/，pilot 与 test 在 data/pilot_and_test/ 下。
+    layer     加工程度：raw（原始，只读）、processed（处理中间结果）、final（最终分析表）
+              另有 supplementary：分组、被试信息、访谈编码等补充信息，不属于某个 pipeline。
+    pipeline  数据类型，与 table_flows 的流程对应：track（虚拟自然行为）、psycho（问卷）、physio（生理）
+    subject   被试编号，如 P040。不含组别（组别记在被试表里，由程序按编号查）。
+
+磁盘上的位置：data/<dataset 所在目录>/<layer>/<pipeline>/<该 pipeline 的记录文件>
+例：data/pilot_and_test/test/raw/track/sub-P999_ses-S001_mod-Interactive_run-002/
+
+调取数据请用 data_access.py，不要在脚本里拼路径。数据规范（表、字段、取值、单位）在 global_settings.py；
+本文件只管"数据在哪"，不管"数据是什么"。
+"""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -7,44 +23,49 @@ ANALYSIS = ROOT / "analysis"
 DATA_LAB = ANALYSIS / "data_lab"
 TABLE_FLOWS = ANALYSIS / "table_flows"
 CACHE = ROOT / ".cache"
+
 DATASETS = {
     "formal": {"root": DATA / "formal", "kind": "formal", "label": "正式实验数据"},
-    "pilot": {"root": DATA / "pilot_and_test" / "pilot",
-              "kind": "pilot_and_test", "label": "被试预实验数据"},
-    "logging_test": {"root": DATA / "pilot_and_test" / "logging_test",
-                     "kind": "pilot_and_test", "label": "开发埋点测试数据"},
+    "pilot":  {"root": DATA / "pilot_and_test" / "pilot", "kind": "pilot_and_test", "label": "预实验数据"},
+    "test":   {"root": DATA / "pilot_and_test" / "test", "kind": "pilot_and_test", "label": "开发测试数据"},
 }
-# 保留已经采集的数据及历史处理结果的物理目录，不为改名移动原始记录。
-DATA_SOURCE_FOLDERS = {"track": "app", "psycho": "questionnaire", "physico": "physio",
-                       "interview": "interview", "session_notes": "session_notes"}
+LAYERS = ("raw", "processed", "final")
+PIPELINES = ("track", "psycho", "physio")
+# raw 下除三个 pipeline 外，还有不属于任何 pipeline 的原始材料
+RAW_EXTRAS = ("interview", "session_notes")
+
 
 def dataset(name):
     if name not in DATASETS:
-        raise ValueError(f"未知数据集 {name}；可选 {tuple(DATASETS)}")
+        raise ValueError(f"未知 dataset：{name}；可选 {tuple(DATASETS)}")
     return DATASETS[name]["root"]
 
-def source_folder(source):
-    if source not in DATA_SOURCE_FOLDERS:
-        raise ValueError(f"未知数据对象 {source}")
-    return DATA_SOURCE_FOLDERS[source]
 
-def raw(name, source):
-    return dataset(name) / "raw" / source_folder(source)
+def layer_dir(name, layer, pipeline=None):
+    """data/<dataset>/<layer>/[<pipeline>]"""
+    if layer not in LAYERS + ("supplementary",):
+        raise ValueError(f"未知 layer：{layer}；可选 {LAYERS + ('supplementary',)}")
+    path = dataset(name) / layer
+    if pipeline is None:
+        return path
+    if pipeline not in PIPELINES + (RAW_EXTRAS if layer == "raw" else ()):
+        raise ValueError(f"未知 pipeline：{pipeline}；可选 {PIPELINES}")
+    return path / pipeline
 
-def processed_root(name, source):
-    return dataset(name) / "processed" / source_folder(source)
+
+# 以下为常用简写，与 layer_dir 等价
+def raw(name, pipeline):
+    return layer_dir(name, "raw", pipeline)
+
+def processed_root(name, pipeline):
+    return layer_dir(name, "processed", pipeline)
 
 def final_root(name):
-    return dataset(name) / "final"
+    return layer_dir(name, "final")
 
 def supplementary(name):
-    return dataset(name) / "supplementary"
+    return layer_dir(name, "supplementary")
 
-def lab_output_root(experiment_dir, name):
-    experiment_dir = Path(experiment_dir).resolve()
-    if not experiment_dir.is_relative_to(DATA_LAB) or "deprecated" in experiment_dir.relative_to(DATA_LAB).parts:
-        raise ValueError("数据实验结果必须位于有效实验自己的目录内")
-    return experiment_dir / "outputs" / DATASETS[name]["kind"]
 
 def stage_dir(context, step, session=None):
     destination = context.stage_destinations[step]

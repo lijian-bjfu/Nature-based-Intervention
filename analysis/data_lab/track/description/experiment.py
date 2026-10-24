@@ -10,6 +10,7 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-24T12:55:00+08:00", "action": "modified", "summary": "源码记录改为提交号加 SHA-256，只复制未提交的源码（uncommitted_sources），不再整份快照。"},
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。 结果改为只保留最近一次（results/，每次覆盖），追溯信息放 results/_provenance/。", "previous_path": "analysis/data_lab/track/description/record_description/experiment.py"},
     {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "参数 sessions/modules 改为单一的 session（完整文件夹名）；找不到时列出可选记录。"},
+    {"at": "2026-10-24T17:30:00+08:00", "action": "modified", "summary": "改用 tools/data_access.py 统一调取数据（dataset / pipeline / subject），不再自行查找文件夹。"},
 ]
 
 from copy import deepcopy
@@ -25,9 +26,10 @@ import re
 import global_settings as settings
 from artifacts import sha256, write_json, settings_snapshot
 from options import FigureOptions, figure_options, positive, string_list, valid_colors
-from paths import ROOT, ANALYSIS, DATASETS, raw, processed_root, final_root, lab_output_root
+from paths import ROOT, ANALYSIS, DATASETS, processed_root, final_root
 from run_records import now, run_id, git_state, record_sources, script_history
 from workflow import resolve_steps as resolve_dependencies, script_path, load_script
+from data_access import find
 
 EXPERIMENT_DIR = Path(__file__).resolve().parent
 EXPERIMENT_NAME = "description"
@@ -99,10 +101,11 @@ def load_config(parameters, overrides=None, default_tasks=None):
     dataset = overrides.get("dataset", select["dataset"])
     if dataset not in DATASETS:
         raise ValueError(f"selection.dataset 应为 {choice_help('dataset')}")
-    session = overrides.get("session", select["session"])
-    if not isinstance(session, str) or not session.strip() or any(c in session for c in "*?[]"):
-        raise ValueError("selection.session 应是一份实验记录的完整文件夹名（一次只分析一份，不用通配符）")
-    sessions = [session.strip()]
+    subject = overrides.get("subject", select["subject"])
+    if not isinstance(subject, str) or not re.fullmatch(r"P\d+", subject.strip()):
+        raise ValueError("selection.subject 应是一名被试的编号，如 P040（一次只分析一名被试，不用通配符）")
+    run = overrides.get("run", select.get("run"))
+    sessions = [subject.strip(), None if run in (None, "") else str(run)]
     modules = list(settings.TRACK_LEVELS["session"]["module"])
     language = overrides.get("language", configured["report_language"])
     if language == "auto":
@@ -125,14 +128,9 @@ def load_config(parameters, overrides=None, default_tasks=None):
                      configured,deepcopy(overrides))
 
 def discover(config):
-    base = raw(config.dataset, "track")
-    matches = [folder for folder in sorted(base.glob(settings.TRACK_SESSION_GLOB))
-               if folder.is_dir() and (match := re.fullmatch(settings.TRACK_SESSION_REGEX, folder.name))
-               and folder.name in config.sessions]
-    if not matches:
-        available = "、".join(p.name for p in sorted(base.glob(settings.TRACK_SESSION_GLOB)) if p.is_dir()) or "（无）"
-        raise FileNotFoundError(f"{base} 下没有名为 {config.sessions[0]} 的实验记录。可选：{available}")
-    return matches
+    """按项目统一的数据调取方法（tools/data_access.py）找到这名被试的记录。"""
+    subject, run = config.sessions
+    return list(find(config.dataset, "track", [subject], run=run).values())
 
 def resolve_tasks(tasks):
     return resolve_dependencies(STAGES, [TASKS[task]["stage"] for task in tasks], STEP_ORDER)
@@ -229,7 +227,8 @@ def cli(parameters, default_tasks=None, argv=None):
     parser = argparse.ArgumentParser(description="修改当前实验脚本的 PARAMETERS 后点 Run，或使用命令行临时覆盖。")
     parser.add_argument("--tasks",nargs="+")
     parser.add_argument("--dataset",choices=tuple(DATASETS))
-    parser.add_argument("--session")
+    parser.add_argument("--subject")
+    parser.add_argument("--run")
     parser.add_argument("--language",choices=("auto","zh","en"))
     parser.add_argument("--time-bin-seconds",type=float)
     parser.add_argument("--figure-dpi",type=int)

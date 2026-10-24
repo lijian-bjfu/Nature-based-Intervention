@@ -24,12 +24,12 @@ Nature-based Intervention/
 │   │   └── supplementary/
 │   └── pilot_and_test/
 │       ├── pilot/                        同样分为上述四类目录
-│       └── logging_test/                 同样分为上述四类目录
+│       └── test/                         开发测试，同样分为上述四类目录
 ├── analysis/
 │   ├── table_flows/
 │   │   ├── track/                        01_parameters.py、02_run.py
 │   │   ├── psycho/                       01_parameters.py、02_run.py
-│   │   ├── physico/                      01_parameters.py、02_run.py
+│   │   ├── physio/                       01_parameters.py、02_run.py
 │   │   └── integration/                  01_parameters.py、02_run.py
 │   ├── data_lab/
 │   │   ├── README.md
@@ -41,12 +41,12 @@ Nature-based Intervention/
 │   │   │   │   ├── results/              最近一次结果，每次运行覆盖（本机）
 │   │   │   │   └── save/                 研究者认可的结果，按含义命名（本机）
 │   │   ├── psycho/                       尚无研究问题
-│   │   └── physico/                      尚无研究问题
+│   │   └── physio/                       尚无研究问题
 │   └── tools/                            通用操作及带对象前缀的适配器
 └── 研究思路/                             科学依据与已同意的研究规范
 ```
 
-track 表示虚拟自然行为，psycho 表示问卷，physico 表示生理测量。data_lab 的二级目录按对象划分，第三级是环节（processing、description、analysis、report）或弃用源码（deprecated）。环节文件夹不预先建立，出现这类研究问题时再建。
+track 表示虚拟自然行为，psycho 表示问卷，physio 表示生理测量。data_lab 的二级目录按对象划分，第三级是环节（processing、description、analysis、report）或弃用源码（deprecated）。环节文件夹不预先建立，出现这类研究问题时再建。
 
 data_lab 的组织原则是**先研究，再整理**：一个文件夹对应一个研究问题，不预设子目录。本问题用到的脚本直接放在该文件夹下；README.md 总结问题、方法和结论；log.md 记录研究过程（试了什么、为什么、看到了什么）；results/ 只保留最近一次运行的结果，每次覆盖，不按时间建文件夹；研究者认可、要保留的结果手动复制到 save/，按含义命名，作为日后晋升为正式规范的依据。每次运行的参数、提交号等追溯信息自动写在 results/_provenance/，平时不用打开。results/ 与 save/ 只存本机，不入库。
 
@@ -58,7 +58,7 @@ analysis 现在可以保存本项工作的图表和文字，原先“analysis �
 
 共享规范保留 session、spacetime、tap、backstep、look、world_event、tech_glitch 七表，以及现有类型、单位、类别和必要文件规则。历史 None 按字段分别转换为 NoHit 或 NotBlocked，原始字符串读取时不作为空值吞掉。文件不存在与文件存在但零行必须区别报告。
 
-METRICS 按 track、psycho、physico 分类，目前为空。经确认后，逐项登记指标名称、定义、输入字段、输出单位、计算口径和规范出处。计算函数仍放在适当的工具或流程中。候选指标、试验阈值和参数优劣比较留在 data_lab，不直接升级成全局规范。
+METRICS 按 track、psycho、physio 分类，目前为空。经确认后，逐项登记指标名称、定义、输入字段、输出单位、计算口径和规范出处。计算函数仍放在适当的工具或流程中。候选指标、试验阈值和参数优劣比较留在 data_lab，不直接升级成全局规范。
 
 埋点科学口径以《研究思路/实验记录-埋点.md》为依据。先讨论、写入规范，再改代码；代码依据文档实现，不依据对话记忆。APP 仅记录原始量，指标离线计算。日志字段须与实际判定函数同源，事实、离线分类、结合访谈与回放的解释分开，不能从行为日志直接推断兴趣、注意、无聊或动机。
 
@@ -80,15 +80,31 @@ table_flows 的前三个对象流程原则上包含载入、清理、指标计�
 
 ## 数据与结果位置
 
-正式数据在 data/formal，预实验和开发测试在 data/pilot_and_test 下各数据集中。每个数据集均有 raw、processed、final、supplementary 四类。补充分组、被试信息和后补编码放 supplementary；原始实验记录单仍是 raw/session_notes。
+### 数据命名规范（项目规范）
 
-工程对象名已统一为 track、psycho、physico，现有物理数据目录 app、questionnaire、physio 保留，由 analysis/tools/paths.py 映射。原始记录和此前处理数据无需搬动。通用数据路径不属于科学数据规范，因此不放入 global_settings.py。
+任何一份数据都由四个名字定位，制表和数据实验一律按此调用：
 
-当前实验清理和格式表写入：
+| 名字 | 含义 | 取值 |
+|---|---|---|
+| `dataset` | 哪一套数据 | `formal`（正式实验）、`pilot`（预实验）、`test`（开发测试）。formal 与另两者绝对隔离：formal 在 data/formal/，pilot、test 在 data/pilot_and_test/ 下 |
+| `layer` | 加工程度 | `raw`（原始，只读）、`processed`（处理中间结果）、`final`（最终分析表）；另有 `supplementary` 放分组、被试表、访谈编码等补充信息 |
+| `pipeline` | 数据类型，与 table_flows 的流程对应 | `track`（虚拟自然行为）、`psycho`（问卷）、`physio`（生理） |
+| `subject` | 被试编号 | 如 `P040`。不含组别，组别记在被试表里由程序按编号查 |
 
-```text
-data/<数据集根>/processed/app/data_lab/description/
+磁盘位置为 `data/<dataset>/<layer>/<pipeline>/<记录文件>`，例如 data/pilot_and_test/test/raw/track/sub-P999_ses-S001_mod-Interactive_run-002/。APP 和 LSL 生成的原始文件名保持原样，`P040` 是分析端的简写，由程序对应。raw 下另有 interview、session_notes 两类不属于任何 pipeline 的原始材料。
+
+**调取数据一律用 analysis/tools/data_access.py**，不在脚本里拼路径、不各自写找文件的逻辑：
+
+```python
+from data_access import subjects, find, load
+subjects("test", "track")                    # 这个数据集有哪些被试
+find("test", "track", ["P999"], run="002")   # 被试 → 记录位置
+load("test", "track", "P999", run="002")     # 载入这名被试的七张埋点表
 ```
+
+track 下一名被试对应他在实验条件中的那一份记录（实验组 Interactive、对照组 Passive）；练习场记录不用于分析，不会返回。同一被试有多份记录（如测试中重跑）时须用 run 指明。psycho、physio 在原始格式确定后接入同一接口。数据在哪由 analysis/tools/paths.py 与 data_access.py 管理，数据是什么由 global_settings.py 规定，二者分开。
+
+data_lab 的清理和格式中间表写入 data/<dataset>/processed/track/data_lab/<研究问题>/。
 
 data_lab 的图表和文字写入各研究问题的 results/，每次运行先清空再写，处理数据目录同样只保留最近一次。所用数据记录在 results/_provenance/manifest.json 中，并在该问题的 log.md 里注明。想保留某次结果，手动复制到 save/ 并按含义命名。
 

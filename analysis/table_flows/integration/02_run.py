@@ -1,7 +1,7 @@
 """integration 制表入口：读取同目录 01_parameters.py，支持 VS Code Run 与命令行。
 
 此流程尚未实现，不会把实验性处理当作正式制表输出。
-未来由本入口协调 track / psycho / physico 流程、补充信息并合并长表与宽表。
+未来由本入口协调 track / psycho / physio 流程、补充信息并合并长表与宽表。
 """
 from pathlib import Path
 import sys

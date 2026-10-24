@@ -28,3 +28,9 @@
 描述脚本改为一次只分析一份实验记录（参数 `selection.session`），结果直接放在 results/ 下，不再为每份记录分文件夹，也不再生成多份记录的总览。脚本对任何记录都按同样的逻辑处理，想看别的记录就改参数重跑。
 
 当前 results/ 中的分析使用：logging_test ／ sub-P999_ses-S001_mod-Interactive_run-002（研究者 10-23 的 13.6 分钟自由探索）。
+
+## 2026-10-24　改用项目统一的数据命名与调取方法
+
+数据集 logging_test 改名为 test；参数改为 dataset / subject / run（如 test、P999、002），数据通过 analysis/tools/data_access.py 调取。上文中的 logging_test 即现在的 test。
+
+当前 results/ 中的分析使用：test ／ P999 ／ run 002。

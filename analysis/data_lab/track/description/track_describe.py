@@ -8,19 +8,22 @@ SCRIPT_HISTORY = [
      "previous_path": "analysis/data_lab/track/description/track_describe.py"},
     {"at": "2026-10-24T15:00:00+08:00", "action": "moved", "summary": "按\"一个文件夹一个研究问题\"整理：本问题用到的脚本都放在 track/description/。", "previous_path": "analysis/data_lab/track/description/record_description/track_describe.py"},
     {"at": "2026-10-24T16:10:00+08:00", "action": "modified", "summary": "一次只分析一份实验记录（参数 selection.session），结果直接写在 results/ 下，不再按记录分文件夹或生成总览。"},
+    {"at": "2026-10-24T17:30:00+08:00", "action": "modified", "summary": "参数改为按项目数据命名规范选择：dataset（test/pilot/formal）、subject（如 P999）、run（仅多份记录时填）。"},
 ]
 
 # 本实验的局部参数，可以反复比较；每次运行自动保存实际生效值和源码。
 # tasks：track_describe=描述/绘图/报告（含前三项）；track_inventory=核对；
 #        track_clean=已定历史取值清理；track_format=生成标准输入表。可组合，依赖只运行一次。
-# dataset：logging_test=开发测试，pilot=被试预实验，formal=正式数据。
-# session：要分析的那一份实验记录（数据集 raw/app/ 下的文件夹名）。一次只分析一份；
-#          想看别的记录，改这里重跑。用了哪份数据，在 log.md 里记下。
+# dataset：test=开发测试，pilot=预实验，formal=正式实验。
+# subject：要分析的被试编号，如 "P040"。一次只分析一名被试；想看别的被试，改这里重跑。
+#          用了哪份数据，在 log.md 里记下。
+# run：同一被试有多份记录时（例如测试中重跑）才需要填，如 "002"；只有一份时填 None。
 PARAMETERS = {
     "selection": {
         "tasks": ["track_describe"],
-        "dataset": "logging_test",
-        "session": "sub-P999_ses-S001_mod-Interactive_run-002",
+        "dataset": "test",
+        "subject": "P999",
+        "run": "002",
     },
     "report_language": "auto",  # auto：正式 en，其余 zh；也可明确选 en / zh。
     "figure": {

@@ -1,4 +1,4 @@
-"""01：核对已拷入 raw/app 的文件；不会重新写入或修改原始数据。"""
+"""01：核对已拷入 raw/track 的文件；不会重新写入或修改原始数据。"""
 SCRIPT_HISTORY = [
     {"at": "2026-10-23T20:36:13+08:00", "action": "first_versioned",
      "summary": "已有工具首次纳入 Git；原始创建时间未知。", "commit": "38cdd46dd4da3d1f614d5f558a10f886d96cbafb"},

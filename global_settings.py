@@ -6,7 +6,7 @@ table_flows 与 data_lab 共用本文件。运行选择、试验参数、任务�
 from dataclasses import dataclass
 
 SCHEMA_VERSION = "1.2"
-DATA_OBJECTS = ("track", "psycho", "physico")
+DATA_OBJECTS = ("track", "psycho", "physio")   # 即 pipeline，命名规范见 analysis/tools/paths.py
 MODULE_LABELS = {
     "Interactive": "自由交互体验",
     "Practice": "练习场（只有会话信息）",
@@ -137,7 +137,7 @@ TRACK_REQUIRED_TABLES = {
 
 # 指标须经过研究讨论后逐项登记；候选指标及其试验阈值留在具体实验中。
 # 登记应包含名称、定义、输入字段、输出单位、计算口径和规范出处；计算函数不放在这里。
-METRICS = {"track": {}, "psycho": {}, "physico": {}}
+METRICS = {"track": {}, "psycho": {}, "physio": {}}
 SCHEMAS = {"track": TRACK_SCHEMA}
 
 def column(table, field, source="track"):

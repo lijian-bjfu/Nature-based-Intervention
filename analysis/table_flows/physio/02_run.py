@@ -1,4 +1,4 @@
-"""physico 制表入口：读取同目录 01_parameters.py，支持 VS Code Run 与命令行。
+"""physio 制表入口：读取同目录 01_parameters.py，支持 VS Code Run 与命令行。
 
 此流程尚未实现，不会把实验性处理当作正式制表输出。
 
@@ -13,8 +13,8 @@ from workflow import load_script
 
 def run(parameters=None):
     if parameters is None:
-        parameters = load_script(Path(__file__).with_name("01_parameters.py"),"parameters_physico").PARAMETERS
-    return run_flow("physico",parameters)
+        parameters = load_script(Path(__file__).with_name("01_parameters.py"),"parameters_physio").PARAMETERS
+    return run_flow("physio",parameters)
 
 if __name__ == "__main__":
-    raise SystemExit(cli("physico",Path(__file__).with_name("01_parameters.py")))
+    raise SystemExit(cli("physio",Path(__file__).with_name("01_parameters.py")))

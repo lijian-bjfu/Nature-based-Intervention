@@ -6,7 +6,7 @@ from paths import DATASETS
 from workflow import load_script
 
 FLOW_LABELS = {"track": "虚拟自然行为制表", "psycho": "问卷制表",
-               "physico": "生理制表", "integration": "补充信息与流程整合"}
+               "physio": "生理制表", "integration": "补充信息与流程整合"}
 
 def run_flow(name, parameters):
     """统一的流程调用接口；获得预测试数据并确定规范后再实现具体生产流程。"""
