@@ -140,7 +140,8 @@ def build(cfg):
         nxt = np.r_[tt[1:], t[-1]]
         moved = np.interp(np.minimum(nxt, tt + nm["window_seconds"]), t, cum) - np.interp(tt, t, cum)
         for i in range(len(tt)):
-            no_move = btype[i] == "NoStart" or (btype[i] == "NotBlocked" and layer[i] in nm["ground_layers"] and moved[i] < nm["min_move_m"])
+            no_move = (btype[i] == "NoStart" or intent[i] == "NoHit"
+                       or (btype[i] == "NotBlocked" and layer[i] in nm["ground_layers"] and moved[i] < nm["min_move_m"]))
             taps.append({"no_move": bool(no_move), "moved": r(moved[i], 2), "id": int(cols["touch_id"][i]), "t": r(tt[i], 3), "x": r(cols["cam_x"][i], 2), "z": r(cols["cam_z"][i], 2),
                          "hx": r(cols["hit_x"][i], 2), "hz": r(cols["hit_z"][i], 2), "intent": intent[i], "layer": layer[i],
                          "touched": bool(touched[i]), "block": btype[i], "reason": reason[i]})
@@ -234,6 +235,7 @@ SCRIPT_HISTORY = [
      "summary": "点击提示改为列出鼠标附近所有叠在一起的点击（原地连点时只显示最上面一次的问题），并显示目标距离与受阻原因。"},
     {"at": "2026-10-24T23:41:19+08:00", "action": "modified",
      "summary": "按 global_settings 登记的无位移点击口径给每次点击打标；红叉改为表示无位移点击，筛选「只看受阻」改为「只看无位移点击」。"},
+    {"at": "2026-10-25T00:12:11+08:00", "action": "modified", "summary": "无位移点击口径加入没打中（intent = NoHit）。"},
 ]
 
 if __name__ == "__main__":

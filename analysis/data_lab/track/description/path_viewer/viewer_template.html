@@ -402,7 +402,7 @@ BEH.forEach(b=>{ if(behOn[b.key]===undefined) behOn[b.key]=b.on; });
     box.appendChild(r); });
   const leg=document.createElement("div"); leg.className="hint";
   leg.innerHTML=`点击颜色：<span style="color:#4a6fa5">●走过去</span>　<span style="color:#2e9a6b">●走近去看</span>　<span style="color:#9aa0a6">○没打中</span><br>
-    <span style="color:#e0a800">◎ 金色外圈＝摸到</span>　<span style="color:#e07b00">◌ 橙色虚圈＝半路被截</span>　<span style="color:#d03030">✕ 红叉＝无位移点击</span><br>无位移点击＝起步受阻，或点地面/路面没被挡却原地没动`;
+    <span style="color:#e0a800">◎ 金色外圈＝摸到</span>　<span style="color:#e07b00">◌ 橙色虚圈＝半路被截</span>　<span style="color:#d03030">✕ 红叉＝无位移点击</span><br>无位移点击＝起步受阻、点地面/路面没被挡却原地没动，或没打中`;
   box.appendChild(leg);
 })();
 
