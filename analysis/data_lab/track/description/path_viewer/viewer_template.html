@@ -265,12 +265,27 @@ D.taps.forEach(tp=>{
   if(tp.block==="CutShort") cross=el("circle",{fill:"none",stroke:"#e07b00","stroke-width":2,"stroke-dasharray":"2 1.5","vector-effect":"non-scaling-stroke"},g);
   if(tp.block==="NoStart") cross=el("path",{stroke:"#d03030","stroke-width":2.2,fill:"none","vector-effect":"non-scaling-stroke"},g);
   const link=(tp.hx!==null)?el("line",{x1:tp.x,y1:-tp.z,x2:tp.hx,y2:-tp.hz,stroke:INTENT_COLOR[tp.intent]||"#777","stroke-width":1,"stroke-dasharray":"3 2","vector-effect":"non-scaling-stroke","stroke-opacity":0.7},layers.taplinks):null;
-  g.addEventListener("mousemove",ev=>showTip(ev,`<b>点击 #${tp.id}</b> ${fmt(tp.t)}<br>${INTENT_TEXT[tp.intent]||tp.intent} · ${tp.layer}<br>${tp.touched?"<b>摸到</b><br>":""}${BLOCK_TEXT[tp.block]||tp.block}${REASON_TEXT[tp.reason]?" · "+REASON_TEXT[tp.reason]:""}`));
+  g.addEventListener("mousemove",ev=>showTip(ev,tapsTip(ev)));
   g.addEventListener("mouseleave",hideTip);
   tapEls.push({tp,g,dot,ring,cross,link});
   mark(g,tp.t,tp.t,"taps",0).tp=tp;
   if(link) mark(link,tp.t,tp.t,"taplinks",0).tp=tp;
 });
+// 同一位置常有多次点击叠在一起（如原地连点）：提示列出鼠标附近 8 像素内所有正在显示的点击
+function tapText(tp){
+  const d=tp.hx!==null?Math.hypot(tp.hx-tp.x,tp.hz-tp.z):null;
+  return `<b>点击 #${tp.id}</b> ${fmt(tp.t)}　${INTENT_TEXT[tp.intent]||tp.intent} · ${tp.layer}${d!==null?` · 目标 ${d.toFixed(1)} m 外`:""}<br>`+
+         `　${tp.touched?"<b>摸到</b> · ":""}${BLOCK_TEXT[tp.block]||tp.block}${REASON_TEXT[tp.reason]?" · "+REASON_TEXT[tp.reason]:""}`;
+}
+function tapsTip(ev){
+  const r=svg.getBoundingClientRect(), k=pxToWorld();
+  const wx=vb[0]+(ev.clientX-r.left)*k, wz=-(vb[1]+(ev.clientY-r.top)*k), lim=8*k;
+  const near=tapEls.filter(o=>o.g.style.display!=="none" && (()=>{ const useHit=tapPos==="hit"&&o.tp.hx!==null;
+      const x=useHit?o.tp.hx:o.tp.x, z=useHit?o.tp.hz:o.tp.z; return Math.hypot(x-wx,z-wz)<=lim; })()).map(o=>o.tp).sort((a,b)=>a.t-b.t);
+  const list=near.length?near:[];
+  if(list.length<=1) return list.length?tapText(list[0]):"";
+  return `<b>此处 ${list.length} 次点击</b><br>`+list.slice(0,12).map(tapText).join("<br>")+(list.length>12?`<br>…另有 ${list.length-12} 次`:"");
+}
 function placeTaps(){
   const k=pxToWorld();
   tapEls.forEach(o=>{
