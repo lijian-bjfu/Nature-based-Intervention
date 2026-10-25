@@ -28,8 +28,8 @@
 
 | 文件 | 做什么 |
 |---|---|
-| `path_viewer.py` | **入口**。顶部 PARAMETERS 设置参数；读取实验记录与地理空间标注，整理成页面所需的数据，写出页面 |
-| `viewer_template.html` | 页面模板（界面与交互）。入口脚本把数据嵌进去，生成一个独立的 HTML 文件 |
+| `path_viewer.py` | **入口**。顶部 PARAMETERS 设置参数；读取实验记录与地理空间标注，整理成交互网页所需的数据，写出页面 |
+| `viewer_template.html` | 交互网页模板（界面与交互）。入口脚本把数据嵌进去，生成一个独立的 HTML 文件 |
 
 数据通过 `analysis/tools/data_access.py` 调取：实验记录用 `load()`，地理空间标注用 `load_geo()`。地理空间标注来自虚拟自然工程 `Tools ▸ NBI ▸ 地理空间标注` 的导出，位置见 `analysis/tools/paths.py` 的 `GEO_ANNOTATION`，格式规范见 `global_settings.GEO_ANNOTATION_SPEC`。
 
