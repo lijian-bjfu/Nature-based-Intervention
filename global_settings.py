@@ -64,6 +64,8 @@ TRACK_SCHEMA = {
         'is_touched': Field('is_touched', 'boolean', levels=(True, False)),
         'block_type': Field('block_type', 'string', levels=('NotBlocked', 'CutShort', 'NoStart')),
         'block_reason': Field('block_reason', 'string', levels=('NotBlocked', 'BarrierDenseSlope', 'BarrierWater', 'BarrierUnlabeled', 'StepUp', 'DropTooHigh', 'TooSteep', 'NoGround')),
+        # 触摸进行中（下蹲或伸手开始到手收回）APP 不响应，这期间的点击照记并标 TRUE（2026-10-28 加列）
+        'touch_locked': Field('touch_locked', 'boolean', levels=(True, False)),
     },
     'backstep': {
         'touch_id': Field('touch_id', 'Int64'),
@@ -127,7 +129,7 @@ TRACK_LEGACY_VALUES = {
     "backstep": {"block_type": {"None": "NotBlocked"}, "block_reason": {"None": "NotBlocked"}},
 }
 # 早期数据缺少的列（加列之前录制的数据）：读取时补为空，不报错。
-TRACK_LEGACY_MISSING = {"session": ("app_commit",)}
+TRACK_LEGACY_MISSING = {"session": ("app_commit",), "tap": ("touch_locked",)}
 TRACK_TRUE = "TRUE"
 TRACK_FALSE = "FALSE"
 TRACK_CSV = {"encoding": "utf-8-sig", "keep_default_na": False, "na_values": [""]}
@@ -194,8 +196,8 @@ METRICS = {
         },
         "no_move_tap": {
             "name": "无位移点击",
-            "definition": "起步受阻（block_type = NoStart）；或命中地面/路面、未判受阻、点击后到下一次点击前（最多 window_seconds）水平位移不足 min_move_m；或没打中（intent = NoHit）",
-            "inputs": ("tap.t_session", "tap.intent", "tap.hit_layer", "tap.block_type", "spacetime.t_session", "spacetime.cam_x", "spacetime.cam_z"),
+            "definition": "起步受阻（block_type = NoStart）；或命中地面/路面、未判受阻、点击后到下一次点击前（最多 window_seconds）水平位移不足 min_move_m；或没打中（intent = NoHit）。触摸锁定中的点击（touch_locked = TRUE）不计",
+            "inputs": ("tap.t_session", "tap.intent", "tap.hit_layer", "tap.block_type", "tap.touch_locked", "spacetime.t_session", "spacetime.cam_x", "spacetime.cam_z"),
             "parameters": {"min_move_m": 0.3, "window_seconds": 8.0, "ground_layers": ("Terrain", "Road")},
             "output": "次；占全部点击的比例",
             "status": "已定；不含半路被截（CutShort），与日志字段 block_type 不同",
@@ -213,10 +215,11 @@ METRICS = {
         },
         "approach": {
             "name": "Approach",
-            "definition": "命中可触摸层（approach_layers）、且这一下没有直接摸到（is_touched = FALSE）的点击",
-            "inputs": ("tap.hit_layer", "tap.is_touched", "tap.t_session"),
-            "parameters": {"approach_layers": ("TouchFoliage", "SweepFoliage", "TouchRigid", "WaterTouchSurface", "Creature")},
-            "parameters_source": "与虚拟自然 APP TapMoveCamera_V5.approachLayers 同源（2026-10-24 场景中的取值）；APP 改动该设置时需同步",
+            "definition": "命中可触摸层（approach_layers）、但最终没有摸到（is_touched = FALSE）的点击；触摸锁定中的点击不计",
+            "inputs": ("tap.hit_layer", "tap.is_touched", "tap.touch_locked", "tap.t_session"),
+            "parameters": {"approach_layers": ("TouchFoliage", "SweepFoliage", "TouchRigid", "DeadWood", "WaterTouchSurface", "Creature")},
+            "parameters_source": "与虚拟自然 APP TapMoveCamera_V5.TouchableMask（四张触摸表的并集）同源（2026-10-28 预制体中的取值）；APP 改动触摸表时需同步。"
+                                 "2026-10-28 起一击即摸，此前数据是旧规则（远处点一下只走过去）下的结果",
             "output": "次；次/分钟",
             "status": "已定；系统事件，用于评估设计策略，不作为被试意图的证据",
             "source": "研究思路/实验记录-埋点.md 10.7",

@@ -216,14 +216,17 @@ def classify_taps(tables, pose):
     t = _col(tables, "tap", "t_session")
     intent, layer, btype = (_txt(tables, "tap", f) for f in ("intent", "hit_layer", "block_type"))
     touched = tables["tap"][settings.column("tap", "is_touched")].eq(True).fillna(False).to_numpy()
+    lock_col = settings.column("tap", "touch_locked")
+    locked = (tables["tap"][lock_col].eq(True).fillna(False).to_numpy() if lock_col in tables["tap"].columns
+              else np.zeros(len(t), dtype=bool))   # 触摸锁定中的点击：APP 按规则不响应，不计无位移、不计 approach
     nxt = np.r_[t[1:], pose.t[-1]]
     moved = pose.path_between(t, np.minimum(nxt, t + nm["window_seconds"]))
-    no_move = (btype == "NoStart") | (intent == "NoHit") | (
-        (btype == "NotBlocked") & np.isin(layer, list(nm["ground_layers"])) & (moved < nm["min_move_m"]))
-    approach = np.isin(layer, list(al)) & ~touched
+    no_move = ((btype == "NoStart") | (intent == "NoHit") | (
+        (btype == "NotBlocked") & np.isin(layer, list(nm["ground_layers"])) & (moved < nm["min_move_m"]))) & ~locked
+    approach = np.isin(layer, list(al)) & ~touched & ~locked
     return pd.DataFrame({"touch_id": _col(tables, "tap", "touch_id"), "t": t, "intent": intent, "hit_layer": layer,
                          "block_type": btype, "hit_x": _col(tables, "tap", "hit_x"), "hit_z": _col(tables, "tap", "hit_z"),
-                         "moved_m": moved, "no_move": no_move, "approach": approach, "touched": touched})
+                         "moved_m": moved, "no_move": no_move, "approach": approach, "touched": touched, "locked": locked})
 
 
 # ───────────────────────── 10.12 环视 ─────────────────────────
