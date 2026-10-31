@@ -1,0 +1,17 @@
+{
+  "result": true,
+  "data": {
+    "vid": 391724650,
+    "sid": "h4a6q3T",
+    "status": 0,
+    "verify_status": 2,
+    "pc_path": "/vm/h4a6q3T.aspx",
+    "mobile_path": "/vm/h4a6q3T.aspx",
+    "activity_domain": "https://v.wjx.cn",
+    "iframe_auto_url": "<script type='text/javascript' src='https://www.wjx.cn/handler/jqemed.ashx?activity=h4a6q3T&width=760&source=iframe'></script>",
+    "publish_blocked": false,
+    "publish_block_reason": "",
+    "publish_block_message": "",
+    "iframe_noauto_url": "<iframe src='https://www.wjx.cn/vm/h4a6q3T.aspx?width=760&source=iframe&s=t' width='799' height='800' frameborder='0' style='overflow:auto'></iframe>"
+  }
+}

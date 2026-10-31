@@ -1,0 +1,297 @@
+{
+  "title": "NBI T2",
+  "stage": "E",
+  "sections": [
+    {
+      "stage": "E",
+      "questions": [
+        {
+          "kind": "matrix_single",
+          "scale": "STAI-6",
+          "instruction": "下面列出的是一些人们常常用来描述自己的句子。请阅读每一个句子，然后选择最符合你此时此刻感觉的选项。答案没有对错之分，请不要花太多时间考虑。",
+          "items": [
+            "我感到心情平静",
+            "我是紧张的",
+            "我感到心烦意乱",
+            "我感到轻松",
+            "我感到心满意足",
+            "我感到担忧"
+          ],
+          "options": [
+            {
+              "label": "完全没有",
+              "value": 1
+            },
+            {
+              "label": "有些",
+              "value": 2
+            },
+            {
+              "label": "中等程度",
+              "value": 3
+            },
+            {
+              "label": "非常明显",
+              "value": 4
+            }
+          ],
+          "required": true,
+          "reverse_items": [
+            1,
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "slider",
+          "scale": "焦虑 VAS",
+          "title": "请拖动滑块，标出你此刻感到焦虑的程度。",
+          "minimum": 0,
+          "maximum": 100,
+          "left_label": "完全不焦虑",
+          "right_label": "极度焦虑",
+          "required": true
+        },
+        {
+          "kind": "matrix_single",
+          "scale": "I-PANAS-SF",
+          "instruction": "下面是一些描述情绪的词语。请根据你此时此刻的感受，选择每种情绪的程度。",
+          "items": [
+            "心烦的",
+            "有敌意的",
+            "警觉的",
+            "羞愧的",
+            "受鼓舞的",
+            "紧张的",
+            "坚定的",
+            "专注的",
+            "害怕的",
+            "活跃的"
+          ],
+          "options": [
+            {
+              "label": "几乎没有",
+              "value": 1
+            },
+            {
+              "label": "有一点",
+              "value": 2
+            },
+            {
+              "label": "中等程度",
+              "value": 3
+            },
+            {
+              "label": "比较多",
+              "value": 4
+            },
+            {
+              "label": "非常多",
+              "value": 5
+            }
+          ],
+          "required": true,
+          "reverse_items": []
+        },
+        {
+          "kind": "matrix_single",
+          "scale": "MSBS-8",
+          "instruction": "下面是一些描述感受的句子。请根据你在刚才这段体验中的感受，选择你对每句话的同意程度。",
+          "items": [
+            "时间过得比平时慢",
+            "容易分心",
+            "我不得不做一些对我毫无价值的事情",
+            "我觉得无聊",
+            "我正在浪费时间，如果把这些时间花在别的事情上会更好",
+            "我在走神",
+            "我希望某件事情发生，但我不确定那是什么事",
+            "我觉得我正在坐等某些事情的发生"
+          ],
+          "options": [
+            {
+              "label": "非常不同意",
+              "value": 1
+            },
+            {
+              "label": "不同意",
+              "value": 2
+            },
+            {
+              "label": "有点不同意",
+              "value": 3
+            },
+            {
+              "label": "中立",
+              "value": 4
+            },
+            {
+              "label": "有点同意",
+              "value": 5
+            },
+            {
+              "label": "同意",
+              "value": 6
+            },
+            {
+              "label": "非常同意",
+              "value": 7
+            }
+          ],
+          "required": true,
+          "reverse_items": []
+        },
+        {
+          "kind": "matrix_single",
+          "scale": "IMI 兴趣/愉悦与感知选择",
+          "instruction": "请根据刚才这段体验，判断下面每句话与你的情况的符合程度。",
+          "items": [
+            "我觉得刚才这段体验很吸引人，让我想多看看、多了解一些",
+            "我非常享受刚才这段体验",
+            "在体验过程中，我会想到自己有多享受它",
+            "刚才这段体验充满乐趣",
+            "我觉得刚才这段体验很无聊",
+            "在刚才的体验中，去哪里、看什么，是按我自己的意愿决定的",
+            "在刚才的体验中，在哪里停留、停留多久，是我自己做的决定",
+            "在刚才的体验中，看什么都是被安排好的，由不得我"
+          ],
+          "options": [
+            {
+              "label": "1 完全不符合",
+              "value": 1
+            },
+            {
+              "label": "2",
+              "value": 2
+            },
+            {
+              "label": "3",
+              "value": 3
+            },
+            {
+              "label": "4 有些符合",
+              "value": 4
+            },
+            {
+              "label": "5",
+              "value": 5
+            },
+            {
+              "label": "6",
+              "value": 6
+            },
+            {
+              "label": "7 非常符合",
+              "value": 7
+            }
+          ],
+          "required": true,
+          "reverse_items": [
+            5,
+            8
+          ],
+          "randomize_items": true,
+          "subscales": {
+            "兴趣/愉悦": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "感知选择": [
+              6,
+              7,
+              8
+            ]
+          },
+          "points_status": "confirmed_1_to_7"
+        },
+        {
+          "kind": "matrix_single",
+          "scale": "意义题",
+          "instruction": "请根据刚才这段体验回答以下问题。",
+          "items": [
+            "刚才这段体验对你个人来说有多有意义？",
+            "在刚才这段时间里，你在多大程度上觉得自己在做一件值得的事？",
+            "刚才这段体验在多大程度上符合你那时想要的？"
+          ],
+          "options": [
+            {
+              "label": "1 完全没有",
+              "value": 1
+            },
+            {
+              "label": "2",
+              "value": 2
+            },
+            {
+              "label": "3",
+              "value": 3
+            },
+            {
+              "label": "4",
+              "value": 4
+            },
+            {
+              "label": "5 有些",
+              "value": 5
+            },
+            {
+              "label": "6",
+              "value": 6
+            },
+            {
+              "label": "7",
+              "value": 7
+            },
+            {
+              "label": "8",
+              "value": 8
+            },
+            {
+              "label": "9 非常",
+              "value": 9
+            }
+          ],
+          "required": true,
+          "reverse_items": []
+        },
+        {
+          "kind": "dropdown_integer",
+          "scale": "FMS",
+          "title": "在刚才的体验中，你最不舒服的时候，头晕、恶心或胃部不适的程度是多少？请用 0 到 20 之间的一个数字表示，0 表示完全没有不适，20 表示明显的晕动或恶心。",
+          "options": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "required": true
+        }
+      ]
+    }
+  ],
+  "expected_response_fields": 37,
+  "source": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/研究思路/实验记录-问卷草稿.md",
+  "status": "prepared_locally_not_created_online",
+  "participant_id_status": "confirmed_required",
+  "include_F": false,
+  "screening_action": "normal_submission_researcher_judges"
+}

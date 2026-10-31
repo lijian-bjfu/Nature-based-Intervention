@@ -1,0 +1,105 @@
+{
+  "title": "NBI T1",
+  "stage": "D",
+  "sections": [
+    {
+      "stage": "D",
+      "questions": [
+        {
+          "kind": "matrix_single",
+          "scale": "STAI-6",
+          "instruction": "下面列出的是一些人们常常用来描述自己的句子。请阅读每一个句子，然后选择最符合你此时此刻感觉的选项。答案没有对错之分，请不要花太多时间考虑。",
+          "items": [
+            "我感到心情平静",
+            "我是紧张的",
+            "我感到心烦意乱",
+            "我感到轻松",
+            "我感到心满意足",
+            "我感到担忧"
+          ],
+          "options": [
+            {
+              "label": "完全没有",
+              "value": 1
+            },
+            {
+              "label": "有些",
+              "value": 2
+            },
+            {
+              "label": "中等程度",
+              "value": 3
+            },
+            {
+              "label": "非常明显",
+              "value": 4
+            }
+          ],
+          "required": true,
+          "reverse_items": [
+            1,
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "slider",
+          "scale": "焦虑 VAS",
+          "title": "请拖动滑块，标出你此刻感到焦虑的程度。",
+          "minimum": 0,
+          "maximum": 100,
+          "left_label": "完全不焦虑",
+          "right_label": "极度焦虑",
+          "required": true
+        },
+        {
+          "kind": "matrix_single",
+          "scale": "I-PANAS-SF",
+          "instruction": "下面是一些描述情绪的词语。请根据你此时此刻的感受，选择每种情绪的程度。",
+          "items": [
+            "心烦的",
+            "有敌意的",
+            "警觉的",
+            "羞愧的",
+            "受鼓舞的",
+            "紧张的",
+            "坚定的",
+            "专注的",
+            "害怕的",
+            "活跃的"
+          ],
+          "options": [
+            {
+              "label": "几乎没有",
+              "value": 1
+            },
+            {
+              "label": "有一点",
+              "value": 2
+            },
+            {
+              "label": "中等程度",
+              "value": 3
+            },
+            {
+              "label": "比较多",
+              "value": 4
+            },
+            {
+              "label": "非常多",
+              "value": 5
+            }
+          ],
+          "required": true,
+          "reverse_items": []
+        }
+      ]
+    }
+  ],
+  "expected_response_fields": 17,
+  "source": "/Users/lijian/Desktop/GitHub/Nature-based Intervention/研究思路/实验记录-问卷草稿.md",
+  "status": "prepared_locally_not_created_online",
+  "participant_id_status": "confirmed_required",
+  "include_F": false,
+  "screening_action": "normal_submission_researcher_judges"
+}

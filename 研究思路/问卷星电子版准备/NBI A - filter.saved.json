@@ -1,0 +1,414 @@
+{
+  "result": true,
+  "data": {
+    "vid": 391709167,
+    "begin_time": "2026-10-29 18:01:39",
+    "update_time": "2026-10-29 18:01:39",
+    "atype": 1,
+    "title": "NBI A - filter",
+    "description": "为了确保你能安全、舒适地参加本实验，请如实回答以下问题。你的回答只用于确认今天是否适合参加，会严格保密。",
+    "notes": "",
+    "version": 0,
+    "answer_valid": 0,
+    "answer_total": 0,
+    "status": 0,
+    "verify_status": 2,
+    "creater": "bjfuixd",
+    "questions": [
+      {
+        "is_zhenbie": false,
+        "min_time": 0,
+        "max_time": 0,
+        "q_index": 1,
+        "q_type": 1,
+        "q_subtype": 1,
+        "q_title": "",
+        "is_requir": true,
+        "has_jump": false
+      },
+      {
+        "need_only": false,
+        "q_index": 1,
+        "q_type": 5,
+        "q_subtype": 5,
+        "q_title": "被试编号",
+        "is_requir": true,
+        "has_jump": false,
+        "height": 1,
+        "is_hide": false
+      },
+      {
+        "need_only": false,
+        "q_index": 2,
+        "q_type": 5,
+        "q_subtype": 5,
+        "q_title": "年龄：",
+        "is_requir": true,
+        "has_jump": false,
+        "height": 1,
+        "is_hide": false
+      },
+      {
+        "items": [
+          {
+            "item_image": "",
+            "q_index": 3,
+            "item_index": 1,
+            "item_title": "男",
+            "item_score": 1,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 3,
+            "item_index": 2,
+            "item_title": "女",
+            "item_score": 2,
+            "item_selected": false
+          }
+        ],
+        "q_index": 3,
+        "q_type": 3,
+        "q_subtype": 3,
+        "q_title": "性别：",
+        "is_requir": true,
+        "has_jump": false,
+        "is_hide": false
+      },
+      {
+        "items": [
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 1,
+            "item_title": "曾被诊断患有精神或心理方面的疾病（如抑郁症、焦虑症等）",
+            "item_score": 1,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 2,
+            "item_title": "目前正在接受心理咨询、心理治疗或精神科治疗",
+            "item_score": 2,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 3,
+            "item_title": "患有心脏或血管方面的疾病（如心脏病、高血压）",
+            "item_score": 3,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 4,
+            "item_title": "有癫痫病史，或观看闪烁画面时出现过明显不适",
+            "item_score": 4,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 5,
+            "item_title": "目前在服用可能影响心率或情绪的药物（如抗抑郁药、抗焦虑药、降压药）",
+            "item_score": 5,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 6,
+            "item_title": "看手机或平板上的视频、玩第一人称三维游戏时，经常感到头晕或恶心",
+            "item_score": 6,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 7,
+            "item_title": "参加过本项目的预实验或测试",
+            "item_score": 7,
+            "item_selected": false
+          },
+          {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 8,
+            "item_title": "以上都没有",
+            "item_score": 8,
+            "item_selected": false
+          }
+        ],
+        "q_index": 4,
+        "q_type": 4,
+        "q_subtype": 4,
+        "q_title": "你是否有以下任一情况？（可多选）",
+        "is_requir": true,
+        "has_jump": false,
+        "is_hide": false
+      },
+      {
+        "item_rows": [
+          {
+            "is_requir": true,
+            "q_index": 5,
+            "item_index": 1,
+            "item_title": "感觉紧张、焦虑或急切",
+            "need_only": false
+          },
+          {
+            "is_requir": true,
+            "q_index": 5,
+            "item_index": 2,
+            "item_title": "不能够停止或控制担忧",
+            "need_only": false
+          }
+        ],
+        "items": [
+          {
+            "q_index": 5,
+            "item_index": 1,
+            "item_title": "完全不会",
+            "item_score": 1,
+            "item_selected": false
+          },
+          {
+            "q_index": 5,
+            "item_index": 2,
+            "item_title": "好几天",
+            "item_score": 2,
+            "item_selected": false
+          },
+          {
+            "q_index": 5,
+            "item_index": 3,
+            "item_title": "一半以上的日子",
+            "item_score": 3,
+            "item_selected": false
+          },
+          {
+            "q_index": 5,
+            "item_index": 4,
+            "item_title": "几乎每天",
+            "item_score": 4,
+            "item_selected": false
+          }
+        ],
+        "matrix_mode": 103,
+        "table_mode": 0,
+        "style_mode": 0,
+        "q_index": 5,
+        "q_type": 7,
+        "q_subtype": 702,
+        "q_title": "在过去两周里，你有多少时间受到以下问题的困扰？",
+        "is_requir": true,
+        "has_jump": false,
+        "is_hide": false
+      }
+    ],
+    "q_extractions": {
+      "10000": {
+        "q_type": 5,
+        "q_subtype": 5,
+        "q_answerid": 10000,
+        "q_index": 1
+      },
+      "20000": {
+        "q_type": 5,
+        "q_subtype": 5,
+        "q_answerid": 20000,
+        "q_index": 2
+      },
+      "30000": {
+        "q_type": 3,
+        "q_subtype": 3,
+        "items": {
+          "1": {
+            "item_image": "",
+            "q_index": 3,
+            "item_index": 1,
+            "item_title": "男",
+            "item_score": 1,
+            "item_selected": false
+          },
+          "2": {
+            "item_image": "",
+            "q_index": 3,
+            "item_index": 2,
+            "item_title": "女",
+            "item_score": 2,
+            "item_selected": false
+          }
+        },
+        "q_answerid": 30000,
+        "q_index": 3
+      },
+      "40000": {
+        "q_type": 4,
+        "q_subtype": 4,
+        "items": {
+          "1": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 1,
+            "item_title": "曾被诊断患有精神或心理方面的疾病（如抑郁症、焦虑症等）",
+            "item_score": 1,
+            "item_selected": false
+          },
+          "2": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 2,
+            "item_title": "目前正在接受心理咨询、心理治疗或精神科治疗",
+            "item_score": 2,
+            "item_selected": false
+          },
+          "3": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 3,
+            "item_title": "患有心脏或血管方面的疾病（如心脏病、高血压）",
+            "item_score": 3,
+            "item_selected": false
+          },
+          "4": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 4,
+            "item_title": "有癫痫病史，或观看闪烁画面时出现过明显不适",
+            "item_score": 4,
+            "item_selected": false
+          },
+          "5": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 5,
+            "item_title": "目前在服用可能影响心率或情绪的药物（如抗抑郁药、抗焦虑药、降压药）",
+            "item_score": 5,
+            "item_selected": false
+          },
+          "6": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 6,
+            "item_title": "看手机或平板上的视频、玩第一人称三维游戏时，经常感到头晕或恶心",
+            "item_score": 6,
+            "item_selected": false
+          },
+          "7": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 7,
+            "item_title": "参加过本项目的预实验或测试",
+            "item_score": 7,
+            "item_selected": false
+          },
+          "8": {
+            "item_image": "",
+            "q_index": 4,
+            "item_index": 8,
+            "item_title": "以上都没有",
+            "item_score": 8,
+            "item_selected": false
+          }
+        },
+        "q_answerid": 40000,
+        "q_index": 4
+      },
+      "50001": {
+        "q_type": 7,
+        "q_subtype": 702,
+        "item_row_index": 1,
+        "item_col_index": 0,
+        "items": {
+          "1": {
+            "q_index": 5,
+            "item_index": 1,
+            "item_title": "完全不会",
+            "item_score": 1,
+            "item_selected": false
+          },
+          "2": {
+            "q_index": 5,
+            "item_index": 2,
+            "item_title": "好几天",
+            "item_score": 2,
+            "item_selected": false
+          },
+          "3": {
+            "q_index": 5,
+            "item_index": 3,
+            "item_title": "一半以上的日子",
+            "item_score": 3,
+            "item_selected": false
+          },
+          "4": {
+            "q_index": 5,
+            "item_index": 4,
+            "item_title": "几乎每天",
+            "item_score": 4,
+            "item_selected": false
+          }
+        },
+        "item_row": {
+          "is_requir": true,
+          "q_index": 5,
+          "item_index": 1,
+          "item_title": "感觉紧张、焦虑或急切",
+          "need_only": false
+        },
+        "q_answerid": 50001,
+        "q_index": 5
+      },
+      "50002": {
+        "q_type": 7,
+        "q_subtype": 702,
+        "item_row_index": 2,
+        "item_col_index": 0,
+        "items": {
+          "1": {
+            "q_index": 5,
+            "item_index": 1,
+            "item_title": "完全不会",
+            "item_score": 1,
+            "item_selected": false
+          },
+          "2": {
+            "q_index": 5,
+            "item_index": 2,
+            "item_title": "好几天",
+            "item_score": 2,
+            "item_selected": false
+          },
+          "3": {
+            "q_index": 5,
+            "item_index": 3,
+            "item_title": "一半以上的日子",
+            "item_score": 3,
+            "item_selected": false
+          },
+          "4": {
+            "q_index": 5,
+            "item_index": 4,
+            "item_title": "几乎每天",
+            "item_score": 4,
+            "item_selected": false
+          }
+        },
+        "item_row": {
+          "is_requir": true,
+          "q_index": 5,
+          "item_index": 2,
+          "item_title": "不能够停止或控制担忧",
+          "need_only": false
+        },
+        "q_answerid": 50002,
+        "q_index": 5
+      }
+    },
+    "total_score": 38
+  }
+}
