@@ -1,0 +1,15 @@
+# 运行期产生的被试数据不入库，只保留目录骨架。
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# 记录"当前进行中的会话"的运行期文件，不是研究数据，也不用入库。
+app_runtime/
+
+# 打包生成的可执行文件和中间产物：体积大、平台专属、能重新生成，不入库。
+packaging/build_mac/
+packaging/build_win/
+packaging/dist_mac/
+packaging/dist_win/
+packaging/*.spec
+__pycache__/
