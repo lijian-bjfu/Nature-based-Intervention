@@ -90,16 +90,16 @@ form.inline { display: inline; }
     border: 2px solid transparent;
 }
 .qitem.unanswered-flag { border-color: #e05555; background: #fff6f6; }
-.qinstruction { font-size: 15px; color: #666; margin: 18px 0 10px; }
+.qinstruction { font-size: 16px; color: #666; margin: 18px 0 10px; }
 .qrow-text { font-size: 20px; font-weight: 700; color: #111; line-height: 1.4; margin-bottom: 12px; }
 .qoptions { display: flex; flex-wrap: nowrap; gap: 10px 26px; overflow-x: auto; }
-.qoptions label { font-size: 16px; display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+.qoptions label { font-size: 18px; display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
 .qmulti { flex-direction: column; overflow-x: visible; gap: 8px; }
 .numeric-scale { gap: 14px; }
-.num-cell { flex-direction: column; font-size: 13px; width: 48px; text-align: center; }
-.num-n { font-size: 17px; font-weight: 600; }
-.num-label { font-size: 11px; color: #777; white-space: nowrap; }
-.qnumber { font-size: 16px; padding: 8px; width: 120px; }
+.num-cell { flex-direction: column; font-size: 14px; width: 92px; text-align: center; }
+.num-n { font-size: 21px; font-weight: 700; }
+.num-label { font-size: 14px; color: #666; white-space: nowrap; }
+.qnumber { font-size: 18px; padding: 8px; width: 120px; }
 .slider-wrap { padding: 6px 4px; }
 .qslider { width: 100%; }
 .slider-value { text-align: center; font-size: 18px; font-weight: bold; margin-top: 4px; }

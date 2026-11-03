@@ -28,8 +28,15 @@ questionnaires_codebook.csv。两边字段定义如果以后不一致，以流�
   2. log.csv（判定结果、分组、各页起止时间）、notes.txt（实验记录文字，每个被试一份，
      按页列出）算 raw/psycho 还是 raw/session_notes 还是 supplementary，还没讨论过，
      这份草稿先不收它们。
-  3. IMI 两个子量表（兴趣愉悦、感知选择）按问卷草稿要求应随机混排题序，流程单系统
-     目前固定顺序呈现，没有做随机化，所以这两份数据不含题序随机化信息。
+
+2026-11-01、2026-11-02 的问卷改动已同步进本草稿：
+  - T3 干预后新增"注意题"（E5，4 题，第 2 题反向），意义题（E6）由 1-9 点改为 1-7 点，
+    和注意题共用同一组选项。
+  - 原 IMI 兴趣/愉悦 5 题（旧 E5）已整体替换为"迷恋与远离"（新 E7，改编自 Hartig et al.
+    1997 PRS，迷恋 5 题 + 远离 2 题，全部正向），IMI 感知选择改到 E8、和迷恋/远离共用
+    同一句指导语；FMS 顺位到 E9。T3 题数 37 → 41 → 43。
+  - 原"IMI 两个子量表题序随机混排未实现"的问题随 IMI 兴趣/愉悦被替换而不再适用；新的
+    迷恋/远离/感知选择三组题，问卷草稿里没有要求随机混排，流程单系统按固定顺序呈现。
 """
 from global_settings import Field  # 草稿阶段直接复用同一个 Field 类；合并进
                                      # global_settings.py 时删掉这行，字段原样搬过去。
@@ -37,8 +44,8 @@ from global_settings import Field  # 草稿阶段直接复用同一个 Field 类
 
 # ------------------------------------------------------------------
 # 量表选项的文字含义：矩阵题（matrix）存的是选项下标（0 起），不是文字本身，
-# 查这里才知道每个下标代表什么。数字量表（numeric，IMI/意义题）存的就是数字本身，
-# 不用查下标，只在端点和中点有文字提示。
+# 查这里才知道每个下标代表什么。数字量表（numeric，注意题/意义题/迷恋远离/IMI 感知选择）
+# 存的就是数字本身，不用查下标，只在端点和中点有文字提示。
 # ------------------------------------------------------------------
 SCALE_LABELS = {
     "STAI_T": ("几乎从不", "有时", "经常", "几乎总是"),  # STAI-T 状态-特质焦虑量表·特质分量表
@@ -49,10 +56,15 @@ SCALE_LABELS = {
     "MSBS8": ("非常不同意", "不同意", "有点不同意", "中立", "有点同意", "同意", "非常同意"),  # MSBS-8 无聊状态量表
 }
 
-# 数字量表（1-7/1-9，只标端点和中点文字，存的是数字本身不是下标）。
+# 数字量表（1-7，只标端点和中点文字，存的是数字本身不是下标）。
+# 2026-11-02：MEANING 由 1-9 改成 1-7；ATTENTION 是新加的注意题；FASCINATION/BEING_AWAY
+# 替换了原来的 IMI 兴趣/愉悦；IMI_CHOICE（感知选择）内容没变，和 FASCINATION 共用同一组选项。
 NUMERIC_SCALE_LABELS = {
-    "IMI": {"range": (1, 7), "labels": {1: "完全不符合", 4: "有些符合", 7: "非常符合"}},
-    "MEANING": {"range": (1, 9), "labels": {1: "完全没有", 5: "有些", 9: "非常"}},
+    "ATTENTION": {"range": (1, 7), "labels": {1: "完全没有", 4: "有些", 7: "非常"}},
+    "MEANING": {"range": (1, 7), "labels": {1: "完全没有", 4: "有些", 7: "非常"}},
+    "FASCINATION": {"range": (1, 7), "labels": {1: "完全不符合", 4: "有些符合", 7: "非常符合"}},
+    "BEING_AWAY": {"range": (1, 7), "labels": {1: "完全不符合", 4: "有些符合", 7: "非常符合"}},
+    "IMI_CHOICE": {"range": (1, 7), "labels": {1: "完全不符合", 4: "有些符合", 7: "非常符合"}},
 }
 
 # ------------------------------------------------------------------
@@ -174,17 +186,23 @@ PSYCHO_SCHEMA = {
         "T3_msbs_6": Field("T3_msbs_6", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我在走神
         "T3_msbs_7": Field("T3_msbs_7", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我希望某件事情发生，但我不确定那是什么事
         "T3_msbs_8": Field("T3_msbs_8", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我觉得我正在坐等某些事情的发生
-        "T3_imi_enjoy_1": Field("T3_imi_enjoy_1", "Int64", levels=tuple(range(1, 8))),  # IMI · 我觉得刚才这段体验很吸引人，让我想多看看、多了解一些
-        "T3_imi_enjoy_2": Field("T3_imi_enjoy_2", "Int64", levels=tuple(range(1, 8))),  # IMI · 我非常享受刚才这段体验
-        "T3_imi_enjoy_3": Field("T3_imi_enjoy_3", "Int64", levels=tuple(range(1, 8))),  # IMI · 在体验过程中，我会想到自己有多享受它
-        "T3_imi_enjoy_4": Field("T3_imi_enjoy_4", "Int64", levels=tuple(range(1, 8))),  # IMI · 刚才这段体验充满乐趣
-        "T3_imi_enjoy_5": Field("T3_imi_enjoy_5", "Int64", levels=tuple(range(1, 8))),  # IMI · 我觉得刚才这段体验很无聊
-        "T3_imi_choice_1": Field("T3_imi_choice_1", "Int64", levels=tuple(range(1, 8))),  # IMI · 在刚才的体验中，去哪里、看什么，是按我自己的意愿决定的
-        "T3_imi_choice_2": Field("T3_imi_choice_2", "Int64", levels=tuple(range(1, 8))),  # IMI · 在刚才的体验中，在哪里停留、停留多久，是我自己做的决定
-        "T3_imi_choice_3": Field("T3_imi_choice_3", "Int64", levels=tuple(range(1, 8))),  # IMI · 在刚才的体验中，看什么都是被安排好的，由不得我
-        "T3_meaning_1": Field("T3_meaning_1", "Int64", levels=tuple(range(1, 10))),  # MEANING · 刚才这段体验对你个人来说有多有意义？
-        "T3_meaning_2": Field("T3_meaning_2", "Int64", levels=tuple(range(1, 10))),  # MEANING · 在刚才这段时间里，你在多大程度上觉得自己在做一件值得的事？
-        "T3_meaning_3": Field("T3_meaning_3", "Int64", levels=tuple(range(1, 10))),  # MEANING · 刚才这段体验在多大程度上符合你那时想要的？
+        "T3_attention_1": Field("T3_attention_1", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # ATTENTION · 在刚才这段体验中，你觉得集中注意有多困难？
+        "T3_attention_2": Field("T3_attention_2", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # ATTENTION · 在刚才这段体验中，你的注意在多大程度上成功地集中在了眼前的内容上？
+        "T3_attention_3": Field("T3_attention_3", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # ATTENTION · 在刚才这段体验中，你在多大程度上需要强迫自己去集中注意？
+        "T3_attention_4": Field("T3_attention_4", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # ATTENTION · 在刚才这段体验中，你在多大程度上会走神，想到与眼前无关的事情？
+        "T3_meaning_1": Field("T3_meaning_1", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # MEANING · 刚才这段体验对你个人来说有多有意义？
+        "T3_meaning_2": Field("T3_meaning_2", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # MEANING · 在刚才这段时间里，你在多大程度上觉得自己在做一件值得的事？
+        "T3_meaning_3": Field("T3_meaning_3", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # MEANING · 刚才这段体验在多大程度上符合你那时想要的？
+        "T3_fascination_1": Field("T3_fascination_1", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # FASCINATION · 刚才的虚拟自然有令人着迷的地方
+        "T3_fascination_2": Field("T3_fascination_2", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # FASCINATION · 在刚才的虚拟自然中，有许多东西吸引了我的注意
+        "T3_fascination_3": Field("T3_fascination_3", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # FASCINATION · 我想更多地了解刚才的虚拟自然
+        "T3_fascination_4": Field("T3_fascination_4", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # FASCINATION · 刚才的虚拟自然中有很多可以探索和发现的东西
+        "T3_fascination_5": Field("T3_fascination_5", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # FASCINATION · 我想再多花些时间看看刚才的虚拟自然
+        "T3_away_1": Field("T3_away_1", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # BEING_AWAY · 刚才的体验像是一次短暂的逃离
+        "T3_away_2": Field("T3_away_2", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # BEING_AWAY · 在刚才的虚拟自然中待一会儿，让我从日常事务中好好歇了一下
+        "T3_imi_choice_1": Field("T3_imi_choice_1", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # IMI_CHOICE · 在刚才的体验中，去哪里、看什么，是按我自己的意愿决定的
+        "T3_imi_choice_2": Field("T3_imi_choice_2", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # IMI_CHOICE · 在刚才的体验中，在哪里停留、停留多久，是我自己做的决定
+        "T3_imi_choice_3": Field("T3_imi_choice_3", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # IMI_CHOICE · 在刚才的体验中，看什么都是被安排好的，由不得我
         "T3_fms": Field("T3_fms", "Int64", levels=tuple(range(0, 21))),  # 在刚才的体验中，你最不舒服的时候，头晕、恶心或胃部不适的程度是多少？（0 完全没有不适 → 20 明显的晕动或恶心）
     },
 }
@@ -196,7 +214,7 @@ PSYCHO_SCHEMA = {
 #
 # 重要：PSYCHO_SCHEMA 里矩阵题存的是"选项下标"（0 起），下面的计分口径里写的
 # "换算成 1-4 分"等，是指下标 + value_start 之后的分数，不是下标本身；数字量表
-# （IMI、意义题）存的本来就是分数，不用换算。
+# （注意题、意义题、迷恋/远离、IMI 感知选择）存的本来就是分数，不用换算。
 # ------------------------------------------------------------------
 PSYCHO_METRICS = {
     "stait_total": {
@@ -279,16 +297,39 @@ PSYCHO_METRICS = {
         "status": "未确认报总分还是均分",
         "source": "研究思路/实验记录-问卷草稿.md E4",
     },
-    "imi_enjoy": {
-        "name": "IMI 兴趣/愉悦分量表",
-        "definition": "5 题，1-7 数字量表存的就是选择的数字本身（不是下标）；第 5 题反向计分，"
-                      "取 8 − 原始分（min+max=1+7=8）；5 题相加或取均分。",
-        "inputs": tuple("PSYCHO_SCHEMA.T3.T3_imi_enjoy_%d" % i for i in range(1, 6)),
-        "parameters": {"reverse_items": (5,), "scale_min": 1, "scale_max": 7},
-        "output": "总分（5-35）或均分（1-7），用哪个未定",
-        "status": "未确认报总分还是均分；题序未随机混排（流程单系统固定顺序呈现，问卷草稿"
-                  "要求随机混排，尚未实现，见交接记录）",
+    "attention": {
+        "name": "注意困难指数",
+        "definition": "4 题，1-7 数字量表存的就是选择的数字本身（不是下标）；第 2 题反向计分，"
+                      "取 8 − 原始分（min+max=1+7=8）；4 题求均分，分数越高表示注意越不顺。",
+        "inputs": tuple("PSYCHO_SCHEMA.T3.T3_attention_%d" % i for i in range(1, 5)),
+        "parameters": {"reverse_items": (2,), "scale_min": 1, "scale_max": 7},
+        "output": "均分（1-7）",
+        "status": "改编自 Westgate & Wilson (2018) Study 2 的注意操纵检验，原文无逐字题目，"
+                  "中文措辞按题意改编；第 1 题与 MSBS-8“容易分心”、第 4 题与“我在走神”内容"
+                  "相近，分析“注意 → 无聊”时需说明这一重叠会抬高两者的相关。",
         "source": "研究思路/实验记录-问卷草稿.md E5",
+    },
+    "fascination": {
+        "name": "迷恋分量表",
+        "definition": "5 题，1-7 数字量表存的就是选择的数字本身，全部正向，无反向计分题；"
+                      "5 题求均分。",
+        "inputs": tuple("PSYCHO_SCHEMA.T3.T3_fascination_%d" % i for i in range(1, 6)),
+        "parameters": {"scale_min": 1, "scale_max": 7},
+        "output": "均分（1-7）",
+        "status": "2026-11-02 新增，替换原 IMI 兴趣/愉悦 5 题。改编自 Hartig et al. (1997) PRS"
+                  "迷恋分量表（Study 2 版题项），中文为本研究自译，需找人回译。",
+        "source": "研究思路/实验记录-问卷草稿.md E7",
+    },
+    "being_away": {
+        "name": "远离分量表",
+        "definition": "2 题，1-7 数字量表存的就是选择的数字本身，全部正向，无反向计分题；"
+                      "2 题求均分。",
+        "inputs": tuple("PSYCHO_SCHEMA.T3.T3_away_%d" % i for i in range(1, 3)),
+        "parameters": {"scale_min": 1, "scale_max": 7},
+        "output": "均分（1-7）",
+        "status": "2026-11-02 新增，和迷恋分量表同页、共用同一句指导语。改编自 Hartig et al. "
+                  "(1997) PRS 远离分量表，中文为本研究自译，需找人回译。",
+        "source": "研究思路/实验记录-问卷草稿.md E7",
     },
     "imi_choice": {
         "name": "IMI 感知选择分量表",
@@ -297,17 +338,17 @@ PSYCHO_METRICS = {
         "inputs": tuple("PSYCHO_SCHEMA.T3.T3_imi_choice_%d" % i for i in range(1, 4)),
         "parameters": {"reverse_items": (3,), "scale_min": 1, "scale_max": 7},
         "output": "总分（3-21）或均分（1-7），用哪个未定",
-        "status": "未确认报总分还是均分；题序未随机混排（同上）",
-        "source": "研究思路/实验记录-问卷草稿.md E5",
+        "status": "未确认报总分还是均分。2026-11-02 起和迷恋/远离同页、共用同一句指导语",
+        "source": "研究思路/实验记录-问卷草稿.md E8",
     },
     "meaning": {
         "name": "意义题",
-        "definition": "3 题，1-9 数字量表存的就是选择的数字本身，无反向计分题；3 题相加或"
+        "definition": "3 题，1-7 数字量表存的就是选择的数字本身，无反向计分题；3 题相加或"
                       "取均分。",
         "inputs": tuple("PSYCHO_SCHEMA.T3.T3_meaning_%d" % i for i in range(1, 4)),
-        "parameters": {"scale_min": 1, "scale_max": 9},
-        "output": "总分（3-27）或均分（1-9），用哪个未定",
-        "status": "未确认报总分还是均分",
+        "parameters": {"scale_min": 1, "scale_max": 7},
+        "output": "总分（3-21）或均分（1-7），用哪个未定",
+        "status": "未确认报总分还是均分。2026-11-01 点数由 1-9 改为 1-7，和注意题共用同一组选项",
         "source": "研究思路/实验记录-问卷草稿.md E6",
     },
     "fms": {
@@ -317,7 +358,7 @@ PSYCHO_METRICS = {
         "parameters": {},
         "output": "0-20",
         "status": "已定",
-        "source": "研究思路/实验记录-问卷草稿.md E7",
+        "source": "研究思路/实验记录-问卷草稿.md E9",
     },
     "a2_screening": {
         "name": "A2 筛查多选·纳入建议",

@@ -55,17 +55,15 @@ def _basic_info_block():
     return {"type": "basic_info"}
 
 
-def _imi_combined_block():
-    # 兴趣/愉悦（5 题）+ 感知选择（3 题）放同一页，共用一句卷首指导语。
-    # 问卷草稿里这两个子量表要求"题项随机混排"；第一版先按固定顺序（兴趣/愉悦在前）
-    # 呈现，没有做到按被试随机打乱，如果需要补上请告诉我。
-    items = _items("T3_imi_enjoy", scales.IMI_INTEREST) + _items("T3_imi_choice", scales.IMI_CHOICE)
+def _fascination_combined_block():
+    # 迷恋（5 题）+ 远离（2 题）放同一页，共用一句卷首指导语，题项不混排、先迷恋后远离。
+    items = _items("T3_fascination", scales.FASCINATION) + _items("T3_away", scales.BEING_AWAY)
     return {
         "type": "numeric",
-        "instruction": scales.IMI_INTEREST["instruction"],
-        "scale_min": scales.IMI_INTEREST["scale_min"],
-        "scale_max": scales.IMI_INTEREST["scale_max"],
-        "scale_labels": scales.IMI_INTEREST["scale_labels"],
+        "instruction": scales.FASCINATION["instruction"],
+        "scale_min": scales.FASCINATION["scale_min"],
+        "scale_max": scales.FASCINATION["scale_max"],
+        "scale_labels": scales.FASCINATION["scale_labels"],
         "items": items,
     }
 
@@ -130,11 +128,15 @@ QUESTIONNAIRES = {
                 ],
             },
             {
+                # 2026-11-02 顺序为 E4 MSBS-8 → E5 注意题 → E6 意义题 →
+                # E7 迷恋与远离 → E8 IMI 感知选择 → E9 FMS。
                 "intro": None,
                 "blocks": [
                     _matrix_block("T3_msbs", scales.MSBS8),
-                    _imi_combined_block(),
+                    _numeric_block("T3_attention", scales.ATTENTION),
                     _numeric_block("T3_meaning", scales.MEANING),
+                    _fascination_combined_block(),
+                    _numeric_block("T3_imi_choice", scales.IMI_CHOICE),
                     _slider_block("T3_fms", scales.FMS),
                 ],
             },
