@@ -5,16 +5,32 @@ table_flows 与 data_lab 共用本文件。运行选择、试验参数、任务�
 """
 from dataclasses import dataclass
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.4"
 DATA_OBJECTS = ("track", "psycho", "physio")   # 即 pipeline，命名规范见 analysis/tools/paths.py
 MODULE_LABELS = {
     "Interactive": "自由交互体验",
     "Practice": "练习场（只有会话信息）",
     "Passive": "被动观看视频（当前只有会话信息）",
 }
-TRACK_SESSION_GLOB = "sub-*"
+
+# 分类变量编码表：数据表里一律只存整数，含义以这里为准（2026-11-04 起）。
+# 约定：是/否性质的二分变量用 0/1；组别是实验条件的名义因子，沿用 VN、流程单、LabRecorder 已在用的 1/2。
+VALUE_LABELS = {
+    "group": {1: "实验组（交互）", 2: "对照组"},
+    "A_gender": {0: "男", 1: "女"},
+    "T0_stait_level": {0: "低焦虑", 1: "高焦虑"},
+}
+# raw 目录结构（2026-11-04 起，三个 pipeline 与 session_notes 相同）：
+#   data/<dataset>/raw/<pipeline>/sub-P001/<该被试的记录文件>
+# 每名被试一个 sub-P### 文件夹；不用于分析的文件放在被试文件夹下的 _excluded/，读取时跳过。
+# 每个被试只来一次，命名中不再含 session（ses-S###）。
+SUBJECT_DIR_GLOB = "sub-P*"
+SUBJECT_DIR_REGEX = r"^sub-P(?P<subject>\d+)$"
+EXCLUDED_DIR = "_excluded"
+# track：被试文件夹内每份 VN 记录一个文件夹，名字由 APP 生成，例 sub-P001_mod-Interactive_run-001
+TRACK_SESSION_GLOB = "sub-P*_mod-*"
 TRACK_SESSION_REGEX = (
-    r"^sub-P(?P<subject>\d+)_ses-S(?P<session>\d+)_mod-"
+    r"^sub-P(?P<subject>\d+)_mod-"
     r"(?P<module>Practice|Interactive|Passive)_run-(?P<run>\d+)$"
 )
 TRACK_RECORDING = {"spacetime_interval_seconds": 0.1, "yaw_zero": "+Z", "pitch_positive": "up"}
@@ -30,7 +46,6 @@ class Field:
 TRACK_SCHEMA = {
     'session': {
         'subject': Field('subject', 'Int64'),
-        'session': Field('session', 'Int64'),
         'group': Field('group', 'Int64', levels=(1, 2)),
         'module': Field('module', 'string', levels=('Practice', 'Interactive', 'Passive')),
         't_device_start': Field('t_device_start', 'Float64', unit='s'),
@@ -130,6 +145,8 @@ TRACK_LEGACY_VALUES = {
 }
 # 早期数据缺少的列（加列之前录制的数据）：读取时补为空，不报错。
 TRACK_LEGACY_MISSING = {"session": ("app_commit",), "tap": ("touch_locked",)}
+# 早期数据多出、现已取消的列：读取时丢弃，不报错（2026-11-04 起 APP 不再写 session 列）。
+TRACK_LEGACY_EXTRA = {"session": ("session",)}
 TRACK_TRUE = "TRUE"
 TRACK_FALSE = "FALSE"
 TRACK_CSV = {"encoding": "utf-8-sig", "keep_default_na": False, "na_values": [""]}

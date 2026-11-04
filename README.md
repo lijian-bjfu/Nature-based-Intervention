@@ -6,7 +6,7 @@
 
 global_settings.py 是两类工作共同遵守的数据规范，主要描述原始表结构、字段、类型、标签、单位、命名和历史取值兼容。已确认的指标定义也逐项登记在这里。运行选择、实验候选参数、任务依赖、展示样式及结果路径不放入共享规范。
 
-table_flows 各流程拥有本地 01_parameters.py 和 02_run.py。data_lab 不读取这些参数，也没有全 Lab 固定参数面板；具体实验在自己的入口脚本中设置参数，复杂实验可另设局部参数文件。根目录不再设置统一 parameters、run 或 reports。
+table_flows 各流程拥有本地 parameters.py 和编号工具脚本。data_lab 不读取这些参数，也没有全 Lab 固定参数面板；具体实验在自己的入口脚本中设置参数，复杂实验可另设局部参数文件。根目录不再设置统一 parameters、run 或 reports。
 
 ## 目录结构
 
@@ -27,10 +27,10 @@ Nature-based Intervention/
 │       └── test/                         开发测试，同样分为上述四类目录
 ├── analysis/
 │   ├── table_flows/
-│   │   ├── track/                        01_parameters.py、02_run.py
-│   │   ├── psycho/                       01_parameters.py、02_run.py
-│   │   ├── physio/                       01_parameters.py、02_run.py
-│   │   └── integration/                  01_parameters.py、02_run.py
+│   │   ├── track/                        parameters.py、02_track_metrics.py
+│   │   ├── psycho/                       parameters.py、01_completeness_check.py 等
+│   │   ├── physio/                       parameters.py、01_xdf_to_csv.py 等
+│   │   └── integration/                  parameters.py、01_data_overview.py 等（占位）
 │   ├── data_lab/
 │   │   ├── README.md
 │   │   ├── track/
@@ -66,9 +66,9 @@ METRICS 按 track、psycho、physio 分类；track 已登记 12 项埋点指标�
 
 table_flows 的前三个对象流程原则上包含载入、清理、指标计算和生成表单。integration 将来协调三个流程，加入分组、访谈编码等补充信息并生成长表与宽表。共同的被试 ID 和时间格式是数据对齐要求，具体细节等预测试数据到位后确定。
 
-各流程的参数仅服务本流程。例如，研究者修改并保存 analysis/table_flows/track/01_parameters.py 后，在同目录 02_run.py 点 Run。整合任务的入口位于 analysis/table_flows/integration/02_run.py，根目录不再有总运行器。
+各流程的参数仅服务本流程。例如，研究者修改并保存 analysis/table_flows/track/parameters.py 后，在同目录 02_track_metrics.py 点 Run。整合任务的入口位于 analysis/table_flows/integration/ 下的编号脚本（目前为占位，如 01_data_overview.py），根目录不再有总运行器。
 
-**track 制表已实现**：在 01_parameters.py 选数据集与被试（同一被试有多份记录时在 runs 中指定），在 02_run.py 点 Run，计算调用 analysis/tools/track_metrics.py，结果写入 data/<数据集>/final/track/：每人一行的指标宽表 track_metrics.csv、逗留明细、景点明细、分区域与每分钟报告、列名对照，以及来源记录 _provenance/。
+**track 制表已实现**：在 parameters.py 选数据集与被试（同一被试有多份记录时在 runs 中指定），在 02_track_metrics.py 点 Run，计算调用 analysis/tools/track_metrics.py，结果写入 data/<数据集>/final/track/：每人一行的指标宽表 track_metrics.csv、逗留明细、景点明细、分区域与每分钟报告、列名对照，以及来源记录 _provenance/。
 
 **psycho、physio、integration 仍是结构预留。** 入口可以显示状态，但执行制表会明确提示尚未实现并以非零状态结束，不创建数据、报告，也不调用 Lab 描述充当制表。清理、切窗、计分、指标和合表参数待规范确定后再加入。未来需要的生成效果观察结果，可保存在对应流程自己的 outputs，当前不预先实现报告体系。
 
@@ -91,7 +91,7 @@ data_lab 按 pipeline／环节／研究问题三级组织，研究问题在工�
 | `pipeline` | 数据类型，与 table_flows 的流程对应 | `track`（虚拟自然行为）、`psycho`（问卷）、`physio`（生理） |
 | `subject` | 被试编号 | 如 `P040`。不含组别，组别记在被试表里由程序按编号查 |
 
-磁盘位置为 `data/<dataset>/<layer>/<pipeline>/<记录文件>`，例如 data/pilot_and_test/test/raw/track/sub-P999_ses-S001_mod-Interactive_run-002/。APP 和 LSL 生成的原始文件名保持原样，`P040` 是分析端的简写，由程序对应。raw 下另有 interview、session_notes 两类不属于任何 pipeline 的原始材料。
+磁盘位置为 `data/<dataset>/<layer>/<pipeline>/sub-P###/<记录文件>`，每名被试一个文件夹，例如 data/pilot_and_test/test/raw/track/sub-P999/sub-P999_mod-Interactive_run-002/。不用于分析的文件放在被试文件夹下的 `_excluded/`，读取时跳过。每个被试只来一次，命名中不含 session（2026-11-04 起）。APP 和 LSL 生成的原始文件名保持原样，`P040` 是分析端的简写，由程序对应。raw 下另有 interview、session_notes 两类不属于任何 pipeline 的原始材料。
 
 **调取数据一律用 analysis/tools/data_access.py**，不在脚本里拼路径、不各自写找文件的逻辑：
 

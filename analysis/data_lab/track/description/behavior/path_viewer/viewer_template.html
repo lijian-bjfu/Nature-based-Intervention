@@ -60,6 +60,16 @@ svg#map.drag{cursor:grabbing}
 .param input[type=range]{width:100%}
 .param input[type=number]{width:54px;border:1px solid var(--line);border-radius:4px;padding:1px 3px}
 .box{border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:8px 0;background:#fcfbf8}
+html,body{overflow-x:hidden}
+#physio{margin-top:6px}
+#pcanvas{display:block;width:100%;height:150px;border-radius:3px;cursor:crosshair}
+#physNone{margin-top:6px;padding:6px 8px;border:1px dashed var(--line);border-radius:4px;color:var(--muted);font-size:12px;background:#fafafa}
+/* 窄屏：边栏移到地图上方，避免出现横向滚动条 */
+@media (max-width:760px){
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,38vh) minmax(240px,1fr) auto}
+  #side{grid-row:auto;border-right:0;border-bottom:1px solid var(--line)}
+  #timebar{min-width:0}
+}
 </style>
 </head>
 <body>
@@ -81,6 +91,14 @@ svg#map.drag{cursor:grabbing}
         <div class="param"><span>时长 T (s)</span><input type="range" id="dwT" min="3" max="60" step="1"><input type="number" id="dwTn" min="3" max="60" step="1"></div>
         <div class="param"><span>半径 R (m)</span><input type="range" id="dwR" min="0.5" max="10" step="0.5"><input type="number" id="dwRn" min="0.5" max="10" step="0.5"></div>
         <div class="row"><span class="hint" id="dwInfo" style="flex:1;margin:0"></span><button class="focus" id="dwReset">恢复默认</button></div>
+      </div>
+      <div class="box">
+        <div style="font-weight:600;margin-bottom:2px">生理数据</div>
+        <div class="row"><label><input type="checkbox" id="phOn"><span class="name">显示生理面板</span></label></div>
+        <div class="param"><span>跳变阈值</span><input type="range" id="jpT" min="5" max="50" step="1"><input type="number" id="jpTn" min="5" max="50" step="1"></div>
+        <div class="hint" style="margin:0 0 4px">单位 %；相邻 RR 变化超过前一个的这个比例画成红点，与生理工具 03 的默认口径一致（20%）。</div>
+        <div class="row"><span class="hint" id="jpInfo" style="flex:1;margin:0"></span><button class="focus" id="jpReset">恢复默认</button></div>
+        <div class="hint" id="phNote" style="margin-top:4px"></div>
       </div>
       <div class="hint" style="margin-top:8px">点击筛选：</div>
       <div class="seg" id="tapFilter"><button data-v="all" class="on">全部</button><button data-v="nomove">只看无位移点击</button><button data-v="touched">只看摸到</button></div>
@@ -119,6 +137,8 @@ svg#map.drag{cursor:grabbing}
       <input type="range" id="t0" min="0" max="1000" value="0">
       <input type="range" id="t1" min="0" max="1000" value="1000">
     </div>
+    <div id="physio"><canvas id="pcanvas"></canvas></div>
+    <div id="physNone" style="display:none">该被试没有生理数据（需先运行 table_flows/physio 的 01、02）</div>
   </footer>
 </div>
 <div id="tip"></div>
@@ -440,7 +460,7 @@ function refresh(){
     m.e.style.display = on && inWin(m.t0,m.t1) ? "" : "none"; });
   dwellMarks.forEach(m=>m.e.style.display=behOn.dwells && inWin(m.t0,m.t1)?"":"none");
   layers.now.style.display=behOn.now?"":"none";
-  placeNow(); updateTimebar(); updateStats();
+  placeNow(); updateTimebar(); updateStats(); drawPhysio();
 }
 
 // ---------- 统计（当前时间窗） ----------
@@ -529,6 +549,98 @@ document.querySelectorAll(".seg").forEach(seg=>seg.querySelectorAll("button").fo
   seg.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
   if(seg.id==="tapPos"){ tapPos=b.dataset.v; placeTaps(); } else if(seg.id==="tapFilter"){ tapFilter=b.dataset.v; refresh(); } else { pathMode=b.dataset.v; colorPath(); } }));
 
+// ---------- 生理面板（HR 折线 + RR 散点），横轴与时间轴一致（0 – T_END，同样的左右边距） ----------
+const PH=D.physio, HRd=D.hr, RRd=D.rr, PM=D.physio_markers;
+let phOn=store.get("phys_on",true), jumpPct=store.get("jump_pct",20), rrJump=[], nJump=0, hoverT=null;
+const pcv=$("#pcanvas"), pBase=document.createElement("canvas");
+const PH_GAP=6, PH_TOP=20;   // 图顶留两行给标记文字
+function phPanes(H){ const h=(H-PH_GAP)/2; return [{y0:0,y1:h},{y0:h+PH_GAP,y1:H}]; }
+function phRange(vals){ if(!vals.length) return [0,1]; let lo=Infinity,hi=-Infinity; for(const v of vals){ if(v<lo)lo=v; if(v>hi)hi=v; }
+  const pad=(hi-lo)*0.05||Math.max(1,Math.abs(lo)*0.05); return [lo-pad,hi+pad]; }
+function computeJumps(){   // 与生理工具 03 同口径：与同一段内前一个 RR 相比，变化超过前一个的 jumpPct%
+  const ms=RRd.ms, sg=RRd.seg; rrJump=new Array(ms.length).fill(false); nJump=0;
+  for(let i=1;i<ms.length;i++) if(sg[i]===sg[i-1] && ms[i-1]>0 && Math.abs(ms[i]-ms[i-1])/ms[i-1]>jumpPct/100){ rrJump[i]=true; nJump++; }
+}
+function nearestIdx(arr,t){ if(!arr.length) return -1; let lo=0,hi=arr.length-1; if(t<=arr[0]) return 0; if(t>=arr[hi]) return hi;
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(arr[m]<=t) lo=m; else hi=m; } return (t-arr[lo]<=arr[hi]-t)?lo:hi; }
+function buildPhysioBase(){
+  if(!PH.has) return;
+  const r=pcv.getBoundingClientRect(); if(!r.width) return;
+  const dpr=devicePixelRatio||1; pcv.width=pBase.width=Math.round(r.width*dpr); pcv.height=pBase.height=Math.round(r.height*dpr);
+  const c=pBase.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0); const W=r.width, H=r.height;
+  c.clearRect(0,0,W,H);
+  const panes=phPanes(H), X=t=>t/T_END*W;
+  const spec=[{name:"HR",unit:"bpm",t:HRd.t,v:HRd.bpm},{name:"RR",unit:"ms",t:RRd.t,v:RRd.ms}];
+  spec.forEach((s,k)=>{
+    const p=panes[k], y0=p.y0+PH_TOP, y1=p.y1-3, [lo,hi]=phRange(s.v), Y=v=>y1-(v-lo)/(hi-lo)*(y1-y0);
+    c.fillStyle="#eef0f2"; c.fillRect(0,p.y0,W,p.y1-p.y0);
+    c.font="9px sans-serif"; c.textBaseline="middle"; c.lineWidth=1;
+    [lo,(lo+hi)/2,hi].forEach((v,i)=>{ const y=Y(v); c.strokeStyle="rgba(0,0,0,.08)"; c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); });
+    // 数据
+    if(!s.t.length){ c.fillStyle="#888"; c.font="11px sans-serif"; c.textBaseline="middle"; c.fillText(s.name+" 无数据",W/2-30,(y0+y1)/2); }
+    else if(k===0){
+      c.strokeStyle="#2f6f9f"; c.lineWidth=1.3; c.beginPath(); let pen=false;
+      for(let i=0;i<s.t.length;i++){ if(pen && s.t[i]-s.t[i-1]>5) pen=false; const x=X(s.t[i]), y=Y(s.v[i]); if(pen) c.lineTo(x,y); else { c.moveTo(x,y); pen=true; } }
+      c.stroke();
+    } else {
+      c.fillStyle="rgba(110,150,125,.85)"; for(let i=0;i<s.t.length;i++) if(!rrJump[i]){ c.beginPath(); c.arc(X(s.t[i]),Y(s.v[i]),1.5,0,6.2832); c.fill(); }
+      c.fillStyle="#d03030"; for(let i=0;i<s.t.length;i++) if(rrJump[i]){ c.beginPath(); c.arc(X(s.t[i]),Y(s.v[i]),2.2,0,6.2832); c.fill(); }
+    }
+    // 标记：竖虚线 + 上方小字
+    c.setLineDash([3,2]); c.strokeStyle="#444"; c.lineWidth=1; c.fillStyle="#333"; c.font="9px sans-serif"; c.textBaseline="top";
+    const rowEnd=[-1e9,-1e9];
+    PM.t.forEach((t,i)=>{ const x=X(t); c.beginPath(); c.moveTo(x,p.y0); c.lineTo(x,p.y1); c.stroke();
+      const lab=PM.label[i], w=c.measureText(lab).width+3; let row=x>rowEnd[0]?0:(x>rowEnd[1]?1:0);
+      let tx=x+2; if(tx+w>W) tx=x-w;   // 靠右时标签放到线左边
+      c.setLineDash([]); c.fillText(lab,tx,p.y0+1+row*9); c.setLineDash([3,2]); rowEnd[row]=Math.max(x,tx)+w; });
+    c.setLineDash([]);
+    // 纵轴刻度与单位（画在左侧图内，带白边保证可读）
+    c.font="9px sans-serif"; c.textBaseline="middle"; c.lineWidth=3; c.lineJoin="round";
+    [[hi,"top"],[(lo+hi)/2,"mid"],[lo,"bot"]].forEach(([v,pos])=>{ const y=Math.min(y1-4,Math.max(y0+4,Y(v))); const txt=Math.round(v)+(pos==="mid"?" "+s.unit:"");
+      c.strokeStyle="rgba(255,255,255,.9)"; c.strokeText(txt,3,y); c.fillStyle="#555"; c.fillText(txt,3,y); });
+  });
+}
+function drawPhysio(){
+  if(!PH.has || !phOn || !pBase.width) return;
+  const c=pcv.getContext("2d"), dpr=devicePixelRatio||1; const W=pcv.width/dpr, H=pcv.height/dpr;
+  c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,pcv.width,pcv.height); c.drawImage(pBase,0,0);
+  c.setTransform(dpr,0,0,dpr,0,0);
+  const x0=tWin[0]/T_END*W, x1=tWin[1]/T_END*W;     // 时间窗以外变淡
+  c.fillStyle="rgba(255,255,255,.62)"; c.fillRect(0,0,x0,H); c.fillRect(x1,0,W-x1,H);
+  if(tWin[1]<T_END-0.01 || playing){ c.strokeStyle="#111"; c.lineWidth=1.6; c.beginPath(); c.moveTo(x1,0); c.lineTo(x1,H); c.stroke(); }   // 当前时刻
+  if(hoverT!==null){ const hx=hoverT/T_END*W; c.strokeStyle="rgba(0,0,0,.45)"; c.lineWidth=1; c.beginPath(); c.moveTo(hx,0); c.lineTo(hx,H); c.stroke(); }
+}
+function physioTip(ev){
+  const r=pcv.getBoundingClientRect(); hoverT=Math.min(T_END,Math.max(0,(ev.clientX-r.left)/r.width*T_END));
+  const hi=nearestIdx(HRd.t,hoverT), ri=nearestIdx(RRd.t,hoverT);
+  const near=(arr,i)=>i>=0 && Math.abs(arr[i]-hoverT)<=5;   // 5 s 内才算附近有数据
+  const hrTxt=near(HRd.t,hi)?`${HRd.bpm[hi]} bpm（${fmt(HRd.t[hi])}）`:"附近无数据";
+  const rrTxt=near(RRd.t,ri)?`${RRd.ms[ri]} ms（${fmt(RRd.t[ri])}）${rrJump[ri]?' · <b style="color:#ff8a8a">跳变</b>':" · 正常"}`:"附近无数据";
+  showTip(ev,`<b>会话时间 ${fmt(hoverT)}</b><br>最近 HR：${hrTxt}<br>最近 RR：${rrTxt}`); drawPhysio();
+}
+function setPhysioVisible(){
+  $("#physio").style.display=(PH.has&&phOn)?"":"none";
+  $("#physNone").style.display=(!PH.has&&phOn)?"":"none";
+  setVB(); drawTimeline(); updateTimebar(); buildPhysioBase(); drawPhysio();
+}
+const JP_DEFAULT=20;
+function setJump(v){
+  v=Math.min(50,Math.max(5,Math.round(+v||JP_DEFAULT))); jumpPct=v; $("#jpT").value=$("#jpTn").value=v; store.set("jump_pct",v);
+  computeJumps(); buildPhysioBase(); drawPhysio();
+  $("#jpInfo").textContent=PH.has?`阈值 ${v}% 下 RR 跳变 ${nJump} 个（共 ${PH.n_rr} 个）`:"无生理数据";
+}
+(function initPhysio(){
+  $("#phOn").checked=phOn;
+  $("#phNote").textContent=PH.has
+    ?`生理数据已按 iPad 与手机系统时间对齐（两台设备自动校时，误差通常在 1 秒内）。offset ${PH.offset} s；HR ${PH.n_hr} 条，RR ${PH.n_rr} 条，标记 ${PH.n_markers} 个。`
+    :"该被试没有生理数据（需先运行 table_flows/physio 的 01、02）。";
+  $("#phOn").onchange=e=>{ phOn=e.target.checked; store.set("phys_on",phOn); setPhysioVisible(); };
+  $("#jpT").oninput=e=>setJump(e.target.value); $("#jpTn").onchange=e=>setJump(e.target.value);
+  $("#jpReset").onclick=()=>setJump(JP_DEFAULT);
+  pcv.addEventListener("mousemove",physioTip);
+  pcv.addEventListener("mouseleave",()=>{ hoverT=null; hideTip(); drawPhysio(); });
+})();
+
 // ---------- 启动 ----------
 $("#meta").innerHTML=`${D.meta.dataset} ／ ${D.meta.record}<br>时长 ${fmt(T_END)} · 生成于 ${D.meta.generated}`;
 $("#notes").innerHTML=D.meta.notes.map(n=>"· "+n).join("<br>");
@@ -536,8 +648,8 @@ applyGeo(); colorPath();
 $("#dwT").oninput=e=>setDwell(e.target.value,$("#dwR").value); $("#dwTn").onchange=e=>setDwell(e.target.value,$("#dwR").value);
 $("#dwR").oninput=e=>setDwell($("#dwT").value,e.target.value); $("#dwRn").onchange=e=>setDwell($("#dwT").value,e.target.value);
 $("#dwReset").onclick=()=>setDwell(dwDefault.T,dwDefault.R);
-requestAnimationFrame(()=>{ fitBox(B.x_min,B.z_min,B.x_max,B.z_max,PAD); setDwell(dwDefault.T,dwDefault.R); });
-window.addEventListener("resize",()=>{ drawTimeline(); updateTimebar(); });
+requestAnimationFrame(()=>{ fitBox(B.x_min,B.z_min,B.x_max,B.z_max,PAD); setJump(jumpPct); setPhysioVisible(); fitBox(B.x_min,B.z_min,B.x_max,B.z_max,PAD); setDwell(dwDefault.T,dwDefault.R); });
+window.addEventListener("resize",()=>{ drawTimeline(); updateTimebar(); buildPhysioBase(); drawPhysio(); });
 </script>
 </body>
 </html>

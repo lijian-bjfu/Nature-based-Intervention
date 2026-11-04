@@ -54,6 +54,16 @@ form.inline { display: inline; }
 .settings-form label { display: block; margin: 14px 0 4px; font-size: 15px; }
 .settings-form input { font-size: 16px; padding: 8px; width: 260px; }
 .error-box { background: #ffe1e1; color: #a30000; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+.resume-box {
+    background: #fff3cd; border: 1px solid #ffe08a; border-radius: 10px;
+    padding: 16px 20px; margin-bottom: 20px;
+}
+.resume-box p { margin: 0 0 10px; font-size: 15px; }
+.resume-box .resume-note { font-size: 13px; color: #8a6d00; margin-top: 10px; margin-bottom: 0; }
+.resume-box .btn {
+    display: inline-block; background: #3a6b4c; color: #fff; text-decoration: none;
+    padding: 10px 22px; border-radius: 8px; font-size: 16px;
+}
 .mode-flag { font-size: 12px; opacity: 0.8; }
 .judging-box {
     background: #fff; border-radius: 10px; padding: 16px 22px; margin-bottom: 16px;
@@ -90,7 +100,10 @@ form.inline { display: inline; }
     border: 2px solid transparent;
 }
 .qitem.unanswered-flag { border-color: #e05555; background: #fff6f6; }
-.qinstruction { font-size: 16px; color: #666; margin: 18px 0 10px; }
+.qinstruction {
+    font-size: 19px; font-weight: 700; color: #222; line-height: 1.5;
+    margin: 20px 0 12px; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "SimHei", sans-serif;
+}
 .qrow-text { font-size: 20px; font-weight: 700; color: #111; line-height: 1.4; margin-bottom: 12px; }
 .qoptions { display: flex; flex-wrap: nowrap; gap: 10px 26px; overflow-x: auto; }
 .qoptions label { font-size: 18px; display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
@@ -177,7 +190,7 @@ tick();
     return html_part, script_part
 
 
-def top_bar(state, page_number, total=15):
+def top_bar(state, page_number, total=17):
     started_at = state.get("page_started_at")
     duration_sec = None
     page_id = state["current_page"]
@@ -307,6 +320,81 @@ COMPLETE_GATE_SCRIPT = """<script>
 </script>"""
 
 
+def render_prep_page():
+    """设置页之前的"设备准备检查"：不是某个被试的页面，不计入 flow.PAGES 编号。
+    每次开始新的一天/新开软件至少确认一次（本次服务进程运行期间只需要一次，不是
+    每个被试都来一遍），确认过才放行到设置页。2026-11-04 加，起因是真机测试时
+    防火墙/VPN 把网络卡死、实验中途被迫重启电脑。"""
+    mode_label = {"formal": "正式", "test": "测试", "pilot": "预实验"}[config.MODE]
+    physio_dir = state_mod.physio_data_dir()
+
+    body = '<div class="wrap">'
+    body += "<h1>流程单系统 · 准备检查</h1>"
+    body += '<p class="mode-flag">当前运行模式：%s</p>' % esc(mode_label)
+    body += ('<div class="note">每次开始新的一天、或者重新打开这个软件，先把下面这些都弄好、'
+             '勾完，才能进入设置页开始被试。已经在跑的被试不会再弹这个页面，不用每个被试都'
+             '重新确认一遍。</div>')
+
+    checklist_items = [
+        "手机热点已开启，电脑和 SensorBridge/PolarBridge 所在设备都连上了同一个热点；"
+        "自动连不上时，已按下方说明查到本机 IP、填进 SensorBridge 的 UDP 设置",
+        "电脑已关闭所有防火墙和 VPN（包括但不限于 LuLu、Surfshark）——上次就是这个把"
+        "网络卡死，实验中途被迫重启电脑",
+        "SensorBridge 里已启用全部 12 个自定义事件标记（见下方清单）",
+        "LabRecorder 的保存路径、文件名模板已按下方说明设置好，BIDS 选项已关闭",
+        "已知悉：VN 里被试编号从 1 开始、LabRecorder 从 0 开始，两者差 1；后续处理"
+        "数据时按 LabRecorder 的编号 + 1 对齐",
+    ]
+    body += checklist_block(checklist_items)
+
+    body += """<details class="guide-section">
+<summary>怎么查本机 IP（SensorBridge 自动连不上热点时用）</summary>
+<div class="guide-item"><div class="guide-item-head">Windows</div>
+<div class="guide-task">按 Win+R，输入 cmd 回车打开命令提示符，输入 ipconfig 回车。找正在用的那个
+网络（连的是热点，一般是"无线局域网适配器"）下面的"IPv4 地址"那一行，形如 192.168.x.x，
+把这个填进 SensorBridge 的 UDP 设置里。</div></div>
+<div class="guide-item"><div class="guide-item-head">Mac</div>
+<div class="guide-task">"系统设置 → 网络"，点当前连接的 Wi-Fi（热点），右边会直接显示 IP 地址；
+或者打开"终端"，输入 ipconfig getifaddr en0 回车（Wi-Fi 一般是 en0，没反应就换成 en1 再试一次）。
+</div></div>
+</details>"""
+
+    body += """<details class="guide-section">
+<summary>LabRecorder 怎么设置（保存路径、文件名）</summary>
+<div class="guide-item"><div class="guide-item-head">Study Root（保存路径）</div>
+<div class="guide-task">%s<br>（随当前运行模式自动变化：正式/预实验/测试三种模式分别存到不同
+的文件夹，不会混在一起；这个目录不是流程单系统自己那个 data/ 文件夹，是项目根目录下的
+data/ ，和虚拟自然的行为数据用同一套存放规则。）</div></div>
+<div class="guide-item"><div class="guide-item-head">BIDS</div>
+<div class="guide-task">取消勾选（关闭）。</div></div>
+<div class="guide-item"><div class="guide-item-head">File Name/Template</div>
+<div class="guide-task">sub-%%p.xdf<br>不含 session（每个被试只来一次、只做一个任务，不需要
+区分 session）、也不含分组信息（%%b/task）——因为 LabRecorder 从第 4 页"检查信号"就开始
+录了，那时候还不知道分组（分组要到第 12 页"揭晓组别"才揭晓），这两个时间点对不上，所以
+文件名里没法带分组。分组对照请看被试结束时流程单系统自动导出的 log.csv 里的 group 列；
+如果想手动把录好的文件改名改清楚一点，交互组对应 <b>Interactive</b>、对照组对应
+<b>Passive</b>（和 global_settings.py 里虚拟自然行为数据的命名一致，不是 "expo"）。</div></div>
+</details>""" % esc(physio_dir)
+
+    body += """<details class="guide-section">
+<summary>SensorBridge 的 12 个自定义事件标记清单</summary>
+<div class="guide-note">对应练习场、静息基线、担忧书写、诱导后静息、干预、干预后静息
+六个阶段，每个阶段一对"开始/结束"。</div>
+<div class="guide-item"><div class="guide-task">训练开始 / 训练结束（练习场）</div></div>
+<div class="guide-item"><div class="guide-task">基线开始 / 基线结束（静息基线）</div></div>
+<div class="guide-item"><div class="guide-task">诱导开始 / 诱导结束（担忧书写）</div></div>
+<div class="guide-item"><div class="guide-task">诱导后静息开始 / 诱导后静息结束</div></div>
+<div class="guide-item"><div class="guide-task">干预开始 / 干预结束</div></div>
+<div class="guide-item"><div class="guide-task">干预后静息开始 / 干预后静息结束</div></div>
+</details>"""
+
+    body += '<form method="post" action="/prep_confirm">'
+    body += '<div class="actions"><button type="submit" id="complete-btn">都准备好了，进入设置页</button></div>'
+    body += '</form></div>'
+    body += COMPLETE_GATE_SCRIPT
+    return shell("准备检查", body)
+
+
 def render_task_page(state, page_id, page_def):
     number = page_def.get("number")
     body = top_bar(state, number)
@@ -333,8 +421,12 @@ def render_task_page(state, page_id, page_def):
     )
     body += timer_html
 
+    checklist_items = page_def.get("checklist", [])
+    if page_id == "check_signal":
+        checklist_items = [item.format(participant_id=state["participant_id"]) for item in checklist_items]
+
     body += '<form method="post" action="/complete">'
-    body += checklist_block(page_def.get("checklist", []))
+    body += checklist_block(checklist_items)
     body += notes_block()
     back_btn = '<button type="submit" formaction="/back" class="secondary" formnovalidate>上一步</button>' \
         if config.MODE == "test" and len(state["history"]) > 1 else ""
@@ -488,11 +580,18 @@ def render_end_page(state):
     return shell("结束页", body)
 
 
-def render_settings_page(data_root_default, participant_id_default, durations_default, error=None):
+def render_settings_page(data_root_default, participant_id_default, durations_default, error=None, resume_info=None):
     mode_label = {"formal": "正式", "test": "测试", "pilot": "预实验"}[config.MODE]
     body = '<div class="wrap">'
     body += "<h1>流程单系统 · 设置页</h1>"
     body += '<p class="mode-flag">当前运行模式：%s（在 config.py 里改 MODE 切换）</p>' % esc(mode_label)
+    if resume_info:
+        body += """<div class="resume-box">
+<p>有一场还没结束的实验：被试编号 <b>%s</b>，停在<b>%s</b>。</p>
+<a class="btn" href="/page">继续这场实验</a>
+<p class="resume-note">不继续也没关系——下面照常填表单开始新的被试，这场的数据不会丢，
+只是以后要接回来得找技术帮忙手动恢复。</p>
+</div>""" % (esc(resume_info["participant_id"]), esc(resume_info["page_label"]))
     if error:
         body += '<div class="error-box">%s</div>' % esc(error)
     body += """<form class="settings-form" method="post" action="/start">
@@ -514,14 +613,22 @@ def render_settings_page(data_root_default, participant_id_default, durations_de
 <label>担忧书写中途提示时间（分钟）</label>
 <input type="number" step="0.5" name="writing_midpoint_min" value="%s">
 
+<label>诱导后静息时长（分钟）</label>
+<input type="number" step="0.5" name="post_writing_rest_min" value="%s">
+
 <label>干预时长（分钟）</label>
 <input type="number" step="0.5" name="intervention_min" value="%s">
+
+<label>干预后静息时长（分钟）</label>
+<input type="number" step="0.5" name="post_intervention_rest_min" value="%s">
 
 <div class="actions"><button type="submit">开始实验</button></div>
 </form></div>""" % (
         esc(data_root_default), esc(participant_id_default),
         durations_default["practice"] / 60, durations_default["rest"] / 60,
         durations_default["writing"] / 60, durations_default["writing_midpoint"] / 60,
+        durations_default["post_writing_rest"] / 60,
         durations_default["intervention"] / 60,
+        durations_default["post_intervention_rest"] / 60,
     )
     return shell("设置页", body)

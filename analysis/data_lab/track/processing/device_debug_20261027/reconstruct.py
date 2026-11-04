@@ -36,6 +36,7 @@ import numpy as np
 import pandas as pd
 
 import global_settings as settings
+from safe_io import retire_dir  # 旧目录移到 _to_delete，不直接删除
 from track_io import write_table, read_session
 from track_metrics import compute_record, SceneGeometry, SUMMARY_COLUMNS
 from data_access import load_geo
@@ -179,7 +180,7 @@ def main():
     p = PARAMETERS
     tables, info = reconstruct(p)
     if OUT_DATA.exists():
-        shutil.rmtree(OUT_DATA)
+        retire_dir(OUT_DATA)
     for name in settings.TRACK_TABLES:
         write_table(OUT_DATA, name, tables[name])
     tb = read_session(OUT_DATA, formatted=True)          # 按规范读回：同时检查列名与取值都合规
@@ -189,7 +190,7 @@ def main():
 
     dest = HERE / "results"
     if dest.exists():
-        shutil.rmtree(dest)
+        retire_dir(dest)
     dest.mkdir(parents=True)
     pd.DataFrame([{"column": k, "label": SUMMARY_COLUMNS[k], "value": res.summary[k]} for k in SUMMARY_COLUMNS]) \
         .to_csv(dest / "metrics.csv", index=False, encoding="utf-8-sig")

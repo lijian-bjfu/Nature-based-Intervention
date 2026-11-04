@@ -55,6 +55,13 @@ WRITING_DURATION_SEC = 6 * 60        # 担忧书写
 WRITING_MIDPOINT_SEC = 3 * 60        # 担忧书写：第几秒提示实验员念中途提示语
 INTERVENTION_DURATION_SEC = 10 * 60  # 干预（文档里 10–15 分钟待定，先用 10 分钟占位）
 
+# 诱导后、干预后各加一段静息，专门给 HRV 用（2026-11-04 加）：至少 6 分钟，后续分析
+# 取中间 5 分钟窗口算 RMSSD——窗口两头各留一点缓冲，避免被试刚坐下/刚结束时的躯体
+# 动作混进窗口里，不是随便留个余量。这两段期间的指导语和静息基线那页一样（闭眼放松），
+# 不额外念别的。
+POST_WRITING_REST_DURATION_SEC = 6 * 60       # 诱导（担忧书写）后静息
+POST_INTERVENTION_REST_DURATION_SEC = 6 * 60  # 干预后静息
+
 # ====================================================================
 # 判定与计分常量
 # ====================================================================
@@ -74,7 +81,27 @@ GROUP_CONDITIONS = {
     "4": "对照组",
 }
 
+# 条件的中文名 → VN/埋点那边用的英文代号。和 global_settings.py 的 MODULE_LABELS 保持
+# 一致（那边登记的模块名就是 Interactive / Passive），不要自己另造一套缩写（比如
+# "expo"），不然 track 数据和这边的问卷、LabRecorder 文件对不上号。
+GROUP_TASK_CODE = {
+    "实验组": "Interactive",
+    "对照组": "Passive",
+}
+
 # ====================================================================
 # 被试编号格式：前缀 + 3 位数字，例如 P001、T001、PT001。
 # ====================================================================
 PARTICIPANT_ID_DIGITS = 3
+
+# ====================================================================
+# LabRecorder 存的生理数据（.xdf）不归流程单系统自己的 data/ 目录管——它存在项目根目录
+# 的 data/<dataset>/raw/physio/ 下，跟 track（虚拟自然）数据用同一套 dataset 命名
+# （formal / pilot_and_test/pilot / pilot_and_test/test，对应这边的 MODE），方便以后
+# 两边数据按被试编号对齐。流程单系统不会自己写这里的文件（LabRecorder 是独立软件），
+# 这里只是把路径算出来，显示在"准备检查"页让实验员照着填进 LabRecorder 的设置里。
+PHYSIO_DATA_SUBDIR = {
+    "formal": "formal/raw/physio",
+    "pilot": "pilot_and_test/pilot/raw/physio",
+    "test": "pilot_and_test/test/raw/physio",
+}

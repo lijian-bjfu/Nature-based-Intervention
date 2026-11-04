@@ -42,7 +42,7 @@
 1. 在 VS Code 打开 `dwell_range.py`。
 2. 修改顶部 `PARAMETERS`，保存。
 3. 点右上角 Run。
-4. 打开 `results/report.md`。
+4. 打开 `results/dwell_range/report.md`。
 
 | 参数 | 含义 | 可选值 |
 |---|---|---|
@@ -59,9 +59,9 @@
 
 ## 五、结果
 
-一次只分析一份记录。每次运行先清空 `results/` 再写入；想保留某次结果，复制到 `save/` 并按含义命名。用了哪份数据记在 `log.md` 里。
+一次只分析一份记录。每次运行先清空 `results/dwell_range/` 再写入（只清空这个子文件夹，不动 `results/` 下其他工具的输出，如 `path_viewer/`）；想保留某次结果，复制到 `save/` 并按含义命名。用了哪份数据记在 `log.md` 里。
 
-`results/` 包含：`report.md`（先写发现，再附表和图）、`table_distribution.csv`、`table_window_series.csv`（每个时刻、每个窗长的半径和速度）、`table_episodes.csv`、`fig1`–`fig4`，以及自动生成的 `_provenance/`。
+`results/dwell_range/` 包含：`report.md`（先写发现，再附表和图）、`table_distribution.csv`、`table_window_series.csv`（每个时刻、每个窗长的半径和速度）、`table_episodes.csv`、`fig1`–`fig4`，以及自动生成的 `_provenance/`。
 
 ## 六、结论
 
@@ -89,4 +89,4 @@
 
 最初的"时间窗活动半径"思路（`dwell_range.py`）在这个 APP 里与走动速度几乎等价（ρ = 0.98），不作为指标使用，保留为探索记录。
 
-**晋升（已完成）**：以上指标的正式计算在 `analysis/tools/track_metrics.py`，由 `analysis/table_flows/track/02_run.py` 调用；对 run-004 的计算结果与上面各项参考值一致。path_viewer 的停留、无位移点击与环视图层也改用同一模块。
+**晋升（已完成）**：以上指标的正式计算在 `analysis/tools/track_metrics.py`，由 `analysis/table_flows/track/02_track_metrics.py` 调用；对 run-004 的计算结果与上面各项参考值一致。path_viewer 的停留、无位移点击与环视图层也改用同一模块。

@@ -26,6 +26,7 @@ def read_table(session_dir, name, *, formatted=False):
     for legacy in settings.TRACK_LEGACY_MISSING.get(name, ()):
         if legacy not in frame.columns:
             frame[legacy] = pd.NA
+    frame = frame.drop(columns=[c for c in settings.TRACK_LEGACY_EXTRA.get(name, ()) if c in frame.columns])
     missing = set(cols)-set(frame.columns)
     if missing:
         raise ValueError(f"{path}: 缺少配置要求的字段 {sorted(missing)}；{app_commit(session_dir)}")

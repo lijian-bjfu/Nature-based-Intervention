@@ -40,6 +40,15 @@ RUNTIME_DIR = os.path.join(PROJECT_ROOT, "app_runtime")
 CURRENT_RUN_POINTER = os.path.join(RUNTIME_DIR, "current_run.json")
 
 
+def physio_data_dir():
+    """LabRecorder 应该存生理数据（.xdf）的目录：项目根目录（流程单系统/ 的上一级）下的
+    data/<dataset>/raw/physio/，dataset 跟当前 config.MODE 对应。只用来在"准备检查"页
+    显示给实验员照着填，流程单系统自己不写这里的文件，也不保证这个目录已经存在
+    （LabRecorder 保存文件时会自动建目录）。"""
+    repo_root = os.path.dirname(PROJECT_ROOT)
+    return os.path.join(repo_root, "data", *config.PHYSIO_DATA_SUBDIR[config.MODE].split("/"))
+
+
 def _atomic_write_json(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp_path = path + ".tmp"

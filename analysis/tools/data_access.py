@@ -5,7 +5,7 @@
 
     from data_access import subjects, find, load
     subjects("test", "track")                    # 这个数据集里有哪些被试：['P000', 'P999']
-    find("test", "track", ["P999"], run="002")   # {'P999': Path(.../sub-P999_ses-S001_mod-Interactive_run-002)}
+    find("test", "track", ["P999"], run="002")   # {'P999': Path(.../track/sub-P999/sub-P999_mod-Interactive_run-002)}
     load("test", "track", "P999", run="002")     # 载入这名被试的七张埋点表
 
 subjects 参数可以是一个编号、一组编号，或通配符（"*" 全部，"P0*" 等）。
@@ -29,18 +29,33 @@ TRACK_ANALYSED_MODULES = ("Interactive", "Passive")   # 不含 Practice
 
 
 def subject_of(record_name):
-    """sub-P040_ses-S001_mod-Interactive_run-001 → P040"""
+    """sub-P040_mod-Interactive_run-001 → P040"""
     match = re.fullmatch(settings.TRACK_SESSION_REGEX, record_name)
     return f"P{match['subject']}" if match else None
 
 
-def _track_records(dataset):
-    base = layer_dir(dataset, "raw", "track")
+def _subject_dirs(dataset, pipeline):
+    """raw/<pipeline>/ 下的被试文件夹 sub-P###，返回 [(被试编号, 文件夹)]。_excluded 等其他名字一律跳过。"""
+    base = layer_dir(dataset, "raw", pipeline)
     out = []
-    for folder in sorted(base.glob(settings.TRACK_SESSION_GLOB)):
-        match = re.fullmatch(settings.TRACK_SESSION_REGEX, folder.name) if folder.is_dir() else None
-        if match and match["module"] in TRACK_ANALYSED_MODULES:
-            out.append((f"P{match['subject']}", match["run"], folder))
+    for folder in sorted(base.glob(settings.SUBJECT_DIR_GLOB)):
+        match = re.fullmatch(settings.SUBJECT_DIR_REGEX, folder.name) if folder.is_dir() else None
+        if match:
+            out.append((f"P{match['subject']}", folder))
+    return out
+
+
+def _track_records(dataset):
+    out = []
+    for subject, subject_dir in _subject_dirs(dataset, "track"):
+        for folder in sorted(subject_dir.glob(settings.TRACK_SESSION_GLOB)):   # 不进入 _excluded/
+            match = re.fullmatch(settings.TRACK_SESSION_REGEX, folder.name) if folder.is_dir() else None
+            if not match:
+                continue
+            if f"P{match['subject']}" != subject:
+                raise ValueError(f"{folder}: 记录名中的被试编号与所在被试文件夹 {subject_dir.name} 不一致")
+            if match["module"] in TRACK_ANALYSED_MODULES:
+                out.append((subject, match["run"], folder))
     return out
 
 

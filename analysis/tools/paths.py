@@ -9,8 +9,9 @@
     pipeline  数据类型，与 table_flows 的流程对应：track（虚拟自然行为）、psycho（问卷）、physio（生理）
     subject   被试编号，如 P040。不含组别（组别记在被试表里，由程序按编号查）。
 
-磁盘上的位置：data/<dataset 所在目录>/<layer>/<pipeline>/<该 pipeline 的记录文件>
-例：data/pilot_and_test/test/raw/track/sub-P999_ses-S001_mod-Interactive_run-002/
+磁盘上的位置：data/<dataset 所在目录>/<layer>/<pipeline>/sub-P###/<该被试的记录文件>
+例：data/pilot_and_test/test/raw/track/sub-P999/sub-P999_mod-Interactive_run-002/
+不用于分析的文件放在被试文件夹下的 _excluded/，读取时跳过。
 
 调取数据请用 data_access.py，不要在脚本里拼路径。数据规范（表、字段、取值、单位）在 global_settings.py；
 本文件只管"数据在哪"，不管"数据是什么"。

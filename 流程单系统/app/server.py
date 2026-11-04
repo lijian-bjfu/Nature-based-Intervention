@@ -21,12 +21,20 @@ def _default_durations():
         "rest": config.REST_DURATION_SEC,
         "writing": config.WRITING_DURATION_SEC,
         "writing_midpoint": config.WRITING_MIDPOINT_SEC,
+        "post_writing_rest": config.POST_WRITING_REST_DURATION_SEC,
         "intervention": config.INTERVENTION_DURATION_SEC,
+        "post_intervention_rest": config.POST_INTERVENTION_REST_DURATION_SEC,
     }
 
 
 def _default_data_root():
     return os.path.join(state_mod.PROJECT_ROOT, config.DEFAULT_DATA_ROOT)
+
+
+# 开机/软件重启后第一次用、还没确认过设备准备工作时为 False；确认一次（点"准备检查"
+# 页的按钮）后，这次服务进程运行期间都不用再确认——每个被试都弹一遍太烦，但每天/
+# 每次重开软件至少确认一次。只在内存里，不落盘，重启服务又会回到 False。
+_PREP_CONFIRMED = {"value": False}
 
 
 def _get_or_init_qstate(st, instrument_id):
@@ -111,15 +119,36 @@ class Handler(BaseHTTPRequestHandler):
             self._send_html(render.shell("未找到", "<p>404</p>"), status=404)
 
     def _handle_index(self):
+        # 新开网页/输入地址一律先看到设置页，不自动跳回上次没做完的被试——
+        # 真要接着做，设置页上会有一个"继续"按钮，点了才去 /page（那边本来就会按
+        # 当前进行中的被试恢复到正确位置），不点就可以直接从头开始填新的被试。
+        #
+        # 但如果没有正在进行中的被试（要开始新的一个），设备准备工作（热点、关防火墙/
+        # VPN、SensorBridge 事件、LabRecorder 设置等）还没确认过，先弹"准备检查"页，
+        # 确认过才放行到设置页；已有进行中的被试（明显设备已经在用了）不弹这个。
         st = state_mod.get_current_run_state()
-        if st is not None:
-            self._redirect("/page")
+        if st is None and not _PREP_CONFIRMED["value"]:
+            self._send_html(render.render_prep_page())
             return
+
+        resume_info = None
+        if st is not None:
+            page_id = st["current_page"]
+            page_def = flow.PAGES.get(page_id, {})
+            page_label = "结束页" if page_id == "end" else "第 %s 页 · %s" % (
+                page_def.get("number"), page_def.get("title", page_id),
+            )
+            resume_info = {"participant_id": st["participant_id"], "page_label": page_label}
         data_root = _default_data_root()
         html_text = render.render_settings_page(
             data_root, state_mod.next_suggested_id(data_root), _default_durations(),
+            resume_info=resume_info,
         )
         self._send_html(html_text)
+
+    def _handle_prep_confirm(self):
+        _PREP_CONFIRMED["value"] = True
+        self._redirect("/")
 
     def _handle_page(self):
         st = state_mod.get_current_run_state()
@@ -132,7 +161,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = self.path.split("?", 1)[0]
         form = self._read_form()
-        if path == "/start":
+        if path == "/prep_confirm":
+            self._handle_prep_confirm()
+        elif path == "/start":
             self._handle_start(form)
         elif path == "/verdict":
             self._handle_verdict(form)
@@ -174,7 +205,9 @@ class Handler(BaseHTTPRequestHandler):
             "rest": minutes("rest_min", defaults["rest"]),
             "writing": minutes("writing_min", defaults["writing"]),
             "writing_midpoint": minutes("writing_midpoint_min", defaults["writing_midpoint"]),
+            "post_writing_rest": minutes("post_writing_rest_min", defaults["post_writing_rest"]),
             "intervention": minutes("intervention_min", defaults["intervention"]),
+            "post_intervention_rest": minutes("post_intervention_rest_min", defaults["post_intervention_rest"]),
         }
 
         error = None
@@ -245,6 +278,8 @@ class Handler(BaseHTTPRequestHandler):
             next_page = flow.NEXT_PAGE.get(page_id)
         else:
             checklist_items = page_def.get("checklist", [])
+            if page_id == "check_signal":
+                checklist_items = [item.format(participant_id=st["participant_id"]) for item in checklist_items]
             next_page = flow.NEXT_PAGE.get(page_id)
 
         checked_indices = {int(v) for v in form.get("checked", [])}

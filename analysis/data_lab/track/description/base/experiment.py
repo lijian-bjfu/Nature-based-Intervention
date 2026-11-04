@@ -25,6 +25,7 @@ import numbers
 import re
 
 import global_settings as settings
+from safe_io import retire_dir  # 旧目录移到 _to_delete，不直接删除
 from artifacts import sha256, write_json, settings_snapshot
 from options import FigureOptions, figure_options, positive, string_list, valid_colors
 from paths import ROOT, ANALYSIS, DATASETS, processed_root, final_root
@@ -155,7 +156,7 @@ def execute(config):
     has_report = "06_analysis" in steps
     for folder in [processed] + ([output] if has_report else []):
         if folder.exists():
-            shutil.rmtree(folder)
+            retire_dir(folder)
         folder.mkdir(parents=True)
     context = RunContext(config,sessions,output,processed,final_root(config.dataset)/("data_lab_"+EXPERIMENT_NAME.replace("/","_")))
     metadata_roots = [processed/"_provenance"] + ([output/"_provenance"] if has_report else [])

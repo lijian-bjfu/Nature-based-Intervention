@@ -37,6 +37,18 @@ questionnaires_codebook.csv。两边字段定义如果以后不一致，以流�
     同一句指导语；FMS 顺位到 E9。T3 题数 37 → 41 → 43。
   - 原"IMI 两个子量表题序随机混排未实现"的问题随 IMI 兴趣/愉悦被替换而不再适用；新的
     迷恋/远离/感知选择三组题，问卷草稿里没有要求随机混排，流程单系统按固定顺序呈现。
+
+2026-11-03 的问卷改动已同步进本草稿（PANAS 整体删除；MSBS-8 从"T3 单测一次的回顾题"
+改成"T1/T2/T3 三个时间点都测的此刻状态题"）：
+  - C3（T1 基线）、D（T2 诱导后）原来的 I-PANAS-SF（10 题）全部换成 MSBS-8（8 题，
+    指导语改为"此时此刻"）；PANAS 这个量表的定义和所有引用已从代码里整个删除。
+  - T3 的 E1-E3（原为 STAI-6+VAS+PANAS）也改成 STAI-6+VAS+MSBS-8（此刻版，与 C/D 相同），
+    原先只在 T3 问一次的"回顾版"MSBS-8（旧 E4，指导语"在刚才这段体验中"）已删除、
+    并入这里——T3_msbs_1..8 这个列名没变，但现在代表的是"此刻"题而不是"回顾"题。
+  - E1-E3（此刻状态）和 E4-E8（回顾块，问"刚才这段体验"）分成两个独立页面，不放在
+    一起，避免两种时间参照混淆。E4-E8 的题号整体前移一位（原 E5-E9 → 新 E4-E8，内容
+    不变），下面 PSYCHO_METRICS 里的 source 引用已经按新题号更新。
+  - T1/T2 题数 17 → 15；T3 题数 43 → 33（此刻 15 + 回顾 18）。
 """
 from global_settings import Field  # 草稿阶段直接复用同一个 Field 类；合并进
                                      # global_settings.py 时删掉这行，字段原样搬过去。
@@ -52,8 +64,7 @@ SCALE_LABELS = {
     "CNS": ("非常不同意", "不同意", "中立", "同意", "非常同意"),  # CNS 自然联结量表
     "GAD2": ("完全不会", "好几天", "一半以上的日子", "几乎每天"),  # GAD-2 广泛性焦虑量表筛查版
     "STAI_6": ("完全没有", "有些", "中等程度", "非常明显"),  # STAI-6 状态焦虑简版
-    "PANAS": ("几乎没有", "有一点", "中等程度", "比较多", "非常多"),  # PANAS 正负性情绪量表
-    "MSBS8": ("非常不同意", "不同意", "有点不同意", "中立", "有点同意", "同意", "非常同意"),  # MSBS-8 无聊状态量表
+    "MSBS8": ("非常不同意", "不同意", "有点不同意", "中立", "有点同意", "同意", "非常同意"),  # MSBS-8 状态无聊量表（2026-11-03 起在 T1/T2/T3 三个时间点重复测量，指导语统一为"此时此刻"）
 }
 
 # 数字量表（1-7，只标端点和中点文字，存的是数字本身不是下标）。
@@ -93,7 +104,7 @@ PSYCHO_SCHEMA = {
         "T0_stait_4": Field("T0_stait_4", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我希望我可以像其他人一样快乐
         "T0_stait_5": Field("T0_stait_5", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我觉得自己是个失败者
         "T0_stait_6": Field("T0_stait_6", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我感觉精力充沛
-        "T0_stait_7": Field("T0_stait_7", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我"平静、冷静、沉着"
+        "T0_stait_7": Field("T0_stait_7", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我“平静、冷静、沉着”
         "T0_stait_8": Field("T0_stait_8", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我觉得困难堆积如山，并且我无法克服它们
         "T0_stait_9": Field("T0_stait_9", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我为一些实际上无关紧要的事情担心太多
         "T0_stait_10": Field("T0_stait_10", "Int64", levels=(0, 1, 2, 3)),  # STAI_T · 我感到高兴
@@ -129,17 +140,15 @@ PSYCHO_SCHEMA = {
         "T1_stai6_4": Field("T1_stai6_4", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到轻松
         "T1_stai6_5": Field("T1_stai6_5", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到心满意足
         "T1_stai6_6": Field("T1_stai6_6", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到担忧
-        "T1_vas": Field("T1_vas", "Int64", levels=tuple(range(0, 101))),  # 请拖动滑块，标出你此刻感到焦虑的程度。（完全不焦虑 → 极度焦虑）
-        "T1_panas_1": Field("T1_panas_1", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 心烦的
-        "T1_panas_2": Field("T1_panas_2", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 有敌意的
-        "T1_panas_3": Field("T1_panas_3", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 警觉的
-        "T1_panas_4": Field("T1_panas_4", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 羞愧的
-        "T1_panas_5": Field("T1_panas_5", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 受鼓舞的
-        "T1_panas_6": Field("T1_panas_6", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 紧张的
-        "T1_panas_7": Field("T1_panas_7", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 坚定的
-        "T1_panas_8": Field("T1_panas_8", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 专注的
-        "T1_panas_9": Field("T1_panas_9", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 害怕的
-        "T1_panas_10": Field("T1_panas_10", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 活跃的
+        "T1_vas": Field("T1_vas", "Int64", levels=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100)),  # 请拖动滑块，标出你此刻感到焦虑的程度。（完全不焦虑 → 极度焦虑）
+        "T1_msbs_1": Field("T1_msbs_1", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 时间过得比平时慢
+        "T1_msbs_2": Field("T1_msbs_2", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 容易分心
+        "T1_msbs_3": Field("T1_msbs_3", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我不得不做一些对我毫无价值的事情
+        "T1_msbs_4": Field("T1_msbs_4", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我觉得无聊
+        "T1_msbs_5": Field("T1_msbs_5", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我正在浪费时间，如果把这些时间花在别的事情上会更好
+        "T1_msbs_6": Field("T1_msbs_6", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我在走神
+        "T1_msbs_7": Field("T1_msbs_7", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我希望某件事情发生，但我不确定那是什么事
+        "T1_msbs_8": Field("T1_msbs_8", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我觉得我正在坐等某些事情的发生
     },
     "T2": {
         "T2_stai6_1": Field("T2_stai6_1", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到心情平静
@@ -148,17 +157,15 @@ PSYCHO_SCHEMA = {
         "T2_stai6_4": Field("T2_stai6_4", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到轻松
         "T2_stai6_5": Field("T2_stai6_5", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到心满意足
         "T2_stai6_6": Field("T2_stai6_6", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到担忧
-        "T2_vas": Field("T2_vas", "Int64", levels=tuple(range(0, 101))),  # 请拖动滑块，标出你此刻感到焦虑的程度。（完全不焦虑 → 极度焦虑）
-        "T2_panas_1": Field("T2_panas_1", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 心烦的
-        "T2_panas_2": Field("T2_panas_2", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 有敌意的
-        "T2_panas_3": Field("T2_panas_3", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 警觉的
-        "T2_panas_4": Field("T2_panas_4", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 羞愧的
-        "T2_panas_5": Field("T2_panas_5", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 受鼓舞的
-        "T2_panas_6": Field("T2_panas_6", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 紧张的
-        "T2_panas_7": Field("T2_panas_7", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 坚定的
-        "T2_panas_8": Field("T2_panas_8", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 专注的
-        "T2_panas_9": Field("T2_panas_9", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 害怕的
-        "T2_panas_10": Field("T2_panas_10", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 活跃的
+        "T2_vas": Field("T2_vas", "Int64", levels=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100)),  # 请拖动滑块，标出你此刻感到焦虑的程度。（完全不焦虑 → 极度焦虑）
+        "T2_msbs_1": Field("T2_msbs_1", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 时间过得比平时慢
+        "T2_msbs_2": Field("T2_msbs_2", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 容易分心
+        "T2_msbs_3": Field("T2_msbs_3", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我不得不做一些对我毫无价值的事情
+        "T2_msbs_4": Field("T2_msbs_4", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我觉得无聊
+        "T2_msbs_5": Field("T2_msbs_5", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我正在浪费时间，如果把这些时间花在别的事情上会更好
+        "T2_msbs_6": Field("T2_msbs_6", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我在走神
+        "T2_msbs_7": Field("T2_msbs_7", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我希望某件事情发生，但我不确定那是什么事
+        "T2_msbs_8": Field("T2_msbs_8", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我觉得我正在坐等某些事情的发生
     },
     "T3": {
         "T3_stai6_1": Field("T3_stai6_1", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到心情平静
@@ -167,17 +174,7 @@ PSYCHO_SCHEMA = {
         "T3_stai6_4": Field("T3_stai6_4", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到轻松
         "T3_stai6_5": Field("T3_stai6_5", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到心满意足
         "T3_stai6_6": Field("T3_stai6_6", "Int64", levels=(0, 1, 2, 3)),  # STAI_6 · 我感到担忧
-        "T3_vas": Field("T3_vas", "Int64", levels=tuple(range(0, 101))),  # 请拖动滑块，标出你此刻感到焦虑的程度。（完全不焦虑 → 极度焦虑）
-        "T3_panas_1": Field("T3_panas_1", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 心烦的
-        "T3_panas_2": Field("T3_panas_2", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 有敌意的
-        "T3_panas_3": Field("T3_panas_3", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 警觉的
-        "T3_panas_4": Field("T3_panas_4", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 羞愧的
-        "T3_panas_5": Field("T3_panas_5", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 受鼓舞的
-        "T3_panas_6": Field("T3_panas_6", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 紧张的
-        "T3_panas_7": Field("T3_panas_7", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 坚定的
-        "T3_panas_8": Field("T3_panas_8", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 专注的
-        "T3_panas_9": Field("T3_panas_9", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 害怕的
-        "T3_panas_10": Field("T3_panas_10", "Int64", levels=(0, 1, 2, 3, 4)),  # PANAS · 活跃的
+        "T3_vas": Field("T3_vas", "Int64", levels=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100)),  # 请拖动滑块，标出你此刻感到焦虑的程度。（完全不焦虑 → 极度焦虑）
         "T3_msbs_1": Field("T3_msbs_1", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 时间过得比平时慢
         "T3_msbs_2": Field("T3_msbs_2", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 容易分心
         "T3_msbs_3": Field("T3_msbs_3", "Int64", levels=(0, 1, 2, 3, 4, 5, 6)),  # MSBS8 · 我不得不做一些对我毫无价值的事情
@@ -203,7 +200,7 @@ PSYCHO_SCHEMA = {
         "T3_imi_choice_1": Field("T3_imi_choice_1", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # IMI_CHOICE · 在刚才的体验中，去哪里、看什么，是按我自己的意愿决定的
         "T3_imi_choice_2": Field("T3_imi_choice_2", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # IMI_CHOICE · 在刚才的体验中，在哪里停留、停留多久，是我自己做的决定
         "T3_imi_choice_3": Field("T3_imi_choice_3", "Int64", levels=(1, 2, 3, 4, 5, 6, 7)),  # IMI_CHOICE · 在刚才的体验中，看什么都是被安排好的，由不得我
-        "T3_fms": Field("T3_fms", "Int64", levels=tuple(range(0, 21))),  # 在刚才的体验中，你最不舒服的时候，头晕、恶心或胃部不适的程度是多少？（0 完全没有不适 → 20 明显的晕动或恶心）
+        "T3_fms": Field("T3_fms", "Int64", levels=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)),  # 在刚才的体验中，你最不舒服的时候，头晕、恶心或胃部不适的程度是多少？请用 0 到 20 之间的一个数字表示。（0 完全没有不适 → 20 明显的晕动或恶心）
     },
 }
 
@@ -275,27 +272,20 @@ PSYCHO_METRICS = {
         "status": "已定",
         "source": "研究思路/实验记录-问卷草稿.md C2",
     },
-    "panas": {
-        "name": "I-PANAS-SF 积极/消极情绪分",
-        "definition": "10 题每题选项下标 + 1 转换为 1-5 分，无反向计分题；positive_items 五题"
-                      "相加为积极情绪分，negative_items 五题相加为消极情绪分。",
-        "inputs": tuple("PSYCHO_SCHEMA.<T1/T2/T3>.<前缀>_panas_%d" % i for i in range(1, 11)),
-        "parameters": {
-            "value_start": 1,
-            "positive_items": (3, 5, 7, 8, 10), "negative_items": (1, 2, 4, 6, 9),
-        },
-        "output": "积极情绪分（5-25）；消极情绪分（5-25）",
-        "status": "已定",
-        "source": "研究思路/实验记录-问卷草稿.md C3",
-    },
     "msbs8_total": {
-        "name": "MSBS-8 状态无聊量表总分",
-        "definition": "8 题每题选项下标 + 1 转换为 1-7 分，无反向计分题；8 题相加或取均分。",
-        "inputs": tuple("PSYCHO_SCHEMA.T3.T3_msbs_%d" % i for i in range(1, 9)),
+        "name": "MSBS-8 状态无聊量表总分（重复测量）",
+        "definition": "8 题每题选项下标 + 1 转换为 1-7 分，无反向计分题；8 题相加或取均分。"
+                      "2026-11-03 起在 T1（基线）、T2（诱导后）、T3（干预后，此刻状态块）"
+                      "三个时间点各测一次，指导语统一为“此时此刻”，三次参照一致后才能"
+                      "比较 T2→T3 的变化。",
+        "inputs": tuple("PSYCHO_SCHEMA.<T1/T2/T3>.<前缀>_msbs_%d" % i for i in range(1, 9)),
         "parameters": {"value_start": 1},
-        "output": "总分（8-56）或均分（1-7），用哪个未定",
-        "status": "未确认报总分还是均分",
-        "source": "研究思路/实验记录-问卷草稿.md E4",
+        "output": "各时间点总分（8-56）或均分（1-7），用哪个未定",
+        "status": "未确认报总分还是均分。分析以 T3 为因变量、T2 为协变量比较两组，T1 作参照"
+                  "（诱导后无聊可能偏低，需要基线判断干预后无聊处在什么水平，避免把"
+                  "“高于诱导后”误读为“干预让人更无聊”）。原先只在 T3 问一次的“回顾版”"
+                  "MSBS-8（旧 E4，指导语为“在刚才这段体验中”）已删除，PANAS 同时整体删除。",
+        "source": "研究思路/实验记录-问卷草稿.md C3（T1/T2 同此；T3 见 E1-E3）",
     },
     "attention": {
         "name": "注意困难指数",
@@ -307,7 +297,7 @@ PSYCHO_METRICS = {
         "status": "改编自 Westgate & Wilson (2018) Study 2 的注意操纵检验，原文无逐字题目，"
                   "中文措辞按题意改编；第 1 题与 MSBS-8“容易分心”、第 4 题与“我在走神”内容"
                   "相近，分析“注意 → 无聊”时需说明这一重叠会抬高两者的相关。",
-        "source": "研究思路/实验记录-问卷草稿.md E5",
+        "source": "研究思路/实验记录-问卷草稿.md E4",
     },
     "fascination": {
         "name": "迷恋分量表",
@@ -318,7 +308,7 @@ PSYCHO_METRICS = {
         "output": "均分（1-7）",
         "status": "2026-11-02 新增，替换原 IMI 兴趣/愉悦 5 题。改编自 Hartig et al. (1997) PRS"
                   "迷恋分量表（Study 2 版题项），中文为本研究自译，需找人回译。",
-        "source": "研究思路/实验记录-问卷草稿.md E7",
+        "source": "研究思路/实验记录-问卷草稿.md E6",
     },
     "being_away": {
         "name": "远离分量表",
@@ -329,7 +319,7 @@ PSYCHO_METRICS = {
         "output": "均分（1-7）",
         "status": "2026-11-02 新增，和迷恋分量表同页、共用同一句指导语。改编自 Hartig et al. "
                   "(1997) PRS 远离分量表，中文为本研究自译，需找人回译。",
-        "source": "研究思路/实验记录-问卷草稿.md E7",
+        "source": "研究思路/实验记录-问卷草稿.md E6",
     },
     "imi_choice": {
         "name": "IMI 感知选择分量表",
@@ -339,7 +329,7 @@ PSYCHO_METRICS = {
         "parameters": {"reverse_items": (3,), "scale_min": 1, "scale_max": 7},
         "output": "总分（3-21）或均分（1-7），用哪个未定",
         "status": "未确认报总分还是均分。2026-11-02 起和迷恋/远离同页、共用同一句指导语",
-        "source": "研究思路/实验记录-问卷草稿.md E8",
+        "source": "研究思路/实验记录-问卷草稿.md E7",
     },
     "meaning": {
         "name": "意义题",
@@ -349,7 +339,7 @@ PSYCHO_METRICS = {
         "parameters": {"scale_min": 1, "scale_max": 7},
         "output": "总分（3-21）或均分（1-7），用哪个未定",
         "status": "未确认报总分还是均分。2026-11-01 点数由 1-9 改为 1-7，和注意题共用同一组选项",
-        "source": "研究思路/实验记录-问卷草稿.md E6",
+        "source": "研究思路/实验记录-问卷草稿.md E5",
     },
     "fms": {
         "name": "FMS 晕动量表",
@@ -358,7 +348,7 @@ PSYCHO_METRICS = {
         "parameters": {},
         "output": "0-20",
         "status": "已定",
-        "source": "研究思路/实验记录-问卷草稿.md E9",
+        "source": "研究思路/实验记录-问卷草稿.md E8",
     },
     "a2_screening": {
         "name": "A2 筛查多选·纳入建议",

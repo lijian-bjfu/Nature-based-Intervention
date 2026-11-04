@@ -1,4 +1,4 @@
-"""track 制表入口：读取同目录 01_parameters.py，支持 VS Code Run 与命令行。
+"""track 制表入口：读取同目录 parameters.py，支持 VS Code Run 与命令行。
 
 流程：载入（data_access）→ 清理（历史取值）→ 指标（tools/track_metrics.py）→ 制表。
 输出到 data/<dataset>/final/track/：
@@ -29,6 +29,7 @@ import shutil
 import pandas as pd
 
 import global_settings as settings
+from safe_io import retire_dir  # 旧目录移到 _to_delete，不直接删除
 from workflow import load_script
 from paths import ROOT, ANALYSIS, DATASETS, GEO_ANNOTATION, final_root
 from data_access import subjects as list_subjects, find, load, load_geo
@@ -53,7 +54,7 @@ def choose(dataset, subjects, runs):
 
 def run(parameters=None):
     if parameters is None:
-        parameters = load_script(Path(__file__).with_name("01_parameters.py"), "parameters_track").PARAMETERS
+        parameters = load_script(Path(__file__).with_name("parameters.py"), "parameters_track").PARAMETERS
     dataset = parameters["dataset"]
     if dataset not in DATASETS:
         raise ValueError(f"dataset 应为 {tuple(DATASETS)}")
@@ -74,7 +75,7 @@ def run(parameters=None):
 
     dest = final_root(dataset) / "track"
     if dest.exists():
-        shutil.rmtree(dest)
+        retire_dir(dest)
     dest.mkdir(parents=True)
     wide = pd.DataFrame(rows)[["subject", "record", "app_commit"] + list(SUMMARY_COLUMNS)]
     wide.to_csv(dest / "track_metrics.csv", index=False, encoding="utf-8-sig")
@@ -83,7 +84,7 @@ def run(parameters=None):
     pd.DataFrame([{"column": k, "label": v} for k, v in SUMMARY_COLUMNS.items()]).to_csv(dest / "track_columns.csv", index=False, encoding="utf-8-sig")
 
     prov = dest / "_provenance"
-    files = [ROOT / "global_settings.py"] + sorted((ANALYSIS / "tools").glob("*.py")) + [Path(__file__).resolve(), Path(__file__).with_name("01_parameters.py")]
+    files = [ROOT / "global_settings.py"] + sorted((ANALYSIS / "tools").glob("*.py")) + [Path(__file__).resolve(), Path(__file__).with_name("parameters.py")]
     hashes, copied = record_sources(ROOT, files, prov / "uncommitted_sources")
     write_json(prov / "manifest.json", {
         "flow": "table_flows/track", "run_id": run_id(), "run_at": now(), "parameters": parameters,
@@ -107,7 +108,7 @@ def cli(argv=None):
     parser.add_argument("--subjects", nargs="+")
     parser.add_argument("--list", action="store_true", help="列出这个数据集里的被试，不执行")
     args = parser.parse_args(argv)
-    parameters = dict(load_script(Path(__file__).with_name("01_parameters.py"), "parameters_track").PARAMETERS)
+    parameters = dict(load_script(Path(__file__).with_name("parameters.py"), "parameters_track").PARAMETERS)
     if args.dataset:
         parameters["dataset"] = args.dataset
     if args.subjects:

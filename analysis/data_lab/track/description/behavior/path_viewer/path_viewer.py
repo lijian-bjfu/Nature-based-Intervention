@@ -14,9 +14,9 @@
 #   想临时试别的值，可写成 {"min_seconds": 10.0, "radius_m": 2.0}。页面上也可以随时拖动调整。
 PARAMETERS = {
     "selection": {
-        "dataset": "test",
-        "subject": "P000",
-        "run": "004",
+        "dataset": "pilot",
+        "subject": "P001",
+        "run": "003",
     },
     "stay": {
         "still_step_m": 0.03,
@@ -46,11 +46,12 @@ import numpy as np
 import pandas as pd
 
 import global_settings as settings
+from safe_io import retire_dir  # 旧目录移到 _to_delete，不直接删除
 from data_access import find, load, load_geo
 from track_metrics import clean_legacy, Pose, classify_taps, classify_drags, pauses
 from artifacts import sha256, write_json, settings_snapshot
 from options import positive
-from paths import ROOT, ANALYSIS, DATASETS, GEO_ANNOTATION
+from paths import ROOT, ANALYSIS, DATASETS, GEO_ANNOTATION, layer_dir
 from run_records import now, run_id, git_state, record_sources, script_history
 
 HERE = Path(__file__).resolve().parent
@@ -95,6 +96,52 @@ def txt(tables, table, field):
 
 def r(v, n):
     return None if v is None or (isinstance(v, float) and not np.isfinite(v)) else round(float(v), n)
+
+
+def load_physio(cfg, tb, t_end):
+    """同一被试的生理数据（processed/physio/sub-P###/merged/）换算到会话时间。读不到时返回"无生理数据"，不报错。
+    会话时间 = t_unix − offset，offset = median(spacetime.t_device − spacetime.t_session)；只保留 [0, t_end] 内的部分。
+    跳变不在这里算，由页面按当前阈值计算。只读。"""
+    empty = {"has": False, "offset": None, "n_hr": 0, "n_rr": 0, "n_markers": 0,
+             "hr": {"t": [], "bpm": []}, "rr": {"t": [], "ms": [], "seg": []}, "markers": {"t": [], "label": []}}
+    folder = layer_dir(cfg["dataset"], "processed", "physio") / f"sub-{cfg['subject']}" / "merged"
+    if not (folder / "hr.csv").is_file() and not (folder / "rr.csv").is_file():
+        return empty
+    st = tb["spacetime"]
+    td = st[settings.column("spacetime", "t_device")].to_numpy(dtype=float, na_value=np.nan)
+    ts = st[settings.column("spacetime", "t_session")].to_numpy(dtype=float, na_value=np.nan)
+    diff = (td - ts)[np.isfinite(td - ts)]
+    if not len(diff):
+        return empty
+    offset = float(np.median(diff))
+
+    def read(name, value_col):
+        p = folder / name
+        if not p.is_file():
+            return np.array([]), np.array([]), np.array([], dtype=int)
+        df = pd.read_csv(p)
+        if "t_unix" not in df.columns or value_col not in df.columns:
+            return np.array([]), np.array([]), np.array([], dtype=int)
+        tt = df["t_unix"].to_numpy(dtype=float) - offset
+        vv = df[value_col].to_numpy(dtype=float)
+        # 记录段号（part 列）：页面判定 RR 跳变时只与同一段内的前一个比较，与生理工具 03 一致
+        sg = pd.factorize(df["part"])[0] if "part" in df.columns else np.zeros(len(df), dtype=int)
+        keep = np.isfinite(tt) & np.isfinite(vv) & (tt >= 0) & (tt <= t_end)
+        return tt[keep], vv[keep], sg[keep]
+    ht, hv, _ = read("hr.csv", "bpm")
+    rt, rv, rs = read("rr.csv", "ms")
+    mt, ml = np.array([]), []
+    mp = folder / "markers.csv"
+    if mp.is_file():
+        df = pd.read_csv(mp)
+        if {"t_unix", "label"} <= set(df.columns):
+            tt = df["t_unix"].to_numpy(dtype=float) - offset
+            keep = np.isfinite(tt) & (tt >= 0) & (tt <= t_end)
+            mt, ml = tt[keep], df["label"].astype(str).to_numpy()[keep].tolist()
+    return {"has": bool(len(ht) or len(rt)), "offset": r(offset, 3), "n_hr": int(len(ht)), "n_rr": int(len(rt)), "n_markers": int(len(mt)),
+            "hr": {"t": [r(v, 2) for v in ht], "bpm": [r(v, 1) for v in hv]},
+            "rr": {"t": [r(v, 2) for v in rt], "ms": [r(v, 1) for v in rv], "seg": [int(v) for v in rs]},
+            "markers": {"t": [r(v, 2) for v in mt], "label": ml}}
 
 
 def build(cfg):
@@ -161,6 +208,7 @@ def build(cfg):
                           "x": r(pose.x[a:e + 1].mean(), 2), "z": r(pose.z[a:e + 1].mean(), 2),
                           "taps": int(((tap_t >= t0) & (tap_t <= t1)).sum()),
                           "touched": int(((touched_t >= t0) & (touched_t <= t1)).sum())})
+    physio = load_physio(cfg, tb, duration)
     notes = [
         f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留，见《实验记录-埋点》10.1。",
         f"逗留：把相邻的停顿（不动片段，长短不限）串起来，从第一次停顿到最后一次停顿，所有采样到平均位置的距离不超过 R、持续不少于 T，记为一次；中间的小移动算在内，走进来、走出去的路不算。默认 T = {cfg['dwell_t']:g} s、R = {cfg['dwell_r']:g} m（{'global_settings 登记值，见《实验记录-埋点》10.2' if cfg['dwell_registered'] else '本次临时覆盖，非登记值'}），可在页面上调整。阈值暂定，待预实验数据重新评估。",
@@ -170,6 +218,7 @@ def build(cfg):
         "空间结构来自 Unity 地理空间标注导出，" + f"导出于 {geo.get('exported_at')}（Unity 提交 {str(geo.get('unity_commit'))[:8]}）。",
         "区域、桥内停留时间按轨迹采样落在多边形内的时间累加（单步间隔超过 1 s 的按 1 s 计）。",
         "滚轮缩放，拖动平移，双击范围聚焦；颜色与图层开关保存在本机浏览器。",
+        "生理数据（心率 HR、RR 间期）来自 processed/physio 的 merged/，按 iPad 与手机系统时间对齐：会话时间 = 生理时间戳 − offset，offset 取埋点中设备时间与会话时间之差的中位数。跳变按页面上的阈值实时判定，仅供观察。",
     ]
     data = {
         "meta": {"dataset": cfg["dataset"], "record": folder.name, "duration": r(duration, 2), "generated": now()[:16].replace("T", " "),
@@ -178,6 +227,8 @@ def build(cfg):
                    "dwell_min_s": cfg["dwell_t"], "dwell_radius_m": cfg["dwell_r"], "dwell_still_step_m": cfg["dwell_step"]},
         "geo": {"polygons": geo["polygons"], "air_walls": geo["air_walls"], "bounds": geo["bounds"]},
         "path": {"t": [r(v, 2) for v in t], "x": [r(v, 2) for v in x], "z": [r(v, 2) for v in z], "yaw": [r(v, 1) for v in yaw]},
+        "hr": physio["hr"], "rr": physio["rr"], "physio_markers": physio["markers"],
+        "physio": {k: physio[k] for k in ("has", "offset", "n_hr", "n_rr", "n_markers")},
         "stays": stay_list, "taps": taps, "looks": looks, "drags": drags, "backsteps": backsteps, "events": events, "glitches": glitches,
     }
     return folder, data
@@ -186,9 +237,9 @@ def build(cfg):
 def main():
     cfg = check(PARAMETERS)
     folder, data = build(cfg)
-    dest = HERE / "results"
+    dest = HERE.parent / "results" / "path_viewer"   # behavior/results/path_viewer/；只清空这个子文件夹，不动同级其他结果
     if dest.exists():
-        shutil.rmtree(dest)
+        retire_dir(dest)
     dest.mkdir(parents=True)
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = TEMPLATE.read_text(encoding="utf-8")
@@ -211,7 +262,9 @@ def main():
         "package_versions": {n: importlib.metadata.version(n) for n in ("numpy", "pandas")}})
     write_json(provenance / "parameters_snapshot.json", PARAMETERS)
     write_json(provenance / "global_settings_snapshot.json", settings_snapshot())
+    ph = data["physio"]
     print(f"数据：{cfg['dataset']}／{folder.name}")
+    print(f"生理数据：" + (f"HR {ph['n_hr']} 条，RR {ph['n_rr']} 条，标记 {ph['n_markers']} 个，offset {ph['offset']} s" if ph["has"] else "无（需先运行 table_flows/physio 的 01、02）"))
     print(f"在浏览器中打开：{dest / OUTPUT_NAME}")
 
 
@@ -232,6 +285,8 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-25T00:12:11+08:00", "action": "modified", "summary": "无位移点击口径加入没打中（intent = NoHit）。"},
     {"at": "2026-10-25T00:32:52+08:00", "action": "modified", "summary": "按候选的环视定义把每次拖动分为环视 / 行进中拖动 / 受阻后拖动，分层显示，供研究者对照检验。"},
     {"at": "2026-10-25T00:51:21+08:00", "action": "modified", "summary": "环视定义确定：受阻后拖动并入环视（提示中标出，仅供观察）；判定窗口改读 global_settings 登记值。"},
+    {"at": "2026-11-04T18:00:00+08:00", "action": "modified",
+     "summary": "加入生理面板：读取同一被试 processed/physio 的 merged/（hr、rr、markers），按 t_device 与 t_session 的 offset 换算为会话时间并嵌入页面；跳变由页面按阈值计算。"},
 ]
 
 if __name__ == "__main__":

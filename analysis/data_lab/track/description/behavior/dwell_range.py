@@ -57,6 +57,7 @@ import numpy as np
 import pandas as pd
 
 import global_settings as settings
+from safe_io import retire_dir  # 旧目录移到 _to_delete，不直接删除
 from data_access import find, load
 from artifacts import sha256, write_json, markdown_table, settings_snapshot
 from options import figure_options, positive
@@ -417,9 +418,9 @@ def main():
     tables = load(cfg["dataset"], "track", cfg["subject"], run=cfg["run"], formatted=True)
     t, x, z = read_pose(tables)
 
-    dest = HERE / "results"
+    dest = HERE / "results" / "dwell_range"   # 只清空这个子文件夹，不动 results/ 下其他工具的输出（如 path_viewer/）
     if dest.exists():
-        shutil.rmtree(dest)
+        retire_dir(dest)
     dest.mkdir(parents=True)
     provenance = dest / "_provenance"
 
