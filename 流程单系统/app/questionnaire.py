@@ -93,7 +93,6 @@ QUESTIONNAIRES = {
         ],
     },
     "T1": {
-        # 2026-11-03：C3 由 PANAS 改为 MSBS-8（此时此刻版），T1 总题数 17 → 15。
         "title": "问卷 T1",
         "pages": [
             {
@@ -107,52 +106,47 @@ QUESTIONNAIRES = {
         ],
     },
     "T2": {
-        # 2026-11-03：同 T1，C3 由 PANAS 改为 MSBS-8（此时此刻版）。
-        # 2026-11-05：诱导（担忧书写）针对的是焦虑，不是无聊，所以只有 STAI-6、VAS 的
-        # 指导语改成指向"刚才书写时"（诱导和问卷之间现在隔着一段诱导后静息，"此时此刻"
-        # 测到的其实是静息之后的状态，不是书写刚结束那一刻，生理静息不能往后挪、只能靠
-        # 指导语把心理测量的参照点拉回书写那一刻）；MSBS-8 保持"此时此刻"不变，理由见
-        # scales.py 里 MSBS8 的注释。
+        # T1、T2、T3a 是完全相同的 15 题此刻状态块，指导语都用 scales.py 里的默认"此时此刻"。
+        # T2 紧接书写、在诱导后静息之前填：此刻状态的题目随时间消退，先静息会让 T2 测到
+        # 已部分恢复的焦虑。
         "title": "问卷 T2",
         "pages": [
             {
                 "intro": None,
                 "blocks": [
-                    _matrix_block("T2_stai6", scales.STAI_6,
-                                  instruction="下面的表述多大程度符合你刚才书写时的感受，请选择最符合的选项。"),
-                    _slider_block("T2_vas", scales.ANXIETY_VAS,
-                                  prompt="请拖动滑块，标出你刚才书写时感到焦虑的程度。"),
+                    _matrix_block("T2_stai6", scales.STAI_6),
+                    _slider_block("T2_vas", scales.ANXIETY_VAS),
                     _matrix_block("T2_msbs", scales.MSBS8),
                 ],
             },
         ],
     },
-    "T3": {
-        # 2026-11-03 重组：
-        #   第1页 E1-E3"此刻状态"：STAI-6 + 焦虑VAS + MSBS-8（此时此刻版，与 C/D 相同）。
-        #     旧版"回顾版"MSBS-8（原 E4）已删除、并入这里；PANAS 整体删除。
-        #   第2页 E4-E8"回顾块"（问的是"刚才这段体验"，时间参照和第1页不同，分页隔开）：
-        #     E4 注意题 → E5 意义题 → E6 迷恋与远离 → E7 IMI 感知选择 → E8 FMS。
-        #   T3 总题数 17 → 41 → 43 → 33（15 此刻 + 18 回顾）。
-        # 2026-11-05：STAI-6、VAS 的指导语改成指向"刚才那段体验"（干预本身就是用来影响
-        # 焦虑的，道理同 T2）；MSBS-8 的指导语改成指向虚拟自然体验本身——无聊测的是
-        # "虚拟自然"这件事，不是干预带来的焦虑变化，跟 STAI-6/VAS 不是同一回事，理由见
-        # scales.py 里 MSBS8 的注释。
-        "title": "问卷 T3",
+    # T3 在流程里拆成 T3a、T3b 两份，中间夹干预后静息；题目键名仍用 T3_ 前缀，
+    # 导出的 questionnaires.csv 与 codebook 里仍属于 T3（codebook_instrument）。
+    "T3a": {
+        # 干预结束后立即填的此刻状态块：与 T1、T2 完全相同的 15 题（STAI-6、焦虑 VAS、MSBS-8）。
+        "title": "问卷 T3a",
+        "codebook_instrument": "T3",
         "pages": [
             {
                 "intro": None,
                 "blocks": [
-                    _matrix_block("T3_stai6", scales.STAI_6,
-                                  instruction="下面的表述多大程度符合你刚才那段体验中的感受，请选择最符合的选项。"),
-                    _slider_block("T3_vas", scales.ANXIETY_VAS,
-                                  prompt="请拖动滑块，标出你刚才那段体验中感到焦虑的程度。"),
-                    _matrix_block("T3_msbs", scales.MSBS8,
-                                  instruction="请回想刚才的虚拟自然体验，下面的表述有多大程度反映你当时的感受。"),
+                    _matrix_block("T3_stai6", scales.STAI_6),
+                    _slider_block("T3_vas", scales.ANXIETY_VAS),
+                    _matrix_block("T3_msbs", scales.MSBS8),
                 ],
             },
+        ],
+    },
+    "T3b": {
+        # 干预后静息之后填的回顾块，问的是刚才在虚拟自然中的那段体验。
+        # 各量表自己的指导语（"请回想刚才这段体验……"等）见 scales.py。
+        "title": "问卷 T3b",
+        "codebook_instrument": "T3",
+        "pages": [
             {
-                "intro": None,
+                "intro": "接下来的问题问的是你刚才在虚拟自然中的那段体验，请回想那段时间的感受来填答。"
+                         "问卷没有正确或错误之分，按照你的真实感受填写即可。",
                 "blocks": [
                     _numeric_block("T3_attention", scales.ATTENTION),
                     _numeric_block("T3_meaning", scales.MEANING),
@@ -164,7 +158,6 @@ QUESTIONNAIRES = {
         ],
     },
 }
-
 
 # --------------------------------------------------------------------------
 # 作答合并 / 漏答校验（服务端兜底；正常情况下前端 JS 已经挡住了未答完的提交）

@@ -11,9 +11,21 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.45 -apple-system,"PingFang SC","Helvetica Neue",Arial,sans-serif}
-#app{display:grid;grid-template-columns:310px 1fr;grid-template-rows:1fr auto;height:100vh}
-#side{grid-row:1/3;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:12px 14px 40px}
+#app{display:grid;grid-template-columns:310px 1fr;grid-template-rows:minmax(200px,1fr) auto auto;height:100vh}
+#mapwrap{grid-column:2;grid-row:1}
+#timebar{grid-column:2;grid-row:3}
+#split{grid-column:2;grid-row:2;height:6px;background:var(--line);cursor:row-resize;touch-action:none;display:none}
+#split:hover,#split.on{background:var(--accent)}
+#side{grid-row:1/4;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:12px 14px 40px}
 #side h1{font-size:15px;margin:0 0 2px}
+.cardhead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cardid{font-size:20px;font-weight:700}
+.cardwho{font-size:12px;color:var(--ink)}
+.qahead{cursor:pointer;font-weight:600;display:flex;align-items:center;gap:5px;margin:2px 0 4px;user-select:none}
+#qaArrow{color:var(--muted);font-size:11px;width:10px}
+#qaBody .qrow{margin:3px 0;font-size:12px;line-height:1.5}
+#qaBody .qtp{font-weight:600;margin-right:4px}
+#qaBody .qnone{color:var(--muted);font-size:12px}
 #side .sub{color:var(--muted);font-size:12px;margin-bottom:10px;word-break:break-all}
 details{border-top:1px solid var(--line);padding:8px 0}
 summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
@@ -66,8 +78,11 @@ html,body{overflow-x:hidden}
 #physNone{margin-top:6px;padding:6px 8px;border:1px dashed var(--line);border-radius:4px;color:var(--muted);font-size:12px;background:#fafafa}
 /* 窄屏：边栏移到地图上方，避免出现横向滚动条 */
 @media (max-width:760px){
-  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,38vh) minmax(240px,1fr) auto}
-  #side{grid-row:auto;border-right:0;border-bottom:1px solid var(--line)}
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,38vh) minmax(200px,1fr) auto auto}
+  #mapwrap{grid-column:1;grid-row:2}
+  #split{grid-column:1;grid-row:3}
+  #timebar{grid-column:1;grid-row:4}
+  #side{grid-row:1;border-right:0;border-bottom:1px solid var(--line)}
   #timebar{min-width:0}
 }
 </style>
@@ -75,8 +90,12 @@ html,body{overflow-x:hidden}
 <body>
 <div id="app">
   <aside id="side">
-    <h1>路径浏览</h1>
-    <div class="sub" id="meta"></div>
+    <div id="card">
+      <div class="cardhead"><span class="cardid" id="cardId"></span><span class="cardwho" id="cardWho"></span></div>
+      <div class="sub" id="meta"></div>
+      <div class="qahead" id="qaToggle"><span id="qaArrow">▾</span><span>问卷结果</span></div>
+      <div id="qaBody"></div>
+    </div>
 
     <details open><summary>空间结构</summary>
       <div class="hint">勾选显示；色块改颜色，滑块改透明度。点「聚焦」放大到该范围。</div>
@@ -122,6 +141,8 @@ html,body{overflow-x:hidden}
     <div id="mapbtns"><button id="fitAll">全图</button></div>
     <div id="scale"><div id="scalebar"></div><span id="scaletext"></span></div>
   </main>
+
+  <div id="split" title="上下拖动调整地图与生理面板的高度，双击恢复默认"></div>
 
   <footer id="timebar">
     <div class="top">
@@ -618,11 +639,44 @@ function physioTip(ev){
   const rrTxt=near(RRd.t,ri)?`${RRd.ms[ri]} ms（${fmt(RRd.t[ri])}）${rrJump[ri]?' · <b style="color:#ff8a8a">跳变</b>':" · 正常"}`:"附近无数据";
   showTip(ev,`<b>会话时间 ${fmt(hoverT)}</b><br>最近 HR：${hrTxt}<br>最近 RR：${rrTxt}`); drawPhysio();
 }
+// 分隔条：只在地图与生理面板之间重新分配高度（播放控件行、时间轴高度不变）。
+// splitRatio＝生理面板高度占（地图＋生理面板）总高的比例；窗口大小变化时按比例重新分配。
+const PH_MIN=2*60+PH_GAP, MAP_MIN=200, PH_DEF=150;
+let splitRatio=store.get("split_ratio",null);
+const splitEl=$("#split"), mapWrapEl=$("#mapwrap");
+const phShown=()=>PH.has&&phOn;
+const phTotal=()=>mapWrapEl.clientHeight+pcv.offsetHeight;
+function mapScale(){ const r=svg.getBoundingClientRect(); return r.width&&r.height?Math.max(vb[2]/r.width,vb[3]/r.height):null; }
+function keepZoom(k){ if(!k) return; const r=svg.getBoundingClientRect(); vb=[vb[0],vb[1],k*r.width,k*r.height]; }   // 保持缩放与平移：只改可视范围
+function layoutPhysio(phPx){      // 设定生理面板高度（像素）；不传则按 splitRatio；返回实际高度
+  if(!phShown()) return null;
+  const total=phTotal();
+  if(phPx===undefined){ if(splitRatio===null) splitRatio=PH_DEF/total; phPx=splitRatio*total; }
+  phPx=Math.round(Math.max(PH_MIN,Math.min(total-MAP_MIN,phPx)));
+  pcv.style.height=phPx+"px"; return phPx;
+}
+function relayout(phPx,zoomKeep){
+  const k=zoomKeep?mapScale():null, got=layoutPhysio(phPx);
+  if(zoomKeep) keepZoom(k);
+  setVB(); buildPhysioBase(); drawPhysio(); return got;
+}
 function setPhysioVisible(){
-  $("#physio").style.display=(PH.has&&phOn)?"":"none";
+  const k=mapScale();
+  $("#physio").style.display=phShown()?"":"none";
   $("#physNone").style.display=(!PH.has&&phOn)?"":"none";
+  splitEl.style.display=phShown()?"block":"none";
+  layoutPhysio(); keepZoom(k);
   setVB(); drawTimeline(); updateTimebar(); buildPhysioBase(); drawPhysio();
 }
+(function initSplit(){
+  let st=null;
+  splitEl.addEventListener("pointerdown",ev=>{ st={y:ev.clientY,ph:pcv.offsetHeight}; splitEl.setPointerCapture(ev.pointerId); splitEl.classList.add("on"); ev.preventDefault(); });
+  splitEl.addEventListener("pointermove",ev=>{ if(!st) return; const total=phTotal();   // 往上拖：生理面板变高、地图变矮
+    const got=relayout(st.ph-(ev.clientY-st.y),true); if(got) splitRatio=got/total; });
+  const end=()=>{ if(!st) return; st=null; splitEl.classList.remove("on"); store.set("split_ratio",splitRatio); };
+  splitEl.addEventListener("pointerup",end); splitEl.addEventListener("pointercancel",end);
+  splitEl.addEventListener("dblclick",()=>{ const total=phTotal(); relayout(PH_DEF,true); splitRatio=PH_DEF/total; store.set("split_ratio",null); });
+})();
 const JP_DEFAULT=20;
 function setJump(v){
   v=Math.min(50,Math.max(5,Math.round(+v||JP_DEFAULT))); jumpPct=v; $("#jpT").value=$("#jpTn").value=v; store.set("jump_pct",v);
@@ -642,14 +696,22 @@ function setJump(v){
 })();
 
 // ---------- 启动 ----------
-$("#meta").innerHTML=`${D.meta.dataset} ／ ${D.meta.record}<br>时长 ${fmt(T_END)} · 生成于 ${D.meta.generated}`;
+$("#meta").textContent=`${D.meta.dataset} / ${D.meta.record} · ${fmt(T_END)} · ${D.meta.generated}`;
+(function initCard(){
+  const C=D.card, esc=t=>String(t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  $("#cardId").textContent=D.meta.subject; $("#cardWho").textContent=C.has?C.who:"";
+  $("#qaBody").innerHTML=C.has?C.rows.map(r=>`<div class="qrow"><span class="qtp">${esc(r.tp)}：</span>${r.items.map(i=>esc(i.name)+" "+esc(i.text)).join(" · ")}</div>`).join(""):'<div class="qnone">该被试没有问卷数据（需先运行 table_flows/psycho 的 01–03）</div>';
+  let open=store.get("qa_open",true);
+  const apply=()=>{ $("#qaBody").style.display=open?"":"none"; $("#qaArrow").textContent=open?"▾":"▸"; };
+  $("#qaToggle").onclick=()=>{ open=!open; store.set("qa_open",open); apply(); }; apply();
+})();
 $("#notes").innerHTML=D.meta.notes.map(n=>"· "+n).join("<br>");
 applyGeo(); colorPath();
 $("#dwT").oninput=e=>setDwell(e.target.value,$("#dwR").value); $("#dwTn").onchange=e=>setDwell(e.target.value,$("#dwR").value);
 $("#dwR").oninput=e=>setDwell($("#dwT").value,e.target.value); $("#dwRn").onchange=e=>setDwell($("#dwT").value,e.target.value);
 $("#dwReset").onclick=()=>setDwell(dwDefault.T,dwDefault.R);
 requestAnimationFrame(()=>{ fitBox(B.x_min,B.z_min,B.x_max,B.z_max,PAD); setJump(jumpPct); setPhysioVisible(); fitBox(B.x_min,B.z_min,B.x_max,B.z_max,PAD); setDwell(dwDefault.T,dwDefault.R); });
-window.addEventListener("resize",()=>{ drawTimeline(); updateTimebar(); buildPhysioBase(); drawPhysio(); });
+window.addEventListener("resize",()=>{ layoutPhysio(); drawTimeline(); updateTimebar(); buildPhysioBase(); drawPhysio(); });
 </script>
 </body>
 </html>

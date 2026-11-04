@@ -98,6 +98,52 @@ def r(v, n):
     return None if v is None or (isinstance(v, float) and not np.isfinite(v)) else round(float(v), n)
 
 
+# 被试信息卡上的问卷结果对照表（只用于显示，不参与任何分析）。
+# 来源：data/<数据集>/processed/psycho/scores_wide.csv（psycho 工具 03 的输出，一名被试一行）。
+# 每一项：(显示名, 来源列, 除数, 满分, 小数位)。显示的数值 = 来源列 ÷ 除数，格式"均值 / 满分"。
+#   特质焦虑 T0_stait_sum 是 20 题之和，÷ 20 还原成 1–4 的均值；状态焦虑 stai6_sum 是 6 题之和，÷ 6 还原成均值；
+#   其余来源列已经是均值（_mean）或单题得分（vas 0–100、fms 0–20），除数为 1。
+QUESTIONNAIRE_CARD = [
+    ("T0", [("特质焦虑", "T0_stait_sum", 20, 4, 1), ("自然联结", "T0_cns_mean", 1, 5, 1)]),
+    *[(t, [("状态焦虑", f"{t}_stai6_sum", 6, 4, 1), ("压力 VAS", f"{t}_vas", 1, 100, 0), ("无聊", f"{t}_msbs_mean", 1, 7, 1)])
+      for t in ("T1", "T2")],
+    ("T3", [("状态焦虑", "T3_stai6_sum", 6, 4, 1), ("压力 VAS", "T3_vas", 1, 100, 0), ("无聊", "T3_msbs_mean", 1, 7, 1),
+            ("注意困难", "T3_attention_mean", 1, 7, 1), ("迷恋", "T3_fascination_mean", 1, 7, 1), ("远离", "T3_away_mean", 1, 7, 1),
+            ("意义", "T3_meaning_mean", 1, 7, 1), ("感知选择", "T3_imi_choice_mean", 1, 7, 1), ("晕动", "T3_fms", 1, 20, 0)]),
+]
+
+
+def load_card(cfg):
+    """被试信息卡：组别、性别、年龄与各时间点问卷结果。读不到文件或被试时返回 has=False，不报错。只读。"""
+    path = layer_dir(cfg["dataset"], "processed", "psycho") / "scores_wide.csv"
+    empty = {"has": False, "who": "", "rows": []}
+    if not path.is_file():
+        return empty
+    df = pd.read_csv(path)
+    hit = df[df["subject"].astype(str) == cfg["subject"]] if "subject" in df.columns else df.iloc[0:0]
+    if hit.empty:
+        return empty
+    row = hit.iloc[0]
+
+    def num(c):
+        v = row.get(c)
+        return float(v) if c in row.index and pd.notna(v) else None
+
+    def label(var, c):
+        v = num(c)
+        return None if v is None else settings.VALUE_LABELS.get(var, {}).get(int(v))
+    age = num("A_age")
+    who = " · ".join(x for x in (label("group", "group"), label("A_gender", "A_gender"), None if age is None else f"{age:.0f} 岁") if x)
+    rows = []
+    for tp, items in QUESTIONNAIRE_CARD:
+        cells = []
+        for name, c, div, top, nd in items:
+            v = num(c)
+            cells.append({"name": name, "text": "—" if v is None else f"{v / div:.{nd}f} / {top}"})
+        rows.append({"tp": tp, "items": cells})
+    return {"has": True, "who": who, "rows": rows}
+
+
 def load_physio(cfg, tb, t_end):
     """同一被试的生理数据（processed/physio/sub-P###/merged/）换算到会话时间。读不到时返回"无生理数据"，不报错。
     会话时间 = t_unix − offset，offset = median(spacetime.t_device − spacetime.t_session)；只保留 [0, t_end] 内的部分。
@@ -209,6 +255,7 @@ def build(cfg):
                           "taps": int(((tap_t >= t0) & (tap_t <= t1)).sum()),
                           "touched": int(((touched_t >= t0) & (touched_t <= t1)).sum())})
     physio = load_physio(cfg, tb, duration)
+    card = load_card(cfg)
     notes = [
         f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留，见《实验记录-埋点》10.1。",
         f"逗留：把相邻的停顿（不动片段，长短不限）串起来，从第一次停顿到最后一次停顿，所有采样到平均位置的距离不超过 R、持续不少于 T，记为一次；中间的小移动算在内，走进来、走出去的路不算。默认 T = {cfg['dwell_t']:g} s、R = {cfg['dwell_r']:g} m（{'global_settings 登记值，见《实验记录-埋点》10.2' if cfg['dwell_registered'] else '本次临时覆盖，非登记值'}），可在页面上调整。阈值暂定，待预实验数据重新评估。",
@@ -221,12 +268,13 @@ def build(cfg):
         "生理数据（心率 HR、RR 间期）来自 processed/physio 的 merged/，按 iPad 与手机系统时间对齐：会话时间 = 生理时间戳 − offset，offset 取埋点中设备时间与会话时间之差的中位数。跳变按页面上的阈值实时判定，仅供观察。",
     ]
     data = {
-        "meta": {"dataset": cfg["dataset"], "record": folder.name, "duration": r(duration, 2), "generated": now()[:16].replace("T", " "),
+        "meta": {"dataset": cfg["dataset"], "record": folder.name, "duration": r(duration, 2), "generated": now()[:16].replace("T", " "), "subject": cfg["subject"],
                  "notes": notes},
         "params": {"still_step_m": cfg["still_step"], "min_stay_s": cfg["min_stay"],
                    "dwell_min_s": cfg["dwell_t"], "dwell_radius_m": cfg["dwell_r"], "dwell_still_step_m": cfg["dwell_step"]},
         "geo": {"polygons": geo["polygons"], "air_walls": geo["air_walls"], "bounds": geo["bounds"]},
         "path": {"t": [r(v, 2) for v in t], "x": [r(v, 2) for v in x], "z": [r(v, 2) for v in z], "yaw": [r(v, 1) for v in yaw]},
+        "card": card,
         "hr": physio["hr"], "rr": physio["rr"], "physio_markers": physio["markers"],
         "physio": {k: physio[k] for k in ("has", "offset", "n_hr", "n_rr", "n_markers")},
         "stays": stay_list, "taps": taps, "looks": looks, "drags": drags, "backsteps": backsteps, "events": events, "glitches": glitches,
@@ -263,6 +311,7 @@ def main():
     write_json(provenance / "parameters_snapshot.json", PARAMETERS)
     write_json(provenance / "global_settings_snapshot.json", settings_snapshot())
     ph = data["physio"]
+    print("问卷：" + (" ｜ ".join(f"{r['tp']}：" + " · ".join(f"{c['name']} {c['text']}" for c in r["items"]) for r in data["card"]["rows"]) if data["card"]["has"] else "无（需先运行 table_flows/psycho 的 01–03）"))
     print(f"数据：{cfg['dataset']}／{folder.name}")
     print(f"生理数据：" + (f"HR {ph['n_hr']} 条，RR {ph['n_rr']} 条，标记 {ph['n_markers']} 个，offset {ph['offset']} s" if ph["has"] else "无（需先运行 table_flows/physio 的 01、02）"))
     print(f"在浏览器中打开：{dest / OUTPUT_NAME}")
@@ -287,6 +336,8 @@ SCRIPT_HISTORY = [
     {"at": "2026-10-25T00:51:21+08:00", "action": "modified", "summary": "环视定义确定：受阻后拖动并入环视（提示中标出，仅供观察）；判定窗口改读 global_settings 登记值。"},
     {"at": "2026-11-04T18:00:00+08:00", "action": "modified",
      "summary": "加入生理面板：读取同一被试 processed/physio 的 merged/（hr、rr、markers），按 t_device 与 t_session 的 offset 换算为会话时间并嵌入页面；跳变由页面按阈值计算。"},
+    {"at": "2026-11-04T20:00:00+08:00", "action": "modified",
+     "summary": "左上角改为被试信息卡：组别、性别、年龄与各时间点问卷结果（读 processed/psycho/scores_wide.csv，对照表 QUESTIONNAIRE_CARD 只用于显示）。"},
 ]
 
 if __name__ == "__main__":

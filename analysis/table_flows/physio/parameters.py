@@ -8,5 +8,5 @@ subjects：要处理的被试。
 """
 PARAMETERS = {
     "dataset": "pilot",
-    "subjects": "*",
+    "subjects": "P002",
 }

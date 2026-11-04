@@ -49,6 +49,28 @@ def _get_or_init_qstate(st, instrument_id):
     return qstate
 
 
+def _sync_t3_record(st):
+    """T3 在流程里拆成 T3a、T3b 两份问卷，各自记在 questionnaires["T3a"] / ["T3b"] 里。
+    这里另外维护一份合并的 questionnaires["T3"]（答案合并，两份都提交后才算已提交，
+    起止时间取 T3a 开始、T3b 提交），因为下游分析工具 psycho_check.py 按 T3 这个名字
+    去读 state.json 里的问卷记录。"""
+    qs = st["questionnaires"]
+    parts = [qs.get("T3a"), qs.get("T3b")]
+    answers = {}
+    for part in parts:
+        if part:
+            answers.update(part["answers"])
+    both_done = all(part and part["submitted"] for part in parts)
+    first = parts[0] or parts[1]
+    qs["T3"] = {
+        "answers": answers,
+        "current_subpage": 0,
+        "submitted": both_done,
+        "started_at": first["started_at"] if first else None,
+        "submitted_at": parts[1]["submitted_at"] if both_done else None,
+    }
+
+
 def _render_current_page(st):
     page_id = st["current_page"]
     if page_id == "end":
@@ -353,6 +375,8 @@ class Handler(BaseHTTPRequestHandler):
         else:
             qstate["submitted"] = True
             qstate["submitted_at"] = time.time()
+        if instrument_id in ("T3a", "T3b"):
+            _sync_t3_record(st)
         state_mod.save_state(st)
         self._redirect("/page")
 

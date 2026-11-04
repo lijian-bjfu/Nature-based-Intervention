@@ -7,7 +7,7 @@
 只是从它派生出来的视图，每次都整表重新生成，不做增量追加——不管重新导出多少次、
 什么时候导出，结果都只取决于当时各被试的 state.json 内容。
 
-触发时机：被试跑到第 14 页"完成实验"、进入结束页（第 15 页）时，由 server.py 自动
+触发时机：被试跑到第 17 页"完成实验"、进入结束页（第 18 页）时，由 server.py 自动
 调用 export_all()，不需要实验员另外点导出按钮。
 
 这里导出的只是"流程单系统自己的原始记录"，不是项目根目录 README 里说的正式
@@ -24,8 +24,11 @@ import judging
 import questionnaire
 import state as state_mod
 
-# 问卷总表收 A、T0-T3 全部五份问卷（2026-10-31 改为连问卷 A 也收）。
-QUESTIONNAIRE_IDS = ["A", "T0", "T1", "T2", "T3"]
+# 问卷总表收 A、T0-T3 的全部题目。T3 在流程里拆成 T3a、T3b 两份问卷，列名仍用 T3_ 前缀。
+QUESTIONNAIRE_IDS = ["A", "T0", "T1", "T2", "T3a", "T3b"]
+# 合并各人作答时读取的 state.json 记录名：额外带上合并的 "T3"（新版由系统自动维护，
+# 旧版被试只有这一份），题目键名相同，合并结果一致。
+ANSWER_RECORD_IDS = ["A", "T0", "T1", "T2", "T3", "T3a", "T3b"]
 
 # 原始作答的编码方式，写进 questionnaires_codebook.csv，供看表的人核对每一列的含义。
 # 重要：matrix/numeric 题存的是"选项下标"（0 起），不是量表原始的 1-4、1-7 这种分数；
@@ -39,6 +42,8 @@ def _questionnaire_schema():
     取值函数签名 extract(merged_answers) -> str。"""
     columns, extractors, codebook_rows = [], [], []
     for instrument_id in QUESTIONNAIRE_IDS:
+        # codebook 的 instrument 列：T3a、T3b 仍写 T3，与列名前缀、下游分析工具一致。
+        instrument_label = questionnaire.QUESTIONNAIRES[instrument_id].get("codebook_instrument", instrument_id)
         for page in questionnaire.QUESTIONNAIRES[instrument_id]["pages"]:
             for block in page["blocks"]:
                 t = block["type"]
@@ -49,7 +54,7 @@ def _questionnaire_schema():
                     for key, text in block["items"]:
                         columns.append(key)
                         extractors.append(lambda a, k=key: a.get(k, ""))
-                        codebook_rows.append([key, instrument_id, text, value_note])
+                        codebook_rows.append([key, instrument_label, text, value_note])
                 elif t == "numeric":
                     labels = "; ".join(
                         "%d=%s" % (v, l) for v, l in sorted(block["scale_labels"].items())
@@ -58,13 +63,13 @@ def _questionnaire_schema():
                     for key, text in block["items"]:
                         columns.append(key)
                         extractors.append(lambda a, k=key: a.get(k, ""))
-                        codebook_rows.append([key, instrument_id, text, value_note])
+                        codebook_rows.append([key, instrument_label, text, value_note])
                 elif t == "slider":
                     key = block["key"]
                     spec = block["spec"]
                     columns.append(key)
                     extractors.append(lambda a, k=key: a.get(k, ""))
-                    codebook_rows.append([key, instrument_id, spec["prompt"], "%s-%s（%s → %s）" % (
+                    codebook_rows.append([key, instrument_label, spec["prompt"], "%s-%s（%s → %s）" % (
                         spec["min"], spec["max"], spec.get("left_label", ""), spec.get("right_label", ""),
                     )])
                 elif t == "multi":
@@ -76,14 +81,14 @@ def _questionnaire_schema():
                         extractors.append(lambda a, k=key, idx=i: (
                             "" if k not in a else ("1" if str(idx) in a[k] else "0")
                         ))
-                        codebook_rows.append([col, instrument_id, opt, "1=勾选, 0=未勾选, 空=未作答该题"])
+                        codebook_rows.append([col, instrument_label, opt, "1=勾选, 0=未勾选, 空=未作答该题"])
                 elif t == "basic_info":
                     columns.append("A_age")
                     extractors.append(lambda a: a.get("A_age", ""))
-                    codebook_rows.append(["A_age", instrument_id, "年龄", "数字（岁）"])
+                    codebook_rows.append(["A_age", instrument_label, "年龄", "数字（岁）"])
                     columns.append("A_gender")
                     extractors.append(lambda a: a.get("A_gender", ""))
-                    codebook_rows.append(["A_gender", instrument_id, "性别", "0=男, 1=女"])
+                    codebook_rows.append(["A_gender", instrument_label, "性别", "0=男, 1=女"])
     return columns, extractors, codebook_rows
 
 
@@ -125,7 +130,7 @@ def export_questionnaires_csv(data_root):
     rows = []
     for participant_id, st in _iter_participants(data_root):
         answers = {}
-        for instrument_id in QUESTIONNAIRE_IDS:
+        for instrument_id in ANSWER_RECORD_IDS:
             answers.update(st.get("questionnaires", {}).get(instrument_id, {}).get("answers", {}))
         rows.append([participant_id, st.get("group") or ""] + [ex(answers) for ex in extractors])
     path = state_mod.questionnaire_csv_path(data_root)

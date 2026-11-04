@@ -23,3 +23,6 @@ analysis/data_lab/**/save/
 
 # 安全挪走的旧输出（retire_dir 生成），只存本机，由研究者人工删除。
 **/_to_delete/
+
+# 研究思路只存本机，不上传 GitHub
+研究思路/

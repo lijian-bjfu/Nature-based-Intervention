@@ -1,9 +1,14 @@
 """
-16 页流程（加结束页共 17 页）的内容定义：指导语原文、操作清单、计时器。
+17 页流程（加结束页共 18 页）的内容定义：指导语原文、操作清单、计时器。
 
-指导语原文取自《实验记录-实验流程骨架.md》第四节。2026-11-04 在诱导（担忧书写）、
-干预后各加了一段静息（post_writing_rest / post_intervention_rest），专给 HRV 用，
-原文档没有这两页，页码、指导语是照着"静息基线"页的写法续的，不是文档原文。
+指导语原文取自《实验记录-实验流程骨架.md》第四节，页码与该文档第三节标题括号里的
+流程单页码一致。诱导后、干预后各有一段专给 HRV 用的静息（post_writing_rest /
+post_intervention_rest），指导语与静息基线相同。
+
+两处"问卷在前、静息在后"的顺序，原理是：此刻状态的题目随时间消退，先静息会让问卷
+测到已部分恢复的状态；所以问卷紧接事件，HRV 静息放在问卷之后。
+  诱导后：书写 → 问卷 T2 → 诱导后静息
+  干预后：干预 → 问卷 T3a（此刻状态）→ 干预后静息 → 问卷 T3b（回顾干预体验）
 """
 import config
 
@@ -50,7 +55,7 @@ PAGES = {
         "title": "检查信号并开始录制",
         "kind": "task",
         "instruction": "请您稍等一下。",
-        "note": "LabRecorder 从这一步开始录制，一直录到第 16 页停止——中途（第 12 页"
+        "note": "LabRecorder 从这一步开始录制，一直录到第 17 页停止——中途（第 12 页"
                 "“揭晓组别”）才会知道分组，所以文件名里不含分组信息，分组对照见"
                 "导出的 log.csv。路径、文件名模板怎么设，见准备检查页。",
         "checklist": [
@@ -86,7 +91,7 @@ PAGES = {
         "title": "静息基线",
         "kind": "task",
         "instruction": "接下来，请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
-                        "轻轻闭上眼睛，尽可能放松。时间大约 6 分钟，到时间我会提醒您。",
+                        "轻轻闭上眼睛，尽可能放松。时间大约 5 分钟，到时间我会提醒您。",
         "note": None,
         "checklist": ["已在 SensorBridge 打“基线开始”标记", "已在 SensorBridge 打“基线结束”标记"],
         "timer_key": "rest",
@@ -120,25 +125,29 @@ PAGES = {
         "timeup_message": "时间到了，请停笔，把纸翻过来放在一边。",
         "midpoint": ("writing_midpoint", "请继续写。想一想，如果这件事真的往坏的方向发展，接下来还可能发生什么。"),
     },
-    "post_writing_rest": {
-        # 2026-11-04 加：诱导后至少静息 6 分钟，给 HRV 用（分析时取中间 5 分钟窗口算
-        # RMSSD），指导语和静息基线那页一样。
-        "number": 10,
-        "title": "诱导后静息",
-        "kind": "task",
-        "instruction": "请您把笔放下。接下来请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，"
-                        "避免传感器移位；轻轻闭上眼睛，尽可能放松。时间大约 6 分钟，到时间我会"
-                        "提醒您。",
-        "note": None,
-        "checklist": ["已在 SensorBridge 打“诱导后静息开始”标记", "已在 SensorBridge 打“诱导后静息结束”标记"],
-        "timer_key": "post_writing_rest",
-    },
     "q_t2": {
-        "number": 11,
+        # 书写结束后立即填，问卷在前、静息在后（原理见本文件开头）。
+        "number": 10,
         "title": "问卷 T2",
         "kind": "questionnaire",
         "instrument": "T2",
         "timer_key": None,
+    },
+    "post_writing_rest": {
+        # 专给 HRV 用的静息，5 分钟；分析时去掉第 1 分钟，用后 4 分钟算 RMSSD。
+        # 指导语与静息基线一致（4.10b）。
+        "number": 11,
+        "title": "诱导后静息",
+        "kind": "task",
+        "instruction": "接下来，请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
+                        "轻轻闭上眼睛，尽可能放松。时间大约 5 分钟，到时间我会提醒您。",
+        "note": None,
+        "checklist": [
+            "已在 SensorBridge 打“诱导后静息开始”标记",
+            "已在 SensorBridge 打“诱导后静息结束”标记",
+            "静息姿势与基线相同（上身靠在椅背上、闭眼），开始计时前已确认",
+        ],
+        "timer_key": "post_writing_rest",
     },
     "reveal_group": {
         "number": 12,
@@ -159,26 +168,38 @@ PAGES = {
         "checklist": ["已打“干预开始”标记", "已打“干预结束”标记"],
         "timer_key": "intervention",
     },
-    "post_intervention_rest": {
-        # 2026-11-04 加：干预后至少静息 6 分钟，给 HRV 用，理由和用法同"诱导后静息"。
+    "q_t3a": {
+        # 干预结束后立即填的此刻状态块（与 T1、T2 完全相同的 15 题）。
         "number": 14,
+        "title": "问卷 T3a",
+        "kind": "questionnaire",
+        "instrument": "T3a",
+        "timer_key": None,
+    },
+    "post_intervention_rest": {
+        # 专给 HRV 用的静息，理由和用法同"诱导后静息"（4.12b）。
+        "number": 15,
         "title": "干预后静息",
         "kind": "task",
-        "instruction": "接下来请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
-                        "轻轻闭上眼睛，尽可能放松。时间大约 6 分钟，到时间我会提醒您。",
+        "instruction": "接下来，请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
+                        "轻轻闭上眼睛，尽可能放松。时间大约 5 分钟，到时间我会提醒您。",
         "note": None,
-        "checklist": ["已在 SensorBridge 打“干预后静息开始”标记", "已在 SensorBridge 打“干预后静息结束”标记"],
+        "checklist": [
+            "已在 SensorBridge 打“干预后静息开始”标记",
+            "已在 SensorBridge 打“干预后静息结束”标记",
+            "静息姿势与基线相同（上身靠在椅背上、闭眼），开始计时前已确认",
+        ],
         "timer_key": "post_intervention_rest",
     },
-    "q_t3": {
-        "number": 15,
-        "title": "问卷 T3",
+    "q_t3b": {
+        "number": 16,
+        "title": "问卷 T3b",
         "kind": "questionnaire",
-        "instrument": "T3",
+        "instrument": "T3b",
         "timer_key": None,
     },
     "wrapup": {
-        "number": 16,
+        "number": 17,
         "title": "停止录制、事后说明、支付报酬",
         "kind": "task",
         "complete_label": "完成实验",
@@ -199,7 +220,7 @@ PAGES = {
         "timer_key": None,
     },
     "end": {
-        "number": 17,
+        "number": 18,
         "title": "结束页",
         "kind": "end",
         "instruction": None,
@@ -218,13 +239,14 @@ NEXT_PAGE = {
     "practice": "rest",
     "rest": "q_t1",
     "q_t1": "writing",
-    "writing": "post_writing_rest",
-    "post_writing_rest": "q_t2",
-    "q_t2": "reveal_group",
+    "writing": "q_t2",
+    "q_t2": "post_writing_rest",
+    "post_writing_rest": "reveal_group",
     "reveal_group": "intervention",
-    "intervention": "post_intervention_rest",
-    "post_intervention_rest": "q_t3",
-    "q_t3": "wrapup",
+    "intervention": "q_t3a",
+    "q_t3a": "post_intervention_rest",
+    "post_intervention_rest": "q_t3b",
+    "q_t3b": "wrapup",
     "wrapup": "end",
 }
 
@@ -267,6 +289,6 @@ GROUP_INSTRUCTIONS = {
 
 PAGE_ORDER = [
     "consent", "q_a", "verify_h10", "check_signal", "q_t0", "practice", "rest",
-    "q_t1", "writing", "post_writing_rest", "q_t2", "reveal_group", "intervention",
-    "post_intervention_rest", "q_t3", "wrapup", "end",
+    "q_t1", "writing", "q_t2", "post_writing_rest", "reveal_group", "intervention",
+    "q_t3a", "post_intervention_rest", "q_t3b", "wrapup", "end",
 ]

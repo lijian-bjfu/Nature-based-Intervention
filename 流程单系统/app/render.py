@@ -239,7 +239,7 @@ def screening_summary_block(answers):
 
 
 def stait_summary_block(total, classification):
-    """T0 的 STAI-T 总分与焦虑分类，用于第 11 页揭晓组别。"""
+    """T0 的 STAI-T 总分与焦虑分类，用于第 12 页揭晓组别。"""
     if total is None:
         return '<div class="judging-box">T0 的 STAI-T 尚未完整作答，无法计算总分。</div>'
     return '<div class="judging-box"><strong>T0 · STAI-T 焦虑特质总分</strong><br>' \
@@ -340,7 +340,8 @@ def render_prep_page():
         "自动连不上时，已按下方说明查到本机 IP、填进 SensorBridge 的 UDP 设置",
         "电脑已关闭所有防火墙和 VPN（包括但不限于 LuLu、Surfshark）——上次就是这个把"
         "网络卡死，实验中途被迫重启电脑",
-        "SensorBridge 里已启用全部 12 个自定义事件标记（见下方清单）",
+        "SensorBridge 里已启用全部 12 个自定义事件标记（见下方清单）；实验中每个标记都在"
+        "对应阶段真正开始/结束的那一刻打，打完看一眼 SensorBridge 确认记录的是哪个标记",
         "LabRecorder 的保存路径、文件名模板已按下方说明设置好，BIDS 选项已关闭",
         "已知悉：VN 里被试编号从 1 开始、LabRecorder 从 0 开始，两者差 1；后续处理"
         "数据时按 LabRecorder 的编号 + 1 对齐",
@@ -379,13 +380,16 @@ data/ ，和虚拟自然的行为数据用同一套存放规则。）</div></div
     body += """<details class="guide-section">
 <summary>SensorBridge 的 12 个自定义事件标记清单</summary>
 <div class="guide-note">对应练习场、静息基线、担忧书写、诱导后静息、干预、干预后静息
-六个阶段，每个阶段一对"开始/结束"。</div>
+六个阶段，每个阶段一对"开始/结束"。下面按实际出现的先后排列。</div>
 <div class="guide-item"><div class="guide-task">训练开始 / 训练结束（练习场）</div></div>
 <div class="guide-item"><div class="guide-task">基线开始 / 基线结束（静息基线）</div></div>
 <div class="guide-item"><div class="guide-task">诱导开始 / 诱导结束（担忧书写）</div></div>
-<div class="guide-item"><div class="guide-task">诱导后静息开始 / 诱导后静息结束</div></div>
+<div class="guide-item"><div class="guide-task">诱导后静息开始 / 诱导后静息结束（在问卷 T2 之后）</div></div>
 <div class="guide-item"><div class="guide-task">干预开始 / 干预结束</div></div>
-<div class="guide-item"><div class="guide-task">干预后静息开始 / 干预后静息结束</div></div>
+<div class="guide-item"><div class="guide-task">干预后静息开始 / 干预后静息结束（在问卷 T3a 之后）</div></div>
+<div class="guide-item"><div class="guide-task"><b>注意：</b>每个标记要在对应阶段真正开始或结束的
+那一刻打，打完看一眼 SensorBridge，确认记录下来的是哪个标记。2026-11-03 预实验中，有一位
+被试的静息基线被误打成了“诱导开始”，事后只能按时长倒推。</div></div>
 </details>"""
 
     body += '<form method="post" action="/prep_confirm">'
@@ -491,7 +495,7 @@ def render_verdict_page(state, page_def):
 
 
 def render_group_page(state):
-    """第 11 页"揭晓组别"：先展示 T0 STAI-T 分类，再展示/完成分组（随机抽取或预实验手动选择）。"""
+    """第 12 页"揭晓组别"：先展示 T0 STAI-T 分类，再展示/完成分组（随机抽取或预实验手动选择）。"""
     page_def = flow.PAGES["reveal_group"]
     number = page_def.get("number")
     body = top_bar(state, number)
@@ -561,7 +565,7 @@ def render_end_page(state):
     body += """<div class="note">
 本场原始记录：%s<br>
 本场实验记录文字（按页列出）：%s<br>
-问卷总表（已自动更新，A/T0/T1/T2/T3 全部题目）：%s<br>
+问卷总表（已自动更新，A/T0/T1/T2/T3 全部题目；T3 含 T3a、T3b 两份）：%s<br>
 问卷总表列名对照（每列对应哪道题）：%s<br>
 实验记录表（已自动更新）：%s
 </div>""" % (esc(participant_path), esc(notes_path), esc(q_csv_path), esc(codebook_path), esc(log_csv_path))
