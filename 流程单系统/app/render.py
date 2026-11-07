@@ -450,7 +450,7 @@ def _prep_item(text, fold_summary=None, fold_body=""):
         _prep_item.n, esc(text))
     _prep_item.n += 1
     if fold_summary:
-        html += '<details><summary>▸ %s</summary><div class="prep-body">%s</div></details>' % (
+        html += '<details><summary>%s</summary><div class="prep-body">%s</div></details>' % (
             esc(fold_summary), fold_body)
     return html
 
