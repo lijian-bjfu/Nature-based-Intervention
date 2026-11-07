@@ -89,7 +89,7 @@ INSTRUCTION_LEAD_SEC = {
     "post_writing_rest": 20,
     "post_intervention_rest": 20,
     "writing": 75,
-    "intervention": 40,
+    "intervention": 0,  # 干预指导语在第 12 页念完，第 13 页进入条件即开始，不加时（2026-11-07）
 }
 
 # ====================================================================

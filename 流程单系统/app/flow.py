@@ -131,6 +131,9 @@ PAGES = {
         "checklist": [
             "已在 SensorBridge 点“训练开始”（下方列表）",
             "已在 SensorBridge 点“训练结束”（下方列表）",
+            {"text": "已退出练习场回到菜单：三根手指在屏幕边角处长按，不要在屏幕中间按"
+                     "（退回菜单时手指会正好落在“实验条件”等按钮上，造成误触）",
+             "warning": True, "title": "退出练习场"},
         ],
         "timer_key": "practice",
     },
@@ -203,7 +206,7 @@ PAGES = {
         "kind": "group",
         "instruction": None,
         "note": "分组依据见下方；确认无误后再去 VN 中选择对应条件。",
-        "checklist": ["已在 VN 中选择对应条件"],
+        "checklist": ["已在 VN 中选择对应条件", "已确认 iPad 屏幕亮度 90%、音量 80%"],
         "timer_key": None,
     },
     "intervention": {

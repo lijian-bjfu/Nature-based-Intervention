@@ -492,6 +492,10 @@ def render_prep_page():
             "<p><b>Mac</b>：“系统设置 → 网络”，点当前连接的 Wi-Fi（热点），右边会直接显示 IP 地址；"
             "或者打开“终端”，输入 ipconfig getifaddr en0 回车（Wi-Fi 一般是 en0，没反应就换成 en1 再试一次）。</p>")))
 
+    cards.append(_prep_card("iPad 设置",
+        _prep_item("iPad 屏幕亮度已设为 90%")
+        + _prep_item("iPad 音量已设为 80%")))
+
     cards.append(_prep_card("LabRecorder 数据保存",
         _prep_item("LabRecorder 的保存路径（Study Root）已设置", "保存到哪里", dirs_html)
         + _prep_item("BIDS 选项已关闭")
