@@ -23,7 +23,6 @@ def _default_durations():
         "rest": config.REST_DURATION_SEC,
         "writing": config.WRITING_DURATION_SEC,
         "writing_midpoint": config.WRITING_MIDPOINT_SEC,
-        "post_writing_rest": config.POST_WRITING_REST_DURATION_SEC,
         "intervention": config.INTERVENTION_DURATION_SEC,
         "post_intervention_rest": config.POST_INTERVENTION_REST_DURATION_SEC,
     }
@@ -83,7 +82,7 @@ def _sync_t3_record(st):
 def _lock_randomization(st):
     """实验模式下 T0 最终提交的那一刻（调用方已持有 _STATE_LOCK）：算 STAI-T 总分、分层、取号，
     写入 st["randomization"]。已有记录的不再取号；调整模式不取号；取号失败不写入（只打印），
-    第 12 页会显示原因。调用方随后统一保存。"""
+    第 11 页会显示原因。调用方随后统一保存。"""
     if st.get("mode") != "experiment" or st.get("randomization"):
         return
     total = judging.stait_total_score(st["questionnaires"]["T0"]["answers"])
@@ -289,7 +288,6 @@ class Handler(BaseHTTPRequestHandler):
             "rest": minutes("rest_min", defaults["rest"]),
             "writing": minutes("writing_min", defaults["writing"]),
             "writing_midpoint": minutes("writing_midpoint_min", defaults["writing_midpoint"]),
-            "post_writing_rest": minutes("post_writing_rest_min", defaults["post_writing_rest"]),
             "intervention": minutes("intervention_min", defaults["intervention"]),
             "post_intervention_rest": minutes("post_intervention_rest_min", defaults["post_intervention_rest"]),
         }

@@ -1,13 +1,14 @@
 """
-17 页流程（加结束页共 18 页）的内容定义：指导语原文、操作清单、计时器。
+16 页流程（加结束页共 17 页）的内容定义：指导语原文、操作清单、计时器。
 
 指导语原文取自《实验记录-实验流程骨架.md》第四节，页码与该文档第三节标题括号里的
-流程单页码一致。诱导后、干预后各有一段专给 HRV 用的静息（post_writing_rest /
-post_intervention_rest），指导语与静息基线相同。
+流程单页码一致。干预后有一段专给 HRV 用的静息（post_intervention_rest），指导语与静息基线
+相同。原有的诱导后静息已于 2026-11-08 删除：担心它会削弱诱导效果、进而减弱干预效果，
+宁可少一段 HRV 数据。
 
-两处"问卷在前、静息在后"的顺序，原理是：此刻状态的题目随时间消退，先静息会让问卷
+"问卷在前、静息在后"的顺序，原理是：此刻状态的题目随时间消退，先静息会让问卷
 测到已部分恢复的状态；所以问卷紧接事件，HRV 静息放在问卷之后。
-  诱导后：书写 → 问卷 T2 → 诱导后静息
+  诱导后：书写 → 问卷 T2 → 揭晓组别（不再静息）
   干预后：干预 → 问卷 T3a（此刻状态）→ 干预后静息 → 问卷 T3b（回顾干预体验）
 """
 import config
@@ -103,7 +104,7 @@ PAGES = {
         "title": "检查信号并开始录制",
         "kind": "task",
         "instruction": "请您稍等一下。",
-        "note": "LabRecorder 从这一步开始录制，一直录到第 17 页停止——中途（第 12 页"
+        "note": "LabRecorder 从这一步开始录制，一直录到第 16 页停止——中途（第 11 页"
                 "“揭晓组别”）才会知道分组，所以文件名里不含分组信息，分组对照见"
                 "导出的 log.csv。路径、文件名模板怎么设，见准备检查页。",
         "checklist": [
@@ -164,7 +165,7 @@ PAGES = {
                         "考试、毕业或找工作这类事情。选好以后，请把它写下来：这是一件什么事，"
                         "您担心会发生什么，如果事情朝坏的方向发展，可能会变成什么样，以及您想到"
                         "这些时的感受。想到什么就写什么，不用在意字迹、语句和错别字。您写的内容"
-                        "不会有任何人看，结束后由您自己处理。时间大约 6 分钟，请一直写到我提醒您"
+                        "不会有任何人看，结束后由您自己处理。时间大约 8 分钟，请一直写到我提醒您"
                         "结束。现在请开始。",
         "note": None,
         "checklist": [
@@ -177,31 +178,15 @@ PAGES = {
         "midpoint": ("writing_midpoint", "请继续写。想一想，如果这件事真的往坏的方向发展，接下来还可能发生什么。"),
     },
     "q_t2": {
-        # 书写结束后立即填，问卷在前、静息在后（原理见本文件开头）。
+        # 书写结束后立即填。
         "number": 10,
         "title": "问卷 T2",
         "kind": "questionnaire",
         "instrument": "T2",
         "timer_key": None,
     },
-    "post_writing_rest": {
-        # 专给 HRV 用的静息，5 分钟；分析时去掉第 1 分钟，用后 4 分钟算 RMSSD。
-        # 指导语与静息基线一致（4.10b）。
-        "number": 11,
-        "title": "诱导后静息",
-        "kind": "task",
-        "instruction": "接下来，请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
-                        "轻轻闭上眼睛，尽可能放松。时间大约 5 分钟，到时间我会提醒您。",
-        "note": None,
-        "checklist": [
-            "已在 SensorBridge 点“诱导后静息开始”（下方列表）",
-            "已在 SensorBridge 点“诱导后静息结束”（下方列表）",
-            "静息姿势与基线相同（上身靠在椅背上、闭眼），开始计时前已确认",
-        ],
-        "timer_key": "post_writing_rest",
-    },
     "reveal_group": {
-        "number": 12,
+        "number": 11,
         "title": "揭晓组别",
         "kind": "group",
         "instruction": None,
@@ -210,7 +195,7 @@ PAGES = {
         "timer_key": None,
     },
     "intervention": {
-        "number": 13,
+        "number": 12,
         "title": "干预",
         "kind": "task",
         "instruction": None,
@@ -220,15 +205,15 @@ PAGES = {
     },
     "q_t3a": {
         # 干预结束后立即填的此刻状态块（与 T1、T2 完全相同的 15 题）。
-        "number": 14,
+        "number": 13,
         "title": "问卷 T3a",
         "kind": "questionnaire",
         "instrument": "T3a",
         "timer_key": None,
     },
     "post_intervention_rest": {
-        # 专给 HRV 用的静息，理由和用法同"诱导后静息"（4.12b）。
-        "number": 15,
+        # 专给 HRV 用的静息，5 分钟；分析时去掉第 1 分钟，用后 4 分钟算 RMSSD。指导语与静息基线一致。
+        "number": 14,
         "title": "干预后静息",
         "kind": "task",
         "instruction": "接下来，请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
@@ -242,14 +227,14 @@ PAGES = {
         "timer_key": "post_intervention_rest",
     },
     "q_t3b": {
-        "number": 16,
+        "number": 15,
         "title": "问卷 T3b",
         "kind": "questionnaire",
         "instrument": "T3b",
         "timer_key": None,
     },
     "wrapup": {
-        "number": 17,
+        "number": 16,
         "title": "停止录制、事后说明、支付报酬",
         "kind": "task",
         "complete_label": "完成实验",
@@ -276,7 +261,7 @@ PAGES = {
         "timer_key": None,
     },
     "end": {
-        "number": 18,
+        "number": 17,
         "title": "结束页",
         "kind": "end",
         "instruction": None,
@@ -296,8 +281,7 @@ NEXT_PAGE = {
     "rest": "q_t1",
     "q_t1": "writing",
     "writing": "q_t2",
-    "q_t2": "post_writing_rest",
-    "post_writing_rest": "reveal_group",
+    "q_t2": "reveal_group",
     "reveal_group": "intervention",
     "intervention": "q_t3a",
     "q_t3a": "post_intervention_rest",
@@ -330,7 +314,7 @@ VERDICT_OPTIONS = {
     },
 }
 
-# 第 12 页"揭晓组别"确定条件后，按条件念给被试的指导语（原文取自《实验流程骨架》4.11）。
+# 第 11 页"揭晓组别"确定条件后，按条件念给被试的指导语（原文取自《实验流程骨架》4.11）。
 GROUP_INSTRUCTIONS = {
     "实验组": "下面请您使用和体验正式产品。这是一个虚拟自然环境，您可以在其中自由探索，"
              "交互方式与您刚才练习过的一致。使用期间，您完全按照自己的想法与虚拟环境互动，"
@@ -343,6 +327,6 @@ GROUP_INSTRUCTIONS = {
 
 PAGE_ORDER = [
     "consent", "q_a", "verify_h10", "check_signal", "q_t0", "practice", "rest",
-    "q_t1", "writing", "q_t2", "post_writing_rest", "reveal_group", "intervention",
+    "q_t1", "writing", "q_t2", "reveal_group", "intervention",
     "q_t3a", "post_intervention_rest", "q_t3b", "wrapup", "end",
 ]

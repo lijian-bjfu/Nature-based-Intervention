@@ -376,7 +376,7 @@ def screening_summary_block(answers):
 
 
 def stait_summary_block(total, classification):
-    """T0 的 STAI-T 总分与焦虑分类，用于第 12 页揭晓组别。"""
+    """T0 的 STAI-T 总分与焦虑分类，用于第 11 页揭晓组别。"""
     if total is None:
         return '<div class="judging-box">T0 的 STAI-T 尚未完整作答，无法计算总分。</div>'
     return '<div class="judging-box"><strong>T0 · STAI-T 焦虑特质总分</strong><br>' \
@@ -510,16 +510,14 @@ def render_prep_page():
         "<tr><td>练习场</td><td>训练开始（下方列表）</td><td>训练结束（下方列表）</td></tr>"
         "<tr><td>静息基线</td><td>基线开始（上方按钮）</td><td>基线结束（下方列表）</td></tr>"
         "<tr><td>担忧书写</td><td>诱导开始（上方按钮）</td><td>诱导结束（上方按钮）</td></tr>"
-        "<tr><td>诱导后静息</td><td>诱导后静息开始（下方列表）</td><td>诱导后静息结束（下方列表）</td></tr>"
         "<tr><td>干预</td><td>干预开始（上方按钮）</td><td>干预结束（上方按钮）</td></tr>"
         "<tr><td>干预后静息</td><td>干预后静息开始（下方列表）</td><td>干预后静息结束（下方列表）</td></tr>"
         "</table>")
     cards.append(_prep_card("事件标记", _prep_item(
-        "SensorBridge 已添加 7 个自定义事件：训练开始、训练结束、基线结束、诱导后静息开始、"
-        "诱导后静息结束、干预后静息开始、干预后静息结束",
-        "12 个标记在哪里点",
+        "SensorBridge 已添加 5 个自定义事件：训练开始、训练结束、基线结束、干预后静息开始、干预后静息结束",
+        "10 个标记在哪里点",
         "<p>SensorBridge 上方有 5 个自带按钮（基线开始、诱导开始、诱导结束、干预开始、干预结束），"
-        "其余 7 个在下方自定义事件列表里。打标记时要在上方按钮和下方列表之间来回点，不是按屏幕顺序连续点。</p>"
+        "其余 5 个在下方自定义事件列表里（列表里如果还有以前加的“诱导后静息开始/结束”，已不再使用，可以删掉）。打标记时要在上方按钮和下方列表之间来回点，不是按屏幕顺序连续点。</p>"
         + marker_table
         + "<p>每个标记在对应阶段真正开始或结束的那一刻点，点完看一眼确认记录的是哪个。"
           "预实验中曾把静息基线误点成“诱导开始”。</p>")))
@@ -676,7 +674,7 @@ def _randomization_preview_html(state, total):
 
 
 def render_group_page(state):
-    """第 12 页"揭晓组别"：先展示 T0 STAI-T 分类，再揭晓 T0 提交时已锁定的分层区组随机组别；调整模式另有手动设定与随机预览。"""
+    """第 11 页"揭晓组别"：先展示 T0 STAI-T 分类，再揭晓 T0 提交时已锁定的分层区组随机组别；调整模式另有手动设定与随机预览。"""
     page_def = flow.PAGES["reveal_group"]
     number = page_def.get("number")
     body = top_bar(state, number)
@@ -861,9 +859,6 @@ def render_settings_page(data_root_default, suggested_ids, durations_default, er
 <label>担忧书写中途提示时间（分钟）</label>
 <input type="number" step="0.5" name="writing_midpoint_min" value="%s">
 
-<label>诱导后静息时长（分钟）</label>
-<input type="number" step="0.5" name="post_writing_rest_min" value="%s">
-
 <label>干预时长（分钟）</label>
 <input type="number" step="0.5" name="intervention_min" value="%s">
 
@@ -895,7 +890,6 @@ def render_settings_page(data_root_default, suggested_ids, durations_default, er
         mode_radios, esc(data_root_default), esc(pid_value),
         durations_default["practice"] / 60, durations_default["rest"] / 60,
         durations_default["writing"] / 60, durations_default["writing_midpoint"] / 60,
-        durations_default["post_writing_rest"] / 60,
         durations_default["intervention"] / 60,
         durations_default["post_intervention_rest"] / 60,
         "" if selected_mode else " disabled",
