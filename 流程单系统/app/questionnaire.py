@@ -357,6 +357,23 @@ document.querySelectorAll('.qmulti').forEach(function (group) {
         });
     });
 });
+(function () {
+    // 实时保存：每答一题（单选/多选/滑块松开）立即、数字输入框停止输入约 1 秒后，把整页表单发给服务端。
+    var form = document.getElementById("qform"), timer = null;
+    function save() {
+        timer = null;
+        var body = new URLSearchParams(new FormData(form));
+        fetch("/qautosave", {method: "POST", body: body, keepalive: true}).catch(function () {});
+    }
+    function schedule(delay) {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(save, delay);
+    }
+    form.addEventListener("change", function () { schedule(0); });
+    form.addEventListener("input", function (e) {
+        if (e.target.type === "number" || e.target.type === "text") schedule(1000);
+    });
+})();
 function qSubmit(direction) {
     document.getElementById("qdirection").value = direction;
     if (direction === "prev") { document.getElementById("qform").submit(); return; }
@@ -395,6 +412,7 @@ def render_questionnaire_page(instrument_id, page_index, existing_answers):
     for block in page["blocks"]:
         body += _render_block(block, existing_answers)
     body += '<input type="hidden" name="direction" id="qdirection" value="next">'
+    body += '<input type="hidden" name="qsub" value="%d">' % page_index
 
     is_last = page_index == total_pages - 1
     body += '<div class="qnav">'

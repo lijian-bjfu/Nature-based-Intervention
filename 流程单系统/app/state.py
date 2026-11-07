@@ -40,13 +40,25 @@ RUNTIME_DIR = os.path.join(PROJECT_ROOT, "app_runtime")
 CURRENT_RUN_POINTER = os.path.join(RUNTIME_DIR, "current_run.json")
 
 
-def physio_data_dir():
-    """LabRecorder 应该存生理数据（.xdf）的目录：项目根目录（流程单系统/ 的上一级）下的
-    data/<dataset>/raw/physio/，dataset 跟当前 config.MODE 对应。只用来在"准备检查"页
-    显示给实验员照着填，流程单系统自己不写这里的文件，也不保证这个目录已经存在
+def default_data_root():
+    """项目数据根目录（含 formal/、pilot_and_test/ 的 data/ 文件夹）的默认位置：流程单系统所在
+    文件夹的上一级目录下的 data/。源码运行时是 <项目根>/data；打包运行时按 _app_root() 的上一级推算。"""
+    return os.path.join(os.path.dirname(PROJECT_ROOT), config.DEFAULT_DATA_ROOT)
+
+
+def physio_data_dir(mode, data_root=None):
+    """LabRecorder 应该存生理数据（.xdf）的目录：<data 根>/<dataset>/raw/physio。只用来在"准备检查"
+    页显示给实验员照着填，流程单系统自己不写这里的文件，也不保证目录已存在
     （LabRecorder 保存文件时会自动建目录）。"""
-    repo_root = os.path.dirname(PROJECT_ROOT)
-    return os.path.join(repo_root, "data", *config.PHYSIO_DATA_SUBDIR[config.MODE].split("/"))
+    root = data_root or default_data_root()
+    return os.path.join(root, *config.PHYSIO_DATA_SUBDIR[mode].split("/"))
+
+
+def xdf_filename(participant_id, mode):
+    """该场 LabRecorder 文件名（含子文件夹），例如 sub-P001/sub-P001.xdf / D_sub-P001/D_sub-P001.xdf。
+    与 config.LABRECORDER_FILENAME_TEMPLATE 一致（%p 换成被试编号）。"""
+    folder = config.PARTICIPANT_DIR_TEMPLATE[mode].format(id=participant_id)
+    return folder + "/" + folder + ".xdf"
 
 
 def _atomic_write_json(path, obj):
@@ -64,75 +76,119 @@ def _read_json(path):
         return json.load(f)
 
 
-def mode_root(data_root):
-    """给定数据根目录，返回当前运行模式（config.MODE）对应的子目录。"""
-    return os.path.join(data_root, config.MODE_SUBDIR[config.MODE])
+def dataset_dir(data_root, mode):
+    """给定数据根目录和运行模式，返回该模式对应的数据集目录（formal / pilot_and_test/test）。"""
+    return os.path.join(data_root, *config.MODE_SUBDIR[mode].split("/"))
 
 
-def participant_dir(data_root, participant_id):
-    return os.path.join(mode_root(data_root), participant_id)
+def participant_folder_name(participant_id, mode, broken=False):
+    """被试文件夹名。broken=True 时加 BREAK_PREFIX，表示本场还没正常结束（进行中/中断）。"""
+    name = config.PARTICIPANT_DIR_TEMPLATE[mode].format(id=participant_id)
+    return (config.BREAK_PREFIX + name) if broken else name
 
 
-def state_path(data_root, participant_id):
-    return os.path.join(participant_dir(data_root, participant_id), "state.json")
+def psycho_root(data_root, mode):
+    return os.path.join(dataset_dir(data_root, mode), "raw", "psycho")
 
 
-def questionnaire_csv_path(data_root):
-    """问卷总表（A、T0-T3 全部五份问卷）的落盘路径，当前运行模式目录下。"""
-    return os.path.join(mode_root(data_root), "questionnaires.csv")
+def notes_root(data_root, mode):
+    return os.path.join(dataset_dir(data_root, mode), "raw", "session_notes")
 
 
-def questionnaire_codebook_path(data_root):
-    """问卷总表的列名对照（每列对应哪道题、怎么编码）的落盘路径。"""
-    return os.path.join(mode_root(data_root), "questionnaires_codebook.csv")
+def participant_dir(data_root, participant_id, mode, broken=False):
+    """该被试的问卷/状态目录（raw/psycho/<文件夹名>/），state.json 在这里。"""
+    return os.path.join(psycho_root(data_root, mode), participant_folder_name(participant_id, mode, broken))
 
 
-def log_csv_path(data_root):
-    """实验记录表（判定、分组、各页起止时间等）的落盘路径，当前运行模式目录下。"""
-    return os.path.join(mode_root(data_root), "log.csv")
+def notes_dir(data_root, participant_id, mode, broken=False):
+    """该被试的实验记录目录（raw/session_notes/<文件夹名>/）。"""
+    return os.path.join(notes_root(data_root, mode), participant_folder_name(participant_id, mode, broken))
 
 
-def notes_txt_path(data_root, participant_id):
-    """该被试实验记录文字（按页列出，没写的页跳过）的落盘路径，在该被试自己的目录下。"""
-    return os.path.join(participant_dir(data_root, participant_id), "notes.txt")
+def state_path(data_root, participant_id, mode, broken=False):
+    return os.path.join(participant_dir(data_root, participant_id, mode, broken), "state.json")
 
 
-def list_used_numbers(data_root):
-    """扫描当前模式目录下已存在的编号，返回已用的数字部分（排序）。"""
-    prefix = config.PARTICIPANT_PREFIX[config.MODE]
-    root = mode_root(data_root)
-    if not os.path.isdir(root):
-        return []
-    pattern = re.compile(r"^%s(\d{%d})$" % (re.escape(prefix), config.PARTICIPANT_ID_DIGITS))
-    numbers = []
-    for name in os.listdir(root):
-        m = pattern.match(name)
-        if m:
-            numbers.append(int(m.group(1)))
+INTERRUPT_NOTE_NAME = "中断说明.txt"
+
+
+def interrupt_note_paths(data_root, participant_id, mode, broken=True):
+    """中断说明.txt 的两处路径：psycho 与 session_notes 各一份。默认在 _break_ 文件夹里；
+    broken=False 是改名后正式文件夹里的位置（正常结束时用来删除）。"""
+    return [os.path.join(participant_dir(data_root, participant_id, mode, broken), INTERRUPT_NOTE_NAME),
+            os.path.join(notes_dir(data_root, participant_id, mode, broken), INTERRUPT_NOTE_NAME)]
+
+
+def questionnaire_csv_path(data_root, participant_id, mode, broken=False):
+    """该被试的问卷表（1 行，A、T0-T3 全部问卷）。"""
+    return os.path.join(participant_dir(data_root, participant_id, mode, broken), "questionnaires.csv")
+
+
+def questionnaire_codebook_path(data_root, participant_id, mode, broken=False):
+    """该被试的问卷列名对照（与 questionnaires.csv 同一文件夹），导出那一刻的快照。"""
+    return os.path.join(participant_dir(data_root, participant_id, mode, broken), "questionnaires_codebook.csv")
+
+
+def log_csv_path(data_root, participant_id, mode, broken=False):
+    """该被试的实验记录表（1 行：判定、分组、各页起止时间等）。"""
+    return os.path.join(notes_dir(data_root, participant_id, mode, broken), "log.csv")
+
+
+def notes_txt_path(data_root, participant_id, mode, broken=False):
+    """该被试实验记录文字（按页列出，没写的页跳过）。"""
+    return os.path.join(notes_dir(data_root, participant_id, mode, broken), "notes.txt")
+
+
+def list_used_numbers(data_root, mode):
+    """扫描该模式数据集 raw/psycho/ 和 raw/session_notes/ 下符合本模式文件夹名格式的文件夹，
+    返回已用的数字部分（排序、去重）。带 _break_ 前缀的（进行中/中断）也算已用。"""
+    prefix = config.PARTICIPANT_PREFIX[mode]
+    name_re = re.escape(config.PARTICIPANT_DIR_TEMPLATE[mode]).replace(
+        re.escape("{id}"), re.escape(prefix) + r"(\d{%d})" % config.PARTICIPANT_ID_DIGITS)
+    # 进行中/中断的 _break_ 文件夹也占着编号，防止被重复使用。
+    pattern = re.compile("^(?:" + re.escape(config.BREAK_PREFIX) + ")?" + name_re + "$")
+    numbers = set()
+    for root in (psycho_root(data_root, mode), notes_root(data_root, mode)):
+        if not os.path.isdir(root):
+            continue
+        for name in os.listdir(root):
+            m = pattern.match(name)
+            if m and os.path.isdir(os.path.join(root, name)):
+                numbers.add(int(m.group(1)))
     return sorted(numbers)
 
 
-def next_suggested_id(data_root):
-    prefix = config.PARTICIPANT_PREFIX[config.MODE]
-    used = list_used_numbers(data_root)
+def next_suggested_id(data_root, mode):
+    prefix = config.PARTICIPANT_PREFIX[mode]
+    used = list_used_numbers(data_root, mode)
     next_n = (used[-1] + 1) if used else 1
     return "%s%0*d" % (prefix, config.PARTICIPANT_ID_DIGITS, next_n)
 
 
-def participant_exists(data_root, participant_id):
-    return os.path.isdir(participant_dir(data_root, participant_id))
+def valid_participant_id(participant_id, mode):
+    pattern = r"^%s\d{%d}$" % (re.escape(config.PARTICIPANT_PREFIX[mode]), config.PARTICIPANT_ID_DIGITS)
+    return re.match(pattern, participant_id) is not None
 
 
-def create_participant(data_root, participant_id, durations_sec):
-    """新开一场实验：建目录、写初始 state.json、把它记成"当前进行中的会话"。"""
-    pdir = participant_dir(data_root, participant_id)
-    if os.path.isdir(pdir):
+def participant_exists(data_root, participant_id, mode):
+    """正式名或 _break_ 名的文件夹只要有一个存在，就视为该编号已用。"""
+    return any(os.path.isdir(f(data_root, participant_id, mode, b))
+               for f in (participant_dir, notes_dir) for b in (False, True))
+
+
+def create_participant(data_root, participant_id, durations_sec, mode):
+    """新开一场实验：建目录、写初始 state.json、把它记成"当前进行中的会话"。
+    mode 为 "experiment" 或 "debug"，写进 state["mode"]。"""
+    if mode not in config.MODE_SUBDIR:
+        raise ValueError("未知的运行模式：%r" % (mode,))
+    pdir = participant_dir(data_root, participant_id, mode, True)
+    if participant_exists(data_root, participant_id, mode):
         raise FileExistsError("被试编号 %s 已存在，禁止覆盖" % participant_id)
     os.makedirs(pdir, exist_ok=True)
     now = time.time()
     state = {
         "participant_id": participant_id,
-        "mode": config.MODE,
+        "mode": mode,
         "data_root": data_root,
         "created_at": now,
         "durations_sec": durations_sec,
@@ -145,34 +201,75 @@ def create_participant(data_root, participant_id, durations_sec):
         "group": None,
         "group_code": None,
         "group_method": None,
+        "randomization": None,  # 实验模式 T0 提交时写入 {stait_total, stratum, position, condition, assigned_at}
         "ended": False,
         "end_reason": None,
+        "broken": True,   # True = 文件夹名带 _break_（本场未正常结束）；正常结束时改回 False
+        "drafts": {},     # {page_id: 实验记录草稿文字}，实时保存
     }
     save_state(state)
-    set_current_run(data_root, participant_id)
+    set_current_run(data_root, participant_id, mode)
     return state
 
 
-def load_state(data_root, participant_id):
-    return _read_json(state_path(data_root, participant_id))
+def load_state(data_root, participant_id, mode):
+    """先找 _break_ 名的文件夹，找不到再找正式名（旧版数据）；据此设置 state["broken"]。"""
+    for broken in (True, False):
+        path = state_path(data_root, participant_id, mode, broken)
+        if os.path.exists(path):
+            st = _read_json(path)
+            st["broken"] = broken
+            st.setdefault("drafts", {})
+            return st
+    raise FileNotFoundError("找不到被试 %s 的 state.json" % participant_id)
 
 
 def save_state(state):
-    path = state_path(state["data_root"], state["participant_id"])
+    """只写 state.json。各处修改状态后请调用 export.save_all()（它会调用本函数，并同步导出文件和中断说明）。"""
+    path = state_path(state["data_root"], state["participant_id"], state["mode"], state.get("broken", False))
     _atomic_write_json(path, state)
 
 
-def set_current_run(data_root, participant_id):
+def rename_to_final(state):
+    """正常结束：把 _break_ 文件夹改回正式名（psycho 与 session_notes 两处）。
+    目标已存在则抛 FileExistsError，不覆盖。只改名，不删数据。"""
+    if not state.get("broken"):
+        return
+    dr, pid, mode = state["data_root"], state["participant_id"], state["mode"]
+    pairs = []
+    for f in (participant_dir, notes_dir):
+        src, dst = f(dr, pid, mode, True), f(dr, pid, mode, False)
+        if os.path.isdir(src):
+            if os.path.exists(dst):
+                raise FileExistsError("正式文件夹已存在，不能改名：%s" % dst)
+            pairs.append((src, dst))
+    done = []
+    try:
+        for src, dst in pairs:
+            os.rename(src, dst)
+            done.append((src, dst))
+    except OSError:
+        for src, dst in reversed(done):  # 改到一半失败：把已改名的改回去，保持 _break_ 状态
+            try:
+                os.rename(dst, src)
+            except OSError:
+                pass
+        raise
+    state["broken"] = False
+
+
+def set_current_run(data_root, participant_id, mode):
     _atomic_write_json(CURRENT_RUN_POINTER, {
         "data_root": data_root,
         "participant_id": participant_id,
-        "mode": config.MODE,
+        "mode": mode,
     })
 
 
 def clear_current_run():
+    """本场结束后让指针失效。不删文件，改写成空记录（读取时没有 mode 字段，视为无进行中的场次）。"""
     if os.path.exists(CURRENT_RUN_POINTER):
-        os.remove(CURRENT_RUN_POINTER)
+        _atomic_write_json(CURRENT_RUN_POINTER, {})
 
 
 def get_current_run_state():
@@ -183,12 +280,13 @@ def get_current_run_state():
         pointer = _read_json(CURRENT_RUN_POINTER)
     except (json.JSONDecodeError, OSError):
         return None
-    if pointer.get("mode") != config.MODE:
-        # 运行模式和上次记录的不一样（比如改了 config.py），不要跨模式续接。
+    mode = pointer.get("mode")
+    if mode not in config.MODE_SUBDIR:
+        # 空指针（上一场已结束）或旧版本留下的指针，无法续接。
         return None
     try:
-        state = load_state(pointer["data_root"], pointer["participant_id"])
-    except (FileNotFoundError, json.JSONDecodeError):
+        state = load_state(pointer["data_root"], pointer["participant_id"], mode)
+    except (OSError, ValueError, KeyError):
         return None
     if state.get("ended"):
         return None

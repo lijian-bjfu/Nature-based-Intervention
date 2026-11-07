@@ -1,9 +1,7 @@
 """
-从已填的问卷作答里算出"判定依据"：问卷 A 的筛查结果、T0 的 STAI-T 总分与分类、
-分组的随机抽取。只做计算，不涉及渲染和状态落盘（落盘由 server.py 负责）。
+从已填的问卷作答里算出"判定依据"：问卷 A 的筛查结果、T0 的 STAI-T 总分与分类。
+只做计算，不涉及渲染和状态落盘（落盘由 server.py 负责）。
 """
-import random
-
 import config
 import scales
 
@@ -65,15 +63,3 @@ def stait_classification(total):
         return None
     return "高焦虑" if total >= config.STAI_T_CUTOFF else "低焦虑"
 
-
-def draw_random_group():
-    """简单随机分配（非分层区组）：把 4 个候选组号打乱顺序，取第一个分给当次被试。
-
-    未来正式版计划改成：按 STAI-T 分层，一次性生成完整的随机分配表，再按表取号
-    （对应交接文档里"高、低两摞信封"的设计）。这里先用最简单的随机抽取打通流程。
-    返回 (组号, 组号对应的条件标签)。
-    """
-    codes = list(config.GROUP_CONDITIONS.keys())
-    random.shuffle(codes)
-    code = codes[0]
-    return code, config.GROUP_CONDITIONS[code]

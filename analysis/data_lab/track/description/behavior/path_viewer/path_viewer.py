@@ -15,8 +15,8 @@
 PARAMETERS = {
     "selection": {
         "dataset": "pilot",
-        "subject": "P001",
-        "run": "003",
+        "subject": "P002",
+        "run": "001",
     },
     "stay": {
         "still_step_m": 0.03,

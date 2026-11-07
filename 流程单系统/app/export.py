@@ -1,11 +1,12 @@
 """
-从各被试的 state.json 重新生成三张表（CSV）：问卷总表、问卷总表列名对照、实验记录表。
-对应交接文档第八节的"问卷总表"“实验记录表"；列名对照是额外加的，不看代码也能看懂
-总表里每一列是什么（参照 analysis/README.md 里 track 制表"列名对照"的做法）。
+从被试的 state.json 重新生成该被试的导出文件，写进项目 data/ 的规范位置：
+  <数据集>/raw/psycho/<被试文件夹>/questionnaires.csv        该被试 1 行问卷表
+  <数据集>/raw/psycho/<被试文件夹>/questionnaires_codebook.csv  该被试的列名对照（导出时的快照）
+  <数据集>/raw/session_notes/<被试文件夹>/log.csv         该被试 1 行实验记录表
+  <数据集>/raw/session_notes/<被试文件夹>/notes.txt       实验记录文字
 
-设计原则：state.json 是唯一权威数据源（它已经是原子写入，不怕中途崩溃）；这三张表
-只是从它派生出来的视图，每次都整表重新生成，不做增量追加——不管重新导出多少次、
-什么时候导出，结果都只取决于当时各被试的 state.json 内容。
+设计原则：state.json 是唯一权威数据源（原子写入，不怕中途崩溃）；这些文件只是它派生出来的
+视图，每次都整份重新生成，不做增量追加。只处理当前这一位被试，不扫描其他被试。
 
 触发时机：被试跑到第 17 页"完成实验"、进入结束页（第 18 页）时，由 server.py 自动
 调用 export_all()，不需要实验员另外点导出按钮。
@@ -18,7 +19,9 @@ analysis/table_flows/psycho/psycho_schema_draft.py，确认后再合并进 globa
 import csv
 import datetime
 import os
+import time
 
+import config
 import flow
 import judging
 import questionnaire
@@ -92,22 +95,6 @@ def _questionnaire_schema():
     return columns, extractors, codebook_rows
 
 
-def _iter_participants(data_root):
-    """按被试编号排序，依次产出 (participant_id, state_dict)；读不出来的目录直接跳过
-    （比如正好在被另一个进程写入、或者是半成品目录），不让一个坏文件拖垮整次导出。"""
-    root = state_mod.mode_root(data_root)
-    if not os.path.isdir(root):
-        return
-    for name in sorted(os.listdir(root)):
-        state_file = os.path.join(root, name, "state.json")
-        if not os.path.isfile(state_file):
-            continue
-        try:
-            yield name, state_mod.load_state(data_root, name)
-        except (OSError, ValueError):
-            continue
-
-
 def _fmt_ts(ts):
     if not ts:
         return ""
@@ -125,101 +112,173 @@ def _atomic_write_csv(path, header, rows):
     os.replace(tmp_path, path)
 
 
-def export_questionnaires_csv(data_root):
+def export_questionnaires_csv(st):
     columns, extractors, _codebook_rows = _questionnaire_schema()
-    rows = []
-    for participant_id, st in _iter_participants(data_root):
-        answers = {}
-        for instrument_id in ANSWER_RECORD_IDS:
-            answers.update(st.get("questionnaires", {}).get(instrument_id, {}).get("answers", {}))
-        rows.append([participant_id, st.get("group") or ""] + [ex(answers) for ex in extractors])
-    path = state_mod.questionnaire_csv_path(data_root)
-    _atomic_write_csv(path, ["participant_id", "group"] + columns, rows)
+    answers = {}
+    for instrument_id in ANSWER_RECORD_IDS:
+        answers.update(st.get("questionnaires", {}).get(instrument_id, {}).get("answers", {}))
+    row = [st["participant_id"], st.get("group") or ""] + [ex(answers) for ex in extractors]
+    path = state_mod.questionnaire_csv_path(st["data_root"], st["participant_id"], st["mode"], st.get("broken", False))
+    _atomic_write_csv(path, ["participant_id", "group"] + columns, [row])
     return path
 
 
-def export_questionnaire_codebook_csv(data_root):
-    """问卷总表的列名对照（每列对应哪份问卷、哪道题、怎么编码），和 questionnaires.csv
-    放在一起——不看代码也能看懂表里每一列是什么。每次导出都和总表一起重新生成。"""
+def export_questionnaire_codebook_csv(st):
+    """问卷表的列名对照（每列对应哪份问卷、哪道题、怎么编码），写进该被试自己的文件夹，
+    与 questionnaires.csv 同处；每次导出都重新生成，作为该被试导出那一刻的快照。"""
     _columns, _extractors, codebook_rows = _questionnaire_schema()
-    path = state_mod.questionnaire_codebook_path(data_root)
+    path = state_mod.questionnaire_codebook_path(st["data_root"], st["participant_id"], st["mode"], st.get("broken", False))
     _atomic_write_csv(path, ["column", "instrument", "item_text", "value_meaning"], codebook_rows)
     return path
 
 
-def export_log_csv(data_root):
-    """实验员写的实验记录文字不放这张表里（另存成每人一份的 notes.txt，见
-    export_notes_txt），避免长文字、换行、逗号把 CSV 弄乱。"""
+def export_log_csv(st):
+    """实验员写的实验记录文字不放这张表里（另存成 notes.txt，见 export_notes_txt），
+    避免长文字、换行、逗号把 CSV 弄乱。"""
     page_ids = [p for p in flow.PAGE_ORDER if p != "end"]
     header = [
         "participant_id", "verdict", "stait_total", "stait_classification",
-        "group", "group_code", "group_method", "ended", "end_reason",
+        "stratum", "stratum_position", "group", "group_code", "group_method", "ended", "end_reason",
     ] + page_ids
-    rows = []
-    for participant_id, st in _iter_participants(data_root):
-        t0_answers = st.get("questionnaires", {}).get("T0", {}).get("answers", {})
-        total = judging.stait_total_score(t0_answers)
-        classification = judging.stait_classification(total)
-        pages = st.get("pages", {})
-        row = [
-            participant_id, st.get("verdict") or "",
-            total if total is not None else "", classification or "",
-            st.get("group") or "", st.get("group_code") or "", st.get("group_method") or "",
-            st.get("ended"), st.get("end_reason") or "",
-        ]
-        for page_id in page_ids:
-            rec = pages.get(page_id)
-            row.append("%s ~ %s" % (_fmt_ts(rec.get("started_at")), _fmt_ts(rec.get("completed_at"))) if rec else "")
-        rows.append(row)
-    path = state_mod.log_csv_path(data_root)
-    _atomic_write_csv(path, header, rows)
+    t0_answers = st.get("questionnaires", {}).get("T0", {}).get("answers", {})
+    total = judging.stait_total_score(t0_answers)
+    classification = judging.stait_classification(total)
+    pages = st.get("pages", {})
+    rand = st.get("randomization") or {}  # 调整模式没有这条记录，两列为空
+    row = [
+        st["participant_id"], st.get("verdict") or "",
+        total if total is not None else "", classification or "",
+        rand.get("stratum", ""), rand.get("position", ""),
+        st.get("group") or "", st.get("group_code") or "", st.get("group_method") or "",
+        st.get("ended"), st.get("end_reason") or "",
+    ]
+    for page_id in page_ids:
+        rec = pages.get(page_id)
+        row.append("%s ~ %s" % (_fmt_ts(rec.get("started_at")), _fmt_ts(rec.get("completed_at"))) if rec else "")
+    path = state_mod.log_csv_path(st["data_root"], st["participant_id"], st["mode"], st.get("broken", False))
+    _atomic_write_csv(path, header, [row])
     return path
 
 
 def _page_notes(st):
     """这个被试每一页的 (页面标签, 备注文字)，按流程顺序；没写备注的页直接跳过。"""
     pages = st.get("pages", {})
+    drafts = st.get("drafts", {})
     rows = []
     for page_id in flow.PAGE_ORDER:
         if page_id == "end":
             continue
         rec = pages.get(page_id)
-        if not rec or not rec.get("notes"):
+        # 已完成的页以"完成该阶段"时提交的文字为准；还没完成的页（比如中断时停在的那页）用实时保存的草稿。
+        text = rec.get("notes") if rec else drafts.get(page_id, "")
+        if not text:
             continue
         page_def = flow.PAGES.get(page_id, {})
         number = page_def.get("number")
         title = page_def.get("title", page_id)
         label = "第 %s 页 · %s" % (number, title) if number else title
-        rows.append((label, rec["notes"]))
+        rows.append((label, text))
     return rows
 
 
-def export_notes_txt(data_root):
-    """给每个被试生成一份单独的实验记录 txt（data/<mode>/<被试编号>/notes.txt），
-    按页面顺序列出写了什么；没写备注的页直接跳过，不占位。"""
-    paths = []
-    for participant_id, st in _iter_participants(data_root):
-        rows = _page_notes(st)
-        lines = ["被试编号：%s" % participant_id, ""]
-        if rows:
-            for label, text in rows:
-                lines.append(label)
-                lines.append(text)
-                lines.append("")
-        else:
-            lines.append("（本场没有记录任何实验记录文字）")
-        path = state_mod.notes_txt_path(data_root, participant_id)
+def export_notes_txt(st):
+    """该被试的实验记录 txt，按页面顺序列出写了什么；没写备注的页直接跳过，不占位。"""
+    participant_id = st["participant_id"]
+    rows = _page_notes(st)
+    lines = ["被试编号：%s" % participant_id, ""]
+    if rows:
+        for label, text in rows:
+            lines.append(label)
+            lines.append(text)
+            lines.append("")
+    else:
+        lines.append("（本场没有记录任何实验记录文字）")
+    path = state_mod.notes_txt_path(st["data_root"], participant_id, st["mode"], st.get("broken", False))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines).rstrip("\n") + "\n")
+    os.replace(tmp_path, path)
+    return path
+
+
+_BJ = datetime.timezone(datetime.timedelta(hours=8))
+
+
+def _fmt_bj(ts):
+    return datetime.datetime.fromtimestamp(ts, _BJ).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _page_label(page_id):
+    if page_id == "end":
+        return "结束页"
+    page_def = flow.PAGES.get(page_id, {})
+    number = page_def.get("number")
+    title = page_def.get("title", page_id)
+    return "第 %s 页 · %s" % (number, title) if number else title
+
+
+def interrupt_note_text(st, now=None):
+    """中断说明.txt 的内容（每行一项）。"""
+    now = now or time.time()
+    current = _page_label(st["current_page"])
+    page_def = flow.PAGES.get(st["current_page"], {})
+    if page_def.get("kind") == "questionnaire":
+        q = st.get("questionnaires", {}).get(page_def["instrument"])
+        if q and not q.get("submitted"):
+            total = len(questionnaire.QUESTIONNAIRES[page_def["instrument"]]["pages"])
+            current += "（问卷第 %d/%d 屏）" % (q.get("current_subpage", 0) + 1, total)
+    done = [_page_label(p) for p in flow.PAGE_ORDER if p in st.get("pages", {})]
+    submitted = [i for i in QUESTIONNAIRE_IDS
+                 if st.get("questionnaires", {}).get(i, {}).get("submitted")]
+    lines = [
+        "被试编号：%s" % st["participant_id"],
+        "运行模式：%s" % config.MODE_LABEL.get(st["mode"], st["mode"]),
+        "开始时间：%s" % _fmt_bj(st["created_at"]),
+        "最后更新时间：%s（北京时间）" % _fmt_bj(now),
+        "当前停在：%s" % current,
+        "已完成的页：%s" % ("、".join(done) if done else "（无）"),
+        "已提交的问卷：%s" % ("、".join(submitted) if submitted else "（无）"),
+        "此文件夹名以 _break_ 开头，表示本场实验没有正常结束。正常结束时程序会自动改名并删除本说明。",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def write_interrupt_notes(st):
+    text = interrupt_note_text(st)
+    for path in state_mod.interrupt_note_paths(st["data_root"], st["participant_id"], st["mode"]):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         tmp_path = path + ".tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines).rstrip("\n") + "\n")
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp_path, path)
-        paths.append(path)
-    return paths
 
 
-def export_all(data_root):
-    """重新生成三张表和每位被试的实验记录 txt，返回 (问卷总表路径, 列名对照路径,
-    实验记录表路径)。"""
-    export_notes_txt(data_root)
-    return export_questionnaires_csv(data_root), export_questionnaire_codebook_csv(data_root), export_log_csv(data_root)
+def save_all(st):
+    """统一保存：state.json + 重新导出问卷表/列名对照/实验记录表/记录文字 + 更新中断说明.txt。
+    所有修改状态的地方改完后都调用它，保证任何时刻中断，磁盘上都是最新的。"""
+    state_mod.save_state(st)
+    export_all(st)
+    if st.get("broken"):
+        write_interrupt_notes(st)
+
+
+def finalize(st):
+    """正常结束：先把 _break_ 文件夹改回正式名；改名成功后才删除正式文件夹里自己生成的
+    中断说明.txt，最后按正式名重新保存导出。改名失败（抛 FileExistsError/OSError）时不删除任何东西。"""
+    if st.get("broken"):
+        state_mod.rename_to_final(st)  # 失败会直接抛出，下面的删除不会执行
+        for path in state_mod.interrupt_note_paths(st["data_root"], st["participant_id"], st["mode"], broken=False):
+            if os.path.exists(path):
+                os.remove(path)  # 程序运行时删除它自己生成的说明文件（唯一允许的删除）
+    save_all(st)
+
+
+def export_all(st):
+    """只导出这一位被试（st 为其 state 字典）的文件，包括该被试自己的列名对照。
+    返回 (问卷表路径, 列名对照路径, 实验记录表路径, 实验记录文字路径)。"""
+    notes = export_notes_txt(st)
+    return (export_questionnaires_csv(st), export_questionnaire_codebook_csv(st),
+            export_log_csv(st), notes)
