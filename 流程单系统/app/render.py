@@ -30,6 +30,11 @@ body {
     padding: 24px; margin-bottom: 16px; border-left: 6px solid #3a6b4c;
 }
 .note { font-size: 14px; color: #888; margin-bottom: 16px; }
+.iv-group { font-size: 20px; font-weight: 700; margin: 20px 0 8px; }
+.iv-q { background: #fff; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; }
+.iv-title { font-size: 15px; color: #888; margin-bottom: 6px; }
+.iv-text { font-size: 20px; line-height: 1.6; }
+.iv-follow { font-size: 17px; color: #555; margin-top: 6px; padding-left: 1.5em; }
 .midpoint-banner, .timeup-banner {
     display: none; font-size: 20px; font-weight: bold; padding: 14px 20px;
     border-radius: 8px; margin-bottom: 16px;
@@ -297,6 +302,27 @@ def instruction_block(text):
     return '<h3 class="section-label">提示语</h3><div class="instruction">%s</div>' % esc(text)
 
 
+_GROUP_DISPLAY = {"实验组": "交互组", "对照组": "观看组"}
+
+
+def interview_block(state):
+    """第 16 页访谈问题：只显示本被试组别的版本；没有组别时（调整模式未设定）两组都显示。"""
+    group = state.get("group")
+    groups = [group] if group in _GROUP_DISPLAY else ["实验组", "对照组"]
+    html = '<h3 class="section-label">访谈问题</h3>'
+    for g in groups:
+        if len(groups) > 1:
+            html += '<div class="iv-group">%s</div>' % esc(_GROUP_DISPLAY[g])
+        for item in flow.INTERVIEW_QUESTIONS:
+            question, followups = item[g]
+            html += '<div class="iv-q"><div class="iv-title">%s</div><div class="iv-text">%s</div>' % (
+                esc(item["title"]), esc(question))
+            for f in followups:
+                html += '<div class="iv-follow">追问：%s</div>' % esc(f)
+            html += "</div>"
+    return html
+
+
 def checklist_block(items, name="checked", start=0):
     """清单渲染。items 可以是字符串或 flow.warn() 的 dict；start 是这一段第一项在整页里的序号。"""
     items = flow.normalize_list(items)
@@ -551,6 +577,8 @@ def render_task_page(state, page_id, page_def):
         body += instruction_block(page_def.get("instruction"))
     if page_id == "practice":
         body += practice_guide_block()
+    if page_id == "post_interview":
+        body += interview_block(state)
 
     duration_sec = None
     timer_key = page_def.get("timer_key")
