@@ -395,6 +395,10 @@ function qSubmit(direction) {
 </script>"""
 
 
+# 2026-11-08：被试常在提交后继续乱点。每份问卷第一屏顶部和最后一屏提交按钮上方都提醒一次。
+HANDBACK_REMINDER = "答完后请点击「提交」。提交后不要再操作，把电脑交还给实验员。"
+
+
 def render_questionnaire_page(instrument_id, page_index, existing_answers):
     instrument = QUESTIONNAIRES[instrument_id]
     page = instrument["pages"][page_index]
@@ -404,6 +408,8 @@ def render_questionnaire_page(instrument_id, page_index, existing_answers):
 
     body = '<div class="qpage">'
     body += '<h2 class="stage-heading">%s</h2>' % esc(heading)
+    if page_index == 0:
+        body += '<div class="qhandback">%s</div>' % esc(HANDBACK_REMINDER)
     if page.get("intro"):
         body += '<div class="qintro">%s</div>' % esc(page["intro"])
     body += '<div id="qerror" class="qbanner-error" style="display:none"></div>'
@@ -414,6 +420,8 @@ def render_questionnaire_page(instrument_id, page_index, existing_answers):
     body += '<input type="hidden" name="qsub" value="%d">' % page_index
 
     is_last = page_index == total_pages - 1
+    if is_last:
+        body += '<div class="qhandback">%s</div>' % esc(HANDBACK_REMINDER)
     body += '<div class="qnav">'
     if page_index > 0:
         body += '<button type="button" class="secondary" onclick="qSubmit(\'prev\')">上一页</button>'
@@ -425,7 +433,8 @@ def render_questionnaire_page(instrument_id, page_index, existing_answers):
 
 def render_blank_page():
     body = """<div class="qpage" style="text-align:center; margin-top:18vh;">
-<p style="font-size:24px;">请您把电脑交还实验员，不要点击下面的按钮</p>
+<p style="font-size:32px; font-weight:700; color:#b00000;">请您把电脑交还给实验员</p>
+<p style="font-size:22px;">不要再操作，也不要点击下面的按钮</p>
 <form method="post" action="/complete">
 <div class="qnav" style="justify-content:center;"><button type="submit">进入下一阶段</button></div>
 </form></div>"""

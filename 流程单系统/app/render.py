@@ -122,6 +122,7 @@ form.inline { display: inline; }
 
 /* 问卷模式：页面加宽到 1100px，给最多选项的量表（MSBS-8，7 个选项）留出一排摆下的空间。 */
 .qpage { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+.qhandback { font-size: 20px; font-weight: 700; color: #b00000; background: #fdecea; border-left: 8px solid #b00000; border-radius: 8px; padding: 12px 18px; margin: 12px 0 20px; }
 .qintro { font-size: 17px; color: #444; background: #fff; border-radius: 10px; padding: 18px 22px; margin-bottom: 20px; }
 .qbanner-error {
     background: #ffe1e1; color: #a30000; font-size: 16px; font-weight: 600;
@@ -309,7 +310,8 @@ def interview_block(state):
     """第 16 页访谈问题：只显示本被试组别的版本；没有组别时（调整模式未设定）两组都显示。"""
     group = state.get("group")
     groups = [group] if group in _GROUP_DISPLAY else ["实验组", "对照组"]
-    html = '<h3 class="section-label">访谈问题</h3>'
+    html = ('<h3 class="section-label">访谈问题</h3>'
+            '<div class="note">只显示本被试组别的版本；回答要点随时记在下方实验记录框里。约 5 分钟。</div>')
     for g in groups:
         if len(groups) > 1:
             html += '<div class="iv-group">%s</div>' % esc(_GROUP_DISPLAY[g])
@@ -349,13 +351,22 @@ def checklist_block(items, name="checked", start=0):
     return heading + '<div class="checklist">%s</div>' % "".join(parts)
 
 
-def sections_block(page_def, fmt=None):
-    """按 flow.sections_of 的顺序渲染：提示语段念给被试，清单段出勾选框（序号接着往下数）。"""
+def sections_block(page_def, fmt=None, state=None):
+    """按 flow.sections_of 的顺序渲染：提示语段念给被试，清单段出勾选框（序号接着往下数）。
+    top_checklist 由 render_task_page 单独渲染在页面最上面，这里跳过它，序号从它之后接着数。"""
     parts = []
+    secs = flow.sections_of(page_def)
     idx = 0
-    for sec in flow.sections_of(page_def):
+    if page_def.get("top_checklist"):
+        idx = len(flow.normalize_list(page_def["top_checklist"], fmt))
+        secs = secs[1:]
+    for sec in secs:
         if "say" in sec:
             parts.append(instruction_block(sec["say"]))
+        elif "interview" in sec:
+            parts.append(interview_block(state))
+        elif "group_instruction" in sec:
+            parts.append(instruction_block(flow.GROUP_INSTRUCTIONS.get((state or {}).get("group"))))
         else:
             items = flow.normalize_list(sec.get("checklist", []), fmt)
             parts.append(checklist_block(items, start=idx))
@@ -520,7 +531,10 @@ def render_prep_page():
 
     cards.append(_prep_card("iPad 设置",
         _prep_item("iPad 屏幕亮度已设为 90%")
-        + _prep_item("iPad 音量已设为 80%")))
+        + _prep_item("iPad 音量已设为 80%")
+        + _prep_item("耳机已连上 iPad，连着耳机把音量调到 80%，戴上试听过，音量正常", "为什么要连着耳机调",
+                     "<p>iPad 接耳机和外放的音量是分开记忆的：外放时调好的音量，接上耳机后可能不一样，"
+                     "所以要连着耳机再调一次、戴上听一下。</p>")))
 
     cards.append(_prep_card("LabRecorder 数据保存",
         _prep_item("LabRecorder 的保存路径（Study Root）已设置", "保存到哪里", dirs_html)
@@ -573,12 +587,21 @@ def render_task_page(state, page_id, page_def):
     body += stage_heading(number, page_def["title"])
     if page_def.get("note"):
         body += '<div class="note">%s</div>' % esc(page_def["note"])
+
+    fmt = None
+    if page_id == "check_signal":
+        fmt = {"xdf_name": state_mod.xdf_filename(state["participant_id"], state["mode"]),
+               "pid": state["participant_id"]}
+
+    # 表单从这里开始包住整页，置顶清单（top_checklist）才能排在计时器和提示语之前。
+    body += '<form method="post" action="/complete">'
+    top_items = flow.normalize_list(page_def.get("top_checklist", []), fmt)
+    if top_items:
+        body += checklist_block(top_items, start=0)
     if "sections" not in page_def:
         body += instruction_block(page_def.get("instruction"))
     if page_id == "practice":
         body += practice_guide_block()
-    if page_id == "post_interview":
-        body += interview_block(state)
 
     duration_sec = None
     timer_key = page_def.get("timer_key")
@@ -601,15 +624,11 @@ def render_task_page(state, page_id, page_def):
     )
     body += timer_html
 
-    fmt = None
-    if page_id == "check_signal":
-        fmt = {"xdf_name": state_mod.xdf_filename(state["participant_id"], state["mode"])}
-
-    body += '<form method="post" action="/complete">'
     if "sections" in page_def:
-        body += sections_block(page_def, fmt)
+        body += sections_block(page_def, fmt, state)
     else:
-        body += checklist_block(flow.flat_checklist(page_def, fmt))
+        body += checklist_block(flow.normalize_list(page_def.get("checklist", []), fmt),
+                                start=len(top_items))
     body += notes_block(state)
     back_btn = back_button(state)
     complete_label = page_def.get("complete_label", "完成该阶段")
@@ -766,10 +785,9 @@ def render_group_page(state):
             config.RANDOMIZATION_BLOCK_SIZE, config.RANDOMIZATION_BLOCK_SIZE // 2,
             config.RANDOMIZATION_BLOCK_SIZE // 2)
     body += '<div class="note">%s</div>' % esc(basis)
-    body += instruction_block(flow.GROUP_INSTRUCTIONS.get(group))
 
     body += '<form method="post" action="/complete">'
-    body += checklist_block(page_def.get("checklist", []))
+    body += sections_block(page_def, None, state)
     body += notes_block(state)
     back_btn = back_button(state)
     body += '<div class="actions"><button type="submit" id="complete-btn">完成该阶段</button>%s</div>' % back_btn

@@ -23,6 +23,12 @@ def timer_lead_sec(page_def):
     return config.INSTRUCTION_LEAD_SEC.get(timer_key, 0)
 
 
+# 计时阶段（静息、诱导、干预）的打标签规则，2026-11-08：被试进入状态后再点开始标签；
+# 时间以 SensorBridge 的计时为准，到时先点结束标签，再告诉被试结束——保证标签窗口内没有
+# 说话、动作造成的伪迹，分析时不用再切窗。
+MARK_TITLE = "打标签（以 SensorBridge 计时为准：被试进入状态后再点开始；到时先点结束，再告诉被试）"
+
+
 def warn(text, title=None):
     """警示清单项：红色块、大字、行首带 ⚠。title 是警示区块标题，显示在同一组警示项的第一项上方。"""
     item = {"text": text, "warning": True}
@@ -33,7 +39,7 @@ def warn(text, title=None):
 
 def normalize_item(item, fmt=None):
     """清单项统一成 {"text", "warning", "title"}。item 可以是普通字符串，也可以是 warn() 返回的 dict。
-    fmt 不为空时，对文字做 str.format（目前只有第 4 页用到，填 xdf_name）。"""
+    fmt 不为空时，对文字做 str.format（目前只有第 4 页用到，填 xdf_name 和 pid）。"""
     if isinstance(item, str):
         item = {"text": item}
     text = item["text"]
@@ -47,11 +53,16 @@ def normalize_list(items, fmt=None):
 
 
 def sections_of(page_def):
-    """页面的内容段落列表：{"say": 提示语} 或 {"checklist": [...]}。
+    """页面的内容段落列表：{"say": 提示语}、{"checklist": [...]} 或 {"interview": True}（第 16 页访谈问题）。
     没有写 sections 的页面，整页就是一个 checklist 段，行为与原来一致。"""
     if "sections" in page_def:
-        return page_def["sections"]
-    return [{"checklist": page_def.get("checklist", [])}]
+        base = list(page_def["sections"])
+    else:
+        base = [{"checklist": page_def.get("checklist", [])}]
+    # top_checklist：放在页面最上面（计时器和提示语之前）的清单，序号排在最前。
+    if page_def.get("top_checklist"):
+        base = [{"checklist": page_def["top_checklist"]}] + base
+    return base
 
 
 def flat_checklist(page_def, fmt=None):
@@ -109,6 +120,7 @@ PAGES = {
                 "导出的 log.csv。路径、文件名模板怎么设，见准备检查页。",
         "checklist": [
             "PolarBridge 已打开",
+            "SensorBridge「受试者信息」已填被试编号 {pid}（与流程单、LabRecorder、VN 一致）",
             "SensorBridge 已连接 H10 并开始录制",
             "LabRecorder 文件名已设为 {xdf_name}（不含 session/分组，BIDS 已关闭）",
             "心率数据连续、数值合理",
@@ -129,12 +141,13 @@ PAGES = {
         "kind": "task",
         "instruction": "下面请您熟悉一下我们的应用，这部分是让您熟悉实验环境。",
         "note": "下方五部分按顺序讲，要点不能漏，说法可以自己组织。",
+        "top_checklist": [warn("已在 SensorBridge 点“训练开始”（下方列表），再开始练习", title="开始练习前")],
         "checklist": [
-            "已在 SensorBridge 点“训练开始”（下方列表）",
             "已在 SensorBridge 点“训练结束”（下方列表）",
             {"text": "已退出练习场回到菜单：三根手指在屏幕边角处长按，不要在屏幕中间按"
                      "（退回菜单时手指会正好落在“实验条件”等按钮上，造成误触）",
              "warning": True, "title": "退出练习场"},
+            "已把 iPad 从被试面前取走",
         ],
         "timer_key": "practice",
     },
@@ -145,7 +158,12 @@ PAGES = {
         "instruction": "接下来，请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
                         "轻轻闭上眼睛，尽可能放松。时间大约 5 分钟，到时间我会提醒您。",
         "note": None,
-        "checklist": ["已在 SensorBridge 点“基线开始”（上方按钮）", "已在 SensorBridge 点“基线结束”（下方列表）"],
+        "top_checklist": [warn("iPad 已从被试面前取走，再请被试静息", title="静息前")],
+        "checklist": [
+            warn("1. 被试坐好、闭眼、进入状态后，再在 SensorBridge 点“基线开始”（上方按钮）", title=MARK_TITLE),
+            warn("2. SensorBridge 计时到 5 分钟时，先点“基线结束”（下方列表）", title=MARK_TITLE),
+            warn("3. 点完结束标签，再告诉被试：「时间到了，请慢慢睁开眼睛。」", title=MARK_TITLE),
+        ],
         "timer_key": "rest",
     },
     "q_t1": {
@@ -169,12 +187,15 @@ PAGES = {
                         "结束。现在请开始。",
         "note": None,
         "checklist": [
-            "已在 SensorBridge 点“诱导开始”（上方按钮）",
-            "已在 SensorBridge 点“诱导结束”（上方按钮）",
+            warn("1. 被试开始书写后，再在 SensorBridge 点“诱导开始”（上方按钮）", title=MARK_TITLE),
+            warn("2. SensorBridge 计时到 4 分钟时，念中途提示（见计时器旁的提示）", title=MARK_TITLE),
+            warn("3. SensorBridge 计时到 8 分钟时，先点“诱导结束”（上方按钮）", title=MARK_TITLE),
+            warn("4. 点完结束标签，再念结束语：「时间到了，请停笔，把纸翻过来放在一边，不要给其他人看。」",
+                 title=MARK_TITLE),
             "未查看书写内容",
         ],
         "timer_key": "writing",
-        "timeup_message": "时间到了，请停笔，把纸翻过来放在一边。",
+        "timeup_message": "时间到了，请停笔，把纸翻过来放在一边，不要给其他人看。",
         "midpoint": ("writing_midpoint", "请继续写。想一想，如果这件事真的往坏的方向发展，接下来还可能发生什么。"),
     },
     "q_t2": {
@@ -190,8 +211,21 @@ PAGES = {
         "title": "揭晓组别",
         "kind": "group",
         "instruction": None,
-        "note": "分组依据见下方；确认无误后再去 VN 中选择对应条件。",
-        "checklist": ["已在 VN 中选择对应条件", "已确认 iPad 屏幕亮度 90%、音量 80%"],
+        "note": "分组依据见下方；确认无误后再按下面的顺序操作。",
+        # 2026-11-08：音量对所有被试统一（控制中心里看，与上一位被试同一格），不按个人舒适度调；
+        # 指导语念完才打开虚拟自然，两组都不会提前看到或听到内容（对照视频打开约 1 秒即开始播放）。
+        "sections": [
+            {"checklist": [
+                "1. 已在 VN 中填入组号（交互组填 1，观看组填 2）",
+                "2. 已在 iPad 控制中心确认：音量 80%（与上一位被试同一格）、屏幕亮度 90%",
+                "3. 被试先不戴耳机，念下面的干预指导语",
+            ]},
+            {"group_instruction": True},
+            {"checklist": [
+                "4. 念完后，在 VN 中打开虚拟自然（对应条件），请被试戴好耳机，开始",
+                "被试在干预中示意音量不合适时可以调整，但要在实验记录里写下时间和调整情况",
+            ]},
+        ],
         "timer_key": None,
     },
     "intervention": {
@@ -200,7 +234,12 @@ PAGES = {
         "kind": "task",
         "instruction": None,
         "note": "实验期间不与被试交流（除非被试求助、出现不适，或要求停止）。",
-        "checklist": ["已在 SensorBridge 点“干预开始”（上方按钮）", "已在 SensorBridge 点“干预结束”（上方按钮）"],
+        "checklist": [
+            warn("1. 被试进入条件后，再在 SensorBridge 点“干预开始”（上方按钮）", title=MARK_TITLE),
+            warn("2. SensorBridge 计时到 12:30 时，先点“干预结束”（上方按钮）", title=MARK_TITLE),
+            warn("3. 点完结束标签，再告诉被试：「时间到了，请停下来，把 iPad 交给我。」", title=MARK_TITLE),
+            "已收走 iPad，被试已取下耳机",
+        ],
         "timer_key": "intervention",
     },
     "q_t3a": {
@@ -219,10 +258,12 @@ PAGES = {
         "instruction": "接下来，请您用自己觉得舒服的姿势坐在椅子上，上身稍微向后靠，避免传感器移位；"
                         "轻轻闭上眼睛，尽可能放松。时间大约 5 分钟，到时间我会提醒您。",
         "note": None,
+        "top_checklist": [warn("iPad 已从被试面前取走，再请被试静息", title="静息前")],
         "checklist": [
-            "已在 SensorBridge 点“干预后静息开始”（下方列表）",
-            "已在 SensorBridge 点“干预后静息结束”（下方列表）",
-            "静息姿势与基线相同（上身靠在椅背上、闭眼），开始计时前已确认",
+            "静息姿势与基线相同（上身靠在椅背上、闭眼），打开始标签前已确认",
+            warn("1. 被试坐好、闭眼、进入状态后，再在 SensorBridge 点“干预后静息开始”（下方列表）", title=MARK_TITLE),
+            warn("2. SensorBridge 计时到 5 分钟时，先点“干预后静息结束”（下方列表）", title=MARK_TITLE),
+            warn("3. 点完结束标签，再告诉被试：「时间到了，请慢慢睁开眼睛。」", title=MARK_TITLE),
         ],
         "timer_key": "post_intervention_rest",
     },
@@ -239,9 +280,15 @@ PAGES = {
         "number": 16,
         "title": "事后访谈",
         "kind": "task",
-        "instruction": "接下来想简单问您几个问题，聊聊刚才的体验。没有对错之分，想到什么说什么就好。",
-        "note": "约 5 分钟。下方只显示本被试组别的访谈问题；回答要点随时记在实验记录框里。",
-        "checklist": ["4 个问题都已问完，回答要点已记在实验记录框"],
+        # 页面顺序：录音警示（最上面）→ 开场语 → 访谈问题 → 结束清单。
+        "note": None,
+        "sections": [
+            {"checklist": [warn("已打开录音，确认正在录制", title="访谈录音")]},
+            {"say": "接下来想简单问您几个问题，聊聊刚才的体验。没有对错之分，想到什么说什么就好。"},
+            {"interview": True},
+            {"checklist": ["4 个问题都已问完，回答要点已记在实验记录框",
+                           warn("录音已停止并保存", title="访谈录音")]},
+        ],
         "timer_key": None,
     },
     "wrapup": {
@@ -255,7 +302,7 @@ PAGES = {
         "sections": [
             {"say": "我们的实验结束了。您现在有没有什么不适？"},
             {"checklist": [
-                warn("1. LabRecorder 已点击 End，停止录制", title="停止录制（按顺序，一项一行）"),
+                warn("1. LabRecorder 已点击 Stop，停止录制", title="停止录制（按顺序，一项一行）"),
                 warn("2. PolarBridge 已按 ESC 停止", title="停止录制（按顺序，一项一行）"),
                 warn("3. SensorBridge 已点击“录制结束”", title="停止录制（按顺序，一项一行）"),
             ]},
@@ -331,10 +378,10 @@ GROUP_INSTRUCTIONS = {
     "实验组": "下面请您使用和体验正式产品。这是一个虚拟自然环境，您可以在其中自由探索，"
              "交互方式与您刚才练习过的一致。使用期间，您完全按照自己的想法与虚拟环境互动，"
              "我不会与您交流；在这期间腰背稍微挺直，避免加压传感器。如果感到不适，可以随时"
-             "示意我。使用时长大约 12 分钟，到时间我会提醒您。那请开始吧。",
+             "示意我。使用时长大约 12 分钟，到时间我会提醒您。现在请您戴好耳机，开始吧。",
     "对照组": "下面请您观看正式产品的演示视频。这是一个虚拟自然环境。观看期间您只需要看，"
              "不需要操作，我不会与您交流；在这期间腰背稍微挺直，避免加压传感器。如果感到不适，"
-             "可以随时示意我。观看时长大约 12 分钟，到时间我会提醒您。那请开始吧。",
+             "可以随时示意我。观看时长大约 12 分钟，到时间我会提醒您。现在请您戴好耳机，开始吧。",
 }
 
 PAGE_ORDER = [

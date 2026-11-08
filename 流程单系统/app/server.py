@@ -374,7 +374,8 @@ class Handler(BaseHTTPRequestHandler):
         else:
             fmt = None
             if page_id == "check_signal":
-                fmt = {"xdf_name": state_mod.xdf_filename(st["participant_id"], st["mode"])}
+                fmt = {"xdf_name": state_mod.xdf_filename(st["participant_id"], st["mode"]),
+                       "pid": st["participant_id"]}
             checklist_items = flow.flat_checklist(page_def, fmt)
             next_page = flow.NEXT_PAGE.get(page_id)
 
