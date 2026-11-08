@@ -7,6 +7,6 @@ subjects：要处理的被试。
 修改并保存后，在本目录 01_xdf_to_csv.py 点 Run。
 """
 PARAMETERS = {
-    "dataset": "pilot",
-    "subjects": "P002",
+    "dataset": "formal",
+    "subjects": "*",
 }

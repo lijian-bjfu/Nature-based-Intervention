@@ -5,7 +5,7 @@ table_flows 与 data_lab 共用本文件。运行选择、试验参数、任务�
 """
 from dataclasses import dataclass
 
-SCHEMA_VERSION = "1.4"
+SCHEMA_VERSION = "1.6"
 DATA_OBJECTS = ("track", "psycho", "physio")   # 即 pipeline，命名规范见 analysis/tools/paths.py
 MODULE_LABELS = {
     "Interactive": "自由交互体验",
@@ -20,6 +20,41 @@ VALUE_LABELS = {
     "A_gender": {0: "男", 1: "女"},
     "T0_stait_level": {0: "低焦虑", 1: "高焦虑"},
 }
+
+# 生理阶段事件（2026-11-08 定）：五个阶段各一对 start/end，共 10 个标签。
+# 依据《研究思路/实验记录-实验流程骨架.md》及研究者确认；干预后静息不称为基线。
+# 这是事件标识符，不是 VALUE_LABELS 中的整数分类变量；不包含诱导后静息。
+PHYSIO_PHASES = {
+    "training": "训练",
+    "baseline": "基线",
+    "induction": "诱导",
+    "intervention": "干预",
+    "post_intervention_rest": "干预后静息",
+}
+PHYSIO_EVENT_BOUNDARIES = {"start": "开始", "end": "结束"}
+PHYSIO_MARKER_LABELS = tuple(
+    f"{phase}_{boundary}"
+    for phase in PHYSIO_PHASES for boundary in PHYSIO_EVENT_BOUNDARIES
+)
+# 采集端中文、自带英文按钮 → 统一英文标签。标准英文自身也可直接输入。
+PHYSIO_MARKER_ALIASES = {
+    f"{name}{suffix}": f"{phase}_{boundary}"
+    for phase, name in PHYSIO_PHASES.items()
+    for boundary, suffix in PHYSIO_EVENT_BOUNDARIES.items()
+}
+PHYSIO_MARKER_ALIASES.update({
+    "stim_start": "induction_start",
+    "stim_end": "induction_end",
+    # 兼容先前短暂使用的名称；它们不是标准标签。
+    "干预后基线开始": "post_intervention_rest_start",
+    "干预后基线结束": "post_intervention_rest_end",
+    "post_intervention_baseline_start": "post_intervention_rest_start",
+    "post_intervention_baseline_end": "post_intervention_rest_end",
+})
+# markers.csv：label 存规范名称，label_raw 原样保留采集标签；未知标签原样保留并在报告提示。
+# gap_* 是质量记录，单独进入 gaps.csv，不做阶段映射。stop 等旧标签不猜测其阶段含义。
+# 仅规范名称，不补配对、不改顺序或时间；误打/漏打留给人工更正流程。
+
 # raw 目录结构（2026-11-04 起，三个 pipeline 与 session_notes 相同）：
 #   data/<dataset>/raw/<pipeline>/sub-P001/<该被试的记录文件>
 # 每名被试一个 sub-P### 文件夹；不用于分析的文件放在被试文件夹下的 _excluded/，读取时跳过。
@@ -300,6 +335,17 @@ def table_columns(table, source="track"):
     return tuple(column(table, field, source) for field in SCHEMAS[source][table])
 
 def validate():
+    expected_markers = {
+        f"{phase}_{boundary}"
+        for phase in PHYSIO_PHASES for boundary in PHYSIO_EVENT_BOUNDARIES
+    }
+    if len(PHYSIO_MARKER_LABELS) != len(expected_markers) or set(PHYSIO_MARKER_LABELS) != expected_markers:
+        raise ValueError("physio: 标准事件标签必须由全局阶段及开始/结束边界生成，且不得重复")
+    for alias, target in PHYSIO_MARKER_ALIASES.items():
+        if target not in expected_markers:
+            raise ValueError(f"physio: 标签别名 {alias!r} 指向非标准标签 {target!r}")
+        if alias in expected_markers and alias != target:
+            raise ValueError(f"physio: 标签别名不得重新解释标准标签 {alias!r}")
     for source, tables in SCHEMAS.items():
         for table in tables:
             columns = table_columns(table, source)

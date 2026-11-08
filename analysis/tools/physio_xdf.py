@@ -20,6 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
+from global_settings import PHYSIO_MARKER_ALIASES, PHYSIO_MARKER_LABELS, validate as validate_settings
 from paths import layer_dir
 
 # 期望的流类型（报告中逐条检查）
@@ -51,7 +52,8 @@ OUTPUTS = {
     ],
     "markers.csv": [
         ("time_lsl", "LSL 时间（秒，xdf 时间戳）"),
-        ("label", "事件标签（不以 gap_ 开头的标记）"),
+        ("label", "规范英文事件标签（global_settings.PHYSIO_MARKER_LABELS；未知标签保留原文）"),
+        ("label_raw", "采集端原始事件标签（原样保存）"),
     ],
     "gaps.csv": [
         ("time_lsl", "LSL 时间（秒，xdf 时间戳）"),
@@ -164,12 +166,15 @@ def numeric_rows(stream, ncols):
 
 
 def split_markers(stream):
-    """Markers 流：标签以 gap_ 开头的进断流表，其余进标记表。标签原样保存。"""
+    """gap_ 原样进断流表；事件名称按全局词表转换，另保留 label_raw。"""
     markers, gaps = [], []
     for t, sample in zip(stream["time_stamps"], stream["time_series"]):
         items = flat(sample)
         label = str(items[0]) if items else ""
-        (gaps if label.startswith(GAP_PREFIX) else markers).append([float(t), label])
+        if label.startswith(GAP_PREFIX):
+            gaps.append([float(t), label])
+        else:
+            markers.append([float(t), PHYSIO_MARKER_ALIASES.get(label, label), label])
     return markers, gaps
 
 
@@ -267,9 +272,14 @@ def build_report(xdf_name, dt, streams, written, missing, udp, marker_counts, ma
 
     add(f"[四] markers.csv 全部标记（共 {len(marker_items)} 条，不含 gap_ 断流记录）")
     if marker_items:
-        add("  time_lsl（秒）          label")
-        for t, label in marker_items:
-            add(f"  {t:<22.4f}  {label}")
+        add("  time_lsl（秒）          label / label_raw")
+        for t, label, raw in marker_items:
+            add(f"  {t:<22.4f}  {label} / {raw}")
+        unknown = Counter(label for _, label, _ in marker_items if label not in PHYSIO_MARKER_LABELS)
+        if unknown:
+            add("  注意：以下标签未纳入全局阶段词表，已保留原文（不自动纠正）：")
+            for label, count in unknown.items():
+                add(f"    {label!r}：{count} 条")
     else:
         add("  （无）")
     return "\n".join(lines) + "\n"
@@ -384,6 +394,7 @@ def xdf_files(raw_physio, subject):
 
 def run(dataset, subjects="*"):
     """处理一个数据集中的被试。返回每个 xdf 的处理摘要列表。"""
+    validate_settings()
     try:
         import pyxdf
     except ImportError as error:
