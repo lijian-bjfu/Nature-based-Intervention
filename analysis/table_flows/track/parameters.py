@@ -8,7 +8,7 @@
 指标的口径与参数不在这里改：它们登记在 global_settings.METRICS["track"]，定义见《研究思路/实验记录-埋点.md》第十节。
 """
 PARAMETERS = {
-    "dataset": "pilot",
+    "dataset": "formal",
     "subjects": "*",
     "runs": {},
 }
