@@ -14,9 +14,9 @@
 #   想临时试别的值，可写成 {"min_seconds": 10.0, "radius_m": 2.0}。页面上也可以随时拖动调整。
 PARAMETERS = {
     "selection": {
-        "dataset": "pilot",
-        "subject": "P002",
-        "run": "001",
+        "dataset": "formal",
+        "subject": "P001",
+        "run": None,
     },
     "stay": {
         "still_step_m": 0.03,
@@ -47,8 +47,8 @@ import pandas as pd
 
 import global_settings as settings
 from safe_io import retire_dir  # 旧目录移到 _to_delete，不直接删除
-from data_access import find, load, load_geo
-from track_metrics import clean_legacy, Pose, classify_taps, classify_drags, pauses
+from data_access import find, load, load_geo, load_physio as load_physio_tables
+from track_metrics import clean_legacy, Pose, classify_taps, classify_drags, pauses, analysis_window
 from artifacts import sha256, write_json, settings_snapshot
 from options import positive
 from paths import ROOT, ANALYSIS, DATASETS, GEO_ANNOTATION, layer_dir
@@ -145,46 +145,42 @@ def load_card(cfg):
 
 
 def load_physio(cfg, tb, t_end):
-    """同一被试的生理数据（processed/physio/sub-P###/merged/）换算到会话时间。读不到时返回"无生理数据"，不报错。
+    """同一被试的生理数据（经 data_access.load_physio 取得）换算到会话时间。读不到时返回"无生理数据"，不报错。
+    来源按 data_access 的规则：HR 取 merged/；RR 优先 clean/（05 清理后），无则退回 merged/；事件优先 events/（03 更正后），无则退回 merged/。
     会话时间 = t_unix − offset，offset = median(spacetime.t_device − spacetime.t_session)；只保留 [0, t_end] 内的部分。
     跳变不在这里算，由页面按当前阈值计算。只读。"""
-    empty = {"has": False, "offset": None, "n_hr": 0, "n_rr": 0, "n_markers": 0,
+    empty = {"has": False, "offset": None, "n_hr": 0, "n_rr": 0, "n_markers": 0, "sources": {},
              "hr": {"t": [], "bpm": []}, "rr": {"t": [], "ms": [], "seg": []}, "markers": {"t": [], "label": []}}
-    folder = layer_dir(cfg["dataset"], "processed", "physio") / f"sub-{cfg['subject']}" / "merged"
-    if not (folder / "hr.csv").is_file() and not (folder / "rr.csv").is_file():
-        return empty
+    ph = load_physio_tables(cfg["dataset"], cfg["subject"])
+    src = ph["sources"]
+    if ph["hr"] is None and ph["rr"] is None:
+        return {**empty, "sources": src}
     st = tb["spacetime"]
     td = st[settings.column("spacetime", "t_device")].to_numpy(dtype=float, na_value=np.nan)
     ts = st[settings.column("spacetime", "t_session")].to_numpy(dtype=float, na_value=np.nan)
     diff = (td - ts)[np.isfinite(td - ts)]
     if not len(diff):
-        return empty
+        return {**empty, "sources": src}
     offset = float(np.median(diff))
 
-    def read(name, value_col):
-        p = folder / name
-        if not p.is_file():
-            return np.array([]), np.array([]), np.array([], dtype=int)
-        df = pd.read_csv(p)
-        if "t_unix" not in df.columns or value_col not in df.columns:
+    def read(df, value_col):
+        if df is None or "t_unix" not in df.columns or value_col not in df.columns:
             return np.array([]), np.array([]), np.array([], dtype=int)
         tt = df["t_unix"].to_numpy(dtype=float) - offset
         vv = df[value_col].to_numpy(dtype=float)
-        # 记录段号（part 列）：页面判定 RR 跳变时只与同一段内的前一个比较，与生理工具 03 一致
-        sg = pd.factorize(df["part"])[0] if "part" in df.columns else np.zeros(len(df), dtype=int)
+        # 记录段号（segment 列）：页面判定 RR 跳变时只与同一段内的前一个比较，与生理工具 03 一致
+        sg = df["segment"].to_numpy(dtype=int) if "segment" in df.columns else np.zeros(len(df), dtype=int)
         keep = np.isfinite(tt) & np.isfinite(vv) & (tt >= 0) & (tt <= t_end)
         return tt[keep], vv[keep], sg[keep]
-    ht, hv, _ = read("hr.csv", "bpm")
-    rt, rv, rs = read("rr.csv", "ms")
+    ht, hv, _ = read(ph["hr"], "bpm")
+    rt, rv, rs = read(ph["rr"], "ms")
     mt, ml = np.array([]), []
-    mp = folder / "markers.csv"
-    if mp.is_file():
-        df = pd.read_csv(mp)
-        if {"t_unix", "label"} <= set(df.columns):
-            tt = df["t_unix"].to_numpy(dtype=float) - offset
-            keep = np.isfinite(tt) & (tt >= 0) & (tt <= t_end)
-            mt, ml = tt[keep], df["label"].astype(str).to_numpy()[keep].tolist()
-    return {"has": bool(len(ht) or len(rt)), "offset": r(offset, 3), "n_hr": int(len(ht)), "n_rr": int(len(rt)), "n_markers": int(len(mt)),
+    df = ph["events"]
+    if df is not None and {"t_unix", "label"} <= set(df.columns):
+        tt = df["t_unix"].to_numpy(dtype=float) - offset
+        keep = np.isfinite(tt) & (tt >= 0) & (tt <= t_end)
+        mt, ml = tt[keep], df["label"].astype(str).to_numpy()[keep].tolist()
+    return {"has": bool(len(ht) or len(rt)), "offset": r(offset, 3), "n_hr": int(len(ht)), "n_rr": int(len(rt)), "n_markers": int(len(mt)), "sources": src,
             "hr": {"t": [r(v, 2) for v in ht], "bpm": [r(v, 1) for v in hv]},
             "rr": {"t": [r(v, 2) for v in rt], "ms": [r(v, 1) for v in rv], "seg": [int(v) for v in rs]},
             "markers": {"t": [r(v, 2) for v in mt], "label": ml}}
@@ -255,6 +251,8 @@ def build(cfg):
                           "taps": int(((tap_t >= t0) & (tap_t <= t1)).sum()),
                           "touched": int(((touched_t >= t0) & (touched_t <= t1)).sum())})
     physio = load_physio(cfg, tb, duration)
+    win = analysis_window(cfg["dataset"], cfg["subject"], tb)    # 与制表同一个函数；这里再按记录覆盖范围裁剪，与 compute_record 一致
+    win = {**win, "start": max(0.0, win["start"]), "end": min(win["end"], duration)}
     card = load_card(cfg)
     notes = [
         f"停留图层：相邻采样水平位移 ≤ {cfg['still_step']:g} m 算没动，连续没动 ≥ {cfg['min_stay']:g} s 画成一次停留，见《实验记录-埋点》10.1。",
@@ -265,7 +263,10 @@ def build(cfg):
         "空间结构来自 Unity 地理空间标注导出，" + f"导出于 {geo.get('exported_at')}（Unity 提交 {str(geo.get('unity_commit'))[:8]}）。",
         "区域、桥内停留时间按轨迹采样落在多边形内的时间累加（单步间隔超过 1 s 的按 1 s 计）。",
         "滚轮缩放，拖动平移，双击范围聚焦；颜色与图层开关保存在本机浏览器。",
-        "生理数据（心率 HR、RR 间期）来自 processed/physio 的 merged/，按 iPad 与手机系统时间对齐：会话时间 = 生理时间戳 − offset，offset 取埋点中设备时间与会话时间之差的中位数。跳变按页面上的阈值实时判定，仅供观察。",
+        f"灰色部分不计入埋点指标：埋点指标只算分析窗口 {win['start']:.1f}–{win['end']:.1f} s（会话时间；"
+        + ("生理 03 更正后的 intervention_start 到 intervention_end" if win["source"] == "events" else "没有可用的生理事件，退路：从 App 记录起点起的备用时长，可能混入干预前内容")
+        + "），见 global_settings.TRACK_ANALYSIS_WINDOW。时间轴与生理面板上窗口外的部分用浅灰底标出。",
+        "生理数据（心率 HR、RR 间期、阶段标记）经 data_access.load_physio 读取：HR 取 merged/，RR 优先取 clean/（05 清理后，已去掉 handling = 4），无则退回 merged/（未清理），标记优先取 events/（03 更正后），无则退回 merged/；实际来源见终端输出。按 iPad 与手机系统时间对齐：会话时间 = 生理时间戳 − offset，offset 取埋点中设备时间与会话时间之差的中位数。跳变按页面上的阈值实时判定，仅供观察。",
     ]
     data = {
         "meta": {"dataset": cfg["dataset"], "record": folder.name, "duration": r(duration, 2), "generated": now()[:16].replace("T", " "), "subject": cfg["subject"],
@@ -275,8 +276,9 @@ def build(cfg):
         "geo": {"polygons": geo["polygons"], "air_walls": geo["air_walls"], "bounds": geo["bounds"]},
         "path": {"t": [r(v, 2) for v in t], "x": [r(v, 2) for v in x], "z": [r(v, 2) for v in z], "yaw": [r(v, 1) for v in yaw]},
         "card": card,
+        "window": {"source": win["source"], "start": r(win["start"], 3), "end": r(win["end"], 3), "reason": win["reason"]},
         "hr": physio["hr"], "rr": physio["rr"], "physio_markers": physio["markers"],
-        "physio": {k: physio[k] for k in ("has", "offset", "n_hr", "n_rr", "n_markers")},
+        "physio": {k: physio[k] for k in ("has", "offset", "n_hr", "n_rr", "n_markers", "sources")},
         "stays": stay_list, "taps": taps, "looks": looks, "drags": drags, "backsteps": backsteps, "events": events, "glitches": glitches,
     }
     return folder, data
@@ -313,7 +315,10 @@ def main():
     ph = data["physio"]
     print("问卷：" + (" ｜ ".join(f"{r['tp']}：" + " · ".join(f"{c['name']} {c['text']}" for c in r["items"]) for r in data["card"]["rows"]) if data["card"]["has"] else "无（需先运行 table_flows/psycho 的 01–03）"))
     print(f"数据：{cfg['dataset']}／{folder.name}")
-    print(f"生理数据：" + (f"HR {ph['n_hr']} 条，RR {ph['n_rr']} 条，标记 {ph['n_markers']} 个，offset {ph['offset']} s" if ph["has"] else "无（需先运行 table_flows/physio 的 01、02）"))
+    print("生理数据来源：" + "；".join(f"{k} ← {v or '无'}" for k, v in ph["sources"].items()))
+    print(f"生理数据：" + (f"HR {ph['n_hr']} 条，RR {ph['n_rr']} 条，标记 {ph['n_markers']} 个，offset {ph['offset']} s" if ph["has"] else "无（该被试在 processed/physio 下没有 hr / rr，或埋点缺设备时间）"))
+    print(f"埋点分析窗口：来源 {data['window']['source']}，会话时间 {data['window']['start']:.3f} – {data['window']['end']:.3f} s"
+          + (f"（{data['window']['reason']}）" if data["window"]["reason"] else ""))
     print(f"在浏览器中打开：{dest / OUTPUT_NAME}")
 
 
@@ -338,6 +343,10 @@ SCRIPT_HISTORY = [
      "summary": "加入生理面板：读取同一被试 processed/physio 的 merged/（hr、rr、markers），按 t_device 与 t_session 的 offset 换算为会话时间并嵌入页面；跳变由页面按阈值计算。"},
     {"at": "2026-11-04T20:00:00+08:00", "action": "modified",
      "summary": "左上角改为被试信息卡：组别、性别、年龄与各时间点问卷结果（读 processed/psycho/scores_wide.csv，对照表 QUESTIONNAIRE_CARD 只用于显示）。"},
+    {"at": "2026-11-09T12:00:00+08:00", "action": "modified",
+     "summary": "生理数据改为通过 data_access.load_physio 读取：RR 优先 clean/（去掉 handling = 4，段号取 segment），事件优先 events/；无则退回 merged/；终端与页面说明如实写明来源。"},
+    {"at": "2026-11-10T00:00:00+08:00", "action": "modified",
+     "summary": "标出埋点分析窗口：调用 track_metrics.analysis_window（与制表同一函数），时间轴与生理面板上窗口外用浅灰底标出，页面说明写明灰色部分不计入埋点指标，终端打印窗口来源与起止。"},
 ]
 
 if __name__ == "__main__":

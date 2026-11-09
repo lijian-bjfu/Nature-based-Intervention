@@ -28,6 +28,8 @@ from physio_xdf import check_inside, write_csv, list_subjects, normalize_subject
 # 拼接的表（工具 01 的输出中与时间有关的表；udp_clock.csv 不拼接）
 TABLES = ["ecg.csv", "acc.csv", "hr.csv", "rr.csv", "markers.csv", "gaps.csv"]
 MERGED_DIR = "merged"
+SEGMENT_MARKER = "header.json"  # 工具 01 为每个录制段写出的标志文件
+SKIP_DIRS = {MERGED_DIR, "clean", "events"}
 # 北京时间 UTC+8。中国大陆自 1991 年起不再使用夏令时，固定偏移即可，不依赖时区数据库。
 TZ_BEIJING = timezone(timedelta(hours=8))
 SEGMENT_COLUMNS = ["part", "start_unix", "end_unix", "start_local", "end_local",
@@ -66,8 +68,14 @@ def read_table(path):
 
 
 def list_segments(subject_dir):
-    """被试文件夹下的各段（工具 01 生成的子文件夹），跳过 merged/。"""
-    return sorted(p for p in subject_dir.iterdir() if p.is_dir() and p.name != MERGED_DIR)
+    """被试文件夹下的各录制段（工具 01 的输出文件夹）。
+
+    判定：文件夹内有工具 01 写出的标志文件 header.json；
+    另外显式跳过以 _ 开头的文件夹，以及 merged、clean、events（其它工具的输出）。
+    """
+    return sorted(p for p in subject_dir.iterdir()
+                  if p.is_dir() and not p.name.startswith("_")
+                  and p.name not in SKIP_DIRS and (p / SEGMENT_MARKER).is_file())
 
 
 def load_tables(seg_dir):
@@ -319,4 +327,9 @@ def run(dataset, subjects="*"):
               f"；未拼入 {', '.join(summary['excluded']) or '无'}")
         print(f"       输出：{summary['merged_dir']}")
         summaries.append(summary)
+    print("-" * 60)
+    root = processed.resolve()
+    print(f"合并结果：{root}/sub-P###/merged/")
+    print(f"每人一份：{root}/sub-P###/merged/（ecg、acc、hr、rr、markers、gaps、segments 和 report.txt）")
+    print("看什么：一般不用逐个看；report.txt 中\"未能对齐（未拼入）\"的段，要确认是否合理。")
     return summaries

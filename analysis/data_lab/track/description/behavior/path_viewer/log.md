@@ -45,3 +45,21 @@
 **做法**：左上角原来的标题与记录信息换成被试信息卡：被试编号、组别／性别／年龄，一行灰字的数据集／记录名／时长／生成时间，以及 T0–T3 的问卷结果（"标签 均值 / 满分"）。数据读自 `processed/psycho/scores_wide.csv`；显示项、来源列、除数、满分写在 `path_viewer.py` 的 `QUESTIONNAIRE_CARD`（特质焦虑 ÷ 20、状态焦虑 ÷ 6 还原成均值，VAS 与晕动取整）。问卷结果可折叠，状态存本机浏览器；没有文件或没有该被试时显示提示，其余照常。被试仍由 PARAMETERS 指定。
 
 **检查**：pilot／P001（run=None 取到 run-003）、P002（run-001）两页生成成功，`node --check` 语法通过；test／P000（该套数据没有问卷结果文件）卡片显示提示。
+
+## 2026-11-09　生理数据改为通过 data_access.load_physio 读取
+
+**为什么做**：取数一律走 data_access.py，不在脚本里拼路径；同时让浏览页用上更正后的事件与清理后的 RR。
+
+**做法**：data_access.py 新增 `load_physio(dataset, subject)`，返回 hr、rr、events、windows 与 sources。HR 取 merged/；RR 优先 clean/rr.csv（去掉 handling = 4，段号取 segment），无则退回 merged/rr.csv（段号由 part 编号，标注"未经 05 清理"）；事件优先 events/markers.csv，无则退回 merged/markers.csv（标注"未经 03 更正"）。path_viewer 的 `load_physio` 改为调用它，时间对齐（offset）与 [0, 时长] 截取不变；终端打印各项实际来源，页面说明文字如实写明来源。viewer_template.html 未改。
+
+**检查**：formal／P001（run=None 取到 run-001）：hr ← merged/hr.csv；rr ← clean/rr.csv；events ← events/markers.csv；windows ← events/windows.csv。HR 1204 条，RR 1992 条，标记 4 个，offset 1794123194.781 s。
+
+**补充（同日）**：viewer_template.html 中两处"需先运行 table_flows/physio 的 01、02"的无数据提示，改为"processed/physio 下没有该被试的 hr 或 rr，或埋点缺设备时间"。
+
+## 2026-11-10　标出埋点分析窗口
+
+**为什么做**：埋点指标改为只算干预窗口（global_settings.TRACK_ANALYSIS_WINDOW，2026-11-10 研究者确认），浏览页需要让人一眼看出哪一段计入指标。
+
+**做法**：path_viewer.py 调用 track_metrics.analysis_window（与 table_flows/track/02 是同一个函数，不另写一份）取得窗口，并按记录覆盖范围裁剪（与 compute_record 一致）后写入页面数据。viewer_template.html 在时间轴和生理面板（HR、RR 两格）上把窗口外的部分用浅灰底标出；说明里写明"灰色部分不计入埋点指标"及窗口来源；终端打印窗口来源与起止（会话时间）。其他显示不变。
+
+**检查**：formal／P001（run-001）：窗口来源 events，会话时间 2.858 – 724.037 s；`node --check` 语法通过。

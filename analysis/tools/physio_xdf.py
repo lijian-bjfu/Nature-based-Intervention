@@ -423,4 +423,9 @@ def run(dataset, subjects="*"):
         print(f"[完成] {xdf.name}：写出 {len(summary['written'])} 个 csv，缺失 {missing}")
         print(f"       输出：{out_dir}")
         summaries.append(summary)
+    print("-" * 60)
+    root = processed.resolve()
+    print(f"各段导出位置：{root}/sub-P###/<段名>/")
+    print(f"每人一份：{root}/sub-P###/<段名>/report.txt")
+    print("看什么：一般不用逐个看；report.txt 中写\"缺失\"的数据流，表示该录制没有对应数据，需要时再核对。")
     return summaries

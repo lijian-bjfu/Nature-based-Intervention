@@ -159,7 +159,7 @@ html,body{overflow-x:hidden}
       <input type="range" id="t1" min="0" max="1000" value="1000">
     </div>
     <div id="physio"><canvas id="pcanvas"></canvas></div>
-    <div id="physNone" style="display:none">该被试没有生理数据（需先运行 table_flows/physio 的 01、02）</div>
+    <div id="physNone" style="display:none">该被试没有生理数据（processed/physio 下没有该被试的 hr 或 rr，或埋点缺设备时间）</div>
   </footer>
 </div>
 <div id="tip"></div>
@@ -181,6 +181,9 @@ function viridis(u){ u=Math.min(1,Math.max(0,u))*(VIR.length-1); const i=Math.fl
   return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`; }
 
 const T_END = D.meta.duration;
+const WIN = D.window;   // 埋点分析窗口（会话时间）；窗口外用浅灰底标出，不计入埋点指标
+const GREY = "rgba(95,100,110,.2)";
+function greyOutside(c, X, y0, y1){ const a=X(WIN.start), b=X(WIN.end); if(a>0) c.fillRect(0,y0,a,y1-y0); if(b<X(T_END)) c.fillRect(b,y0,X(T_END)-b,y1-y0); }
 let tWin=[0,T_END];
 let tapPos="cam", pathMode="time", tapFilter="all";
 
@@ -546,6 +549,7 @@ function drawTimeline(){
   const c=cv.getContext("2d"); c.scale(devicePixelRatio,devicePixelRatio); const W=r.width,H=r.height;
   for(let x=0;x<W;x++){ c.fillStyle=viridis(x/W); c.fillRect(x,0,1,H*0.42); }
   c.fillStyle="#eef0f2"; c.fillRect(0,H*0.42,W,H*0.58);
+  c.fillStyle="rgba(235,236,238,.78)"; greyOutside(c,t=>t/T_END*W,0,H);   // 窗口外：浅灰底，不计入埋点指标
   dwells.forEach(d=>{ c.fillStyle="rgba(240,160,48,.75)"; c.fillRect(d.t0/T_END*W,H*0.42,Math.max(1,(d.t1-d.t0)/T_END*W),H*0.06); });
   D.stays.forEach(s=>{ c.fillStyle="rgba(123,79,163,.45)"; c.fillRect(s.t0/T_END*W,H*0.46,Math.max(1,(s.t1-s.t0)/T_END*W),H*0.22); });
   D.taps.forEach(tp=>{ c.fillStyle=tp.touched?"#e0a800":(tp.block==="NotBlocked"?"#4a6fa5":"#d03030"); c.fillRect(tp.t/T_END*W,H*0.72,1.4,H*0.28); });
@@ -595,6 +599,7 @@ function buildPhysioBase(){
   spec.forEach((s,k)=>{
     const p=panes[k], y0=p.y0+PH_TOP, y1=p.y1-3, [lo,hi]=phRange(s.v), Y=v=>y1-(v-lo)/(hi-lo)*(y1-y0);
     c.fillStyle="#eef0f2"; c.fillRect(0,p.y0,W,p.y1-p.y0);
+    c.fillStyle="#d2d5da"; greyOutside(c,X,p.y0,p.y1);   // 窗口外：浅灰底，不计入埋点指标
     c.font="9px sans-serif"; c.textBaseline="middle"; c.lineWidth=1;
     [lo,(lo+hi)/2,hi].forEach((v,i)=>{ const y=Y(v); c.strokeStyle="rgba(0,0,0,.08)"; c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); });
     // 数据
@@ -687,7 +692,7 @@ function setJump(v){
   $("#phOn").checked=phOn;
   $("#phNote").textContent=PH.has
     ?`生理数据已按 iPad 与手机系统时间对齐（两台设备自动校时，误差通常在 1 秒内）。offset ${PH.offset} s；HR ${PH.n_hr} 条，RR ${PH.n_rr} 条，标记 ${PH.n_markers} 个。`
-    :"该被试没有生理数据（需先运行 table_flows/physio 的 01、02）。";
+    :"该被试没有生理数据（processed/physio 下没有该被试的 hr 或 rr，或埋点缺设备时间）。";
   $("#phOn").onchange=e=>{ phOn=e.target.checked; store.set("phys_on",phOn); setPhysioVisible(); };
   $("#jpT").oninput=e=>setJump(e.target.value); $("#jpTn").onchange=e=>setJump(e.target.value);
   $("#jpReset").onclick=()=>setJump(JP_DEFAULT);

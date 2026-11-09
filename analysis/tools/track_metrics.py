@@ -259,6 +259,54 @@ def classify_drags(tables, pose, taps):
     return pd.DataFrame(rows, columns=cols)
 
 
+# ───────────────────────── 分析窗口 ─────────────────────────
+def analysis_window(dataset, subject, tables):
+    """埋点分析窗口（会话时间，秒）：global_settings.TRACK_ANALYSIS_WINDOW。路径浏览页与制表都调用这里。
+    取生理 03 更正后的两个事件（各须恰好一条），按 offset = median(t_device − t_session) 换算为会话时间；
+    没有生理数据或事件不全时，用 [0, fallback_duration_s]。
+    返回 {"source": "events" | "fallback", "start": s, "end": s, "reason": 说明}（end 为名义值，尚未按记录覆盖范围裁剪）。"""
+    from data_access import load_physio
+    W = settings.TRACK_ANALYSIS_WINDOW
+    fb = lambda why: {"source": "fallback", "start": 0.0, "end": float(W["fallback_duration_s"]), "reason": why}
+    ph = load_physio(dataset, subject)
+    ev = ph["events"]
+    if ev is None or not {"t_unix", "label"} <= set(ev.columns):
+        return fb("没有生理事件，窗口取 App 记录起点起的备用时长")
+    labels = W["events"]
+    times = []
+    for lab in labels:
+        hit = ev.loc[ev["label"].astype(str) == lab, "t_unix"].to_numpy(dtype=float)
+        if len(hit) != 1:
+            return fb(f"生理事件 {lab} 有 {len(hit)} 条（须恰好 1 条），窗口取 App 记录起点起的备用时长")
+        times.append(float(hit[0]))
+    st = tables["spacetime"]
+    diff = (st[settings.column("spacetime", "t_device")].to_numpy(dtype=float, na_value=np.nan)
+            - st[settings.column("spacetime", "t_session")].to_numpy(dtype=float, na_value=np.nan))
+    diff = diff[np.isfinite(diff)]
+    if not len(diff):
+        return fb("埋点缺设备时间，无法对齐生理事件，窗口取 App 记录起点起的备用时长")
+    offset = float(np.median(diff))
+    a, b = times[0] - offset, times[1] - offset
+    if not b > a:
+        return fb(f"生理事件 {labels[1]} 不晚于 {labels[0]}，窗口取 App 记录起点起的备用时长")
+    return {"source": "events", "start": a, "end": b, "reason": ""}
+
+
+def restrict_to_window(tables, start, end):
+    """所有埋点表只保留会话时间落在 [start, end] 内的行（look 按开始时间；session 表不动）。原表不改。"""
+    out = {}
+    for name, frame in tables.items():
+        if name == "session" or len(frame) == 0:
+            out[name] = frame
+            continue
+        fld = "t_session" if "t_session" in settings.TRACK_SCHEMA[name] else "t_session_start"
+        t = frame[settings.column(name, fld)].to_numpy(dtype=float, na_value=np.nan)
+        f = frame[(t >= start) & (t <= end)].reset_index(drop=True)
+        f.attrs.update(frame.attrs)
+        out[name] = f
+    return out
+
+
 # ───────────────────────── 汇总 ─────────────────────────
 @dataclass
 class RecordResult:
@@ -272,14 +320,28 @@ class RecordResult:
     stays: list = field(default_factory=list)
 
 
-def compute_record(tables, scene: SceneGeometry):
+def compute_record(tables, scene: SceneGeometry, window=None):
+    """window：analysis_window 的返回值；None 时用 [0, fallback_duration_s]（来源记为 fallback）。
+    只计算窗口内的部分；记录没有覆盖整个窗口时取实际覆盖的部分，并在 summary["note"] 注明。"""
     tables = clean_legacy(tables)
-    pose = Pose.from_tables(tables)
+    if window is None:
+        window = {"source": "fallback", "start": 0.0, "end": float(settings.TRACK_ANALYSIS_WINDOW["fallback_duration_s"]),
+                  "reason": "未给定窗口，取 App 记录起点起的备用时长"}
     sess = tables["session"]
     start = sess[settings.column("session", "t_device_start")].iloc[0]
     end = sess[settings.column("session", "t_device_end")].iloc[0]
     complete = pd.notna(end)
-    duration = float(end - start) if complete else float(pose.t[-1])
+    full_pose = Pose.from_tables(tables)
+    rec_end = float(end - start) if complete else float(full_pose.t[-1])   # 记录覆盖到的会话时间
+    w0, w1 = max(0.0, window["start"]), min(window["end"], rec_end)
+    notes = [window["reason"]] if window["reason"] else []
+    if w0 > window["start"] + 1e-9 or w1 < window["end"] - 1e-9:
+        notes.append(f"记录只覆盖窗口的一部分：名义窗口 {window['start']:.3f}–{window['end']:.3f} s，实际取 {w0:.3f}–{w1:.3f} s")
+    if not w1 > w0:
+        raise ValueError(f"分析窗口 {window['start']:.3f}–{window['end']:.3f} s 与记录范围 0–{rec_end:.3f} s 没有重叠")
+    tables = restrict_to_window(tables, w0, w1)
+    pose = Pose.from_tables(tables)
+    duration = float(w1 - w0)
     minutes = duration / 60.0
 
     stays, sw = stay_walk(pose)
@@ -319,7 +381,8 @@ def compute_record(tables, scene: SceneGeometry):
 
     # 每分钟（报告）
     nmin = int(np.ceil(duration / 60.0))
-    edges = np.arange(nmin + 1) * 60.0
+    edges = w0 + np.arange(nmin + 1) * 60.0   # 每分钟从窗口起点算起
+    edges[-1] = w1 + 1e-9
     cnt = lambda v: np.histogram(v, bins=edges)[0] if len(v) else np.zeros(nmin, int)
     in_stay = np.zeros(len(dt), bool)
     for a_, e_ in stays:
@@ -335,6 +398,7 @@ def compute_record(tables, scene: SceneGeometry):
     gl_status = _txt(tables, "tech_glitch", "status") if _present(tables, "tech_glitch") else np.array([])
     gl_dur = _col(tables, "tech_glitch", "duration") if _present(tables, "tech_glitch") else np.array([])
     s = {
+        "window_source": window["source"], "window_start_s": round(w0, 3), "window_end_s": round(w1, 3), "note": "；".join(notes),
         "duration_s": duration, "complete": bool(complete),
         "stay_n": sw["stay_n"], "stay_s": sw["stay_s"], "stay_share": sw["stay_s"] / duration,
         "walk_s": sw["walk_s"], "walk_share": sw["walk_s"] / duration, "walk_path_m": sw["walk_path_m"],
@@ -346,7 +410,7 @@ def compute_record(tables, scene: SceneGeometry):
         "no_move_tap_n": int(taps.no_move.sum()) if len(taps) else 0,
         "approach_n": int(taps.approach.sum()) if len(taps) else 0,
         "touch_n": int(taps.touched.sum()) if len(taps) else 0,
-        "first_touch_s": float(taps.t[taps.touched].min()) if len(taps) and taps.touched.any() else np.nan,
+        "first_touch_s": float(taps.t[taps.touched].min() - w0) if len(taps) and taps.touched.any() else np.nan,
         "touched_ap_n": int((ap_df.touch_n > 0).sum()),
         "backstep_n": int(len(bs)) if _present(tables, "backstep") else 0,
         "look_n": int(len(looks)), "look_yaw_deg": float(looks.yaw_deg.sum()) if len(looks) else 0.0,
@@ -365,7 +429,10 @@ def compute_record(tables, scene: SceneGeometry):
 
 # 宽表列的顺序与中文说明（供制表与报告使用）
 SUMMARY_COLUMNS = {
-    "duration_s": "会话时长（s）", "complete": "会话正常结束（有 t_device_end）",
+    "window_source": "分析窗口来源（events = 生理事件；fallback = 备用：App 记录起点起的固定时长）",
+    "window_start_s": "分析窗口起点（会话时间，s）", "window_end_s": "分析窗口终点（会话时间，s；已按记录覆盖范围裁剪）",
+    "note": "备注（窗口退路原因、记录未覆盖整个窗口等）",
+    "duration_s": "分析窗口时长（s）", "complete": "会话正常结束（有 t_device_end）",
     "stay_n": "停留次数", "stay_s": "停留总时长（s）", "stay_share": "停留占比",
     "walk_s": "行走总时长（s）", "walk_share": "行走占比", "walk_path_m": "行走路程（m）",
     "dwell_n": "逗留次数", "dwell_s": "逗留总时长（s）", "dwell_share": "逗留时间占比",
@@ -375,7 +442,7 @@ SUMMARY_COLUMNS = {
     "tap_n": "点击量", "tap_per_min": "点击频率（次/分钟）",
     "no_move_tap_n": "无位移点击次数", "no_move_tap_share": "无位移点击占比",
     "approach_n": "approach 次数", "approach_per_min": "approach 频率（次/分钟）",
-    "touch_n": "触摸次数", "touch_per_min": "触摸频率（次/分钟）", "first_touch_s": "首次触摸时间（s，无触摸为空）",
+    "touch_n": "触摸次数", "touch_per_min": "触摸频率（次/分钟）", "first_touch_s": "首次触摸时间（s，自窗口起点算起，无触摸为空）",
     "touched_ap_n": "触摸过的景点数", "backstep_n": "长按后退次数",
     "look_n": "环视次数", "look_yaw_deg": "环视量·左右（°）", "look_pitch_deg": "环视量·上下（°）",
     "glitch_freeze_n": "画面卡住次数", "glitch_background_n": "切后台次数", "glitch_s": "技术故障总时长（s）",

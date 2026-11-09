@@ -1,4 +1,4 @@
-"""physio 工具 03 的全部处理与绘图函数：RR、HR、ECG 绘图检查与质量报告。
+"""physio 工具 04 的全部处理与绘图函数：RR、HR、ECG 绘图检查与质量报告。
 
 输入（只读）：data/<数据集>/processed/physio/sub-P###/merged/
     ecg.csv、acc.csv（可能没有）、hr.csv、rr.csv、markers.csv、gaps.csv、segments.csv
@@ -38,7 +38,7 @@ QUALITY_COLUMNS = ["part", "duration_s", "ecg_samples", "ecg_expected", "ecg_com
 # 颜色
 COLOR_NORMAL = "#7a9e7e"  # 灰绿：正常 RR
 COLOR_OUT = "#ff8c00"     # 橙：超出 RR_MIN_MS–RR_MAX_MS
-COLOR_JUMP = "#d62728"    # 红：与前一个 RR 相比变化超过 RR_JUMP（疑似跳变，待工具 04 判断）
+COLOR_JUMP = "#d62728"    # 红：与前一个 RR 相比变化超过 RR_JUMP（疑似跳变，待工具 05 判断）
 COLOR_SEG = "0.85"        # 灰底：段间空档（recording gap）
 COLOR_BLE = "#f4b6b6"     # 浅红底：gap_start 到 gap_end（BLE gap）
 
@@ -67,6 +67,20 @@ def load_merged(merged):
         data[name[:-4]] = df
     data["has_acc"] = (merged / "acc.csv").is_file()
     return data
+
+
+def load_event_markers(subject_dir):
+    """事件标记：优先读 events/markers.csv（工具 03 更正后）；没有则退回 merged/markers.csv。
+    返回 (表, 路径, 备注)；备注为空串表示读的是更正后的事件表。"""
+    events = subject_dir / "events" / "markers.csv"
+    if events.is_file():
+        return pd.read_csv(events, dtype={"part": str, "label": str}), events, ""
+    merged = subject_dir / MERGED_DIR / "markers.csv"
+    if merged.is_file():
+        df = pd.read_csv(merged, dtype={"part": str, "label": str})
+    else:
+        df = pd.DataFrame(columns=["t_unix", "time_lsl", "part", "label", "t_local"])
+    return df, merged, "事件未经 03 更正"
 
 
 # ---------- 标记与异常点 ----------
@@ -161,6 +175,8 @@ def place_marker_labels(ax, ctx, fig_width_in):
 
 def finish_figure(fig, title, handles, ctx):
     """统一版式：标题、图注（一行，放在标题下方），底部 x 轴标注 Time (HH:MM)。"""
+    if ctx.get("marker_note_en"):
+        title += f" | {ctx['marker_note_en']}"
     fig.suptitle(title, fontsize=11, y=0.985)
     if handles:
         fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.945),
@@ -344,7 +360,7 @@ def hr_rr_mae(hr_part, rr_ok, seg_start):
     return float((joined["hr"] - joined["rr"]).abs().mean())
 
 
-def quality_table(d, cfg):
+def quality_table(d, cfg, pid):
     rows = []
     for _, s in d["segments"].iterrows():
         part = str(s["part"])
@@ -381,7 +397,7 @@ def merge_quality(quality, pid, path, root):
     target = check_inside(path, root)
     if target.is_file():
         old = pd.read_csv(target, dtype={"subject": str, "part": str})
-        old = old[old["subject"] != pid]
+        old = old[old["subject"] != pid][[c for c in new.columns if c in old.columns]]
         combined = pd.concat([old, new], ignore_index=True)
     else:
         combined = new
@@ -396,12 +412,12 @@ def merge_quality(quality, pid, path, root):
 def build_report(pid, dataset, d, cfg, ctx, quality, figures):
     lines = []
     add = lines.append
-    add("physio 工具 03 绘图检查与质量报告（RR、HR、ECG）")
+    add("physio 工具 04 绘图检查与质量报告（RR、HR、ECG）")
     add(f"数据集：{dataset}；被试：{pid}")
     add(f"生成时间：{datetime.now(TZ_BEIJING).isoformat(timespec='seconds')}（北京时间）")
     add(f"阈值：RR_MIN_MS={cfg['RR_MIN_MS']}，RR_MAX_MS={cfg['RR_MAX_MS']}，RR_JUMP={cfg['RR_JUMP']}，"
         f"ECG_FS={cfg['ECG_FS']}，RR_PAGE_MIN={cfg['RR_PAGE_MIN']}，RR_PAGES={cfg['RR_PAGES']}")
-    add("RR 颜色：灰绿=正常；橙=超出范围；红=与前一个相比变化超过 RR_JUMP（疑似跳变，待工具 04 判断）")
+    add("RR 颜色：灰绿=正常；橙=超出范围；红=与前一个相比变化超过 RR_JUMP（疑似跳变，待工具 05 判断）")
     add("")
 
     add("[一] 逐段质量（对应 quality.csv 中本被试的行）")
@@ -424,7 +440,9 @@ def build_report(pid, dataset, d, cfg, ctx, quality, figures):
         add(f"    gap_start 条数（断流开始）：{int(q['ble_gap_n'])}")
     add("")
 
-    add("[二] 全部标记（北京时间；markers.csv，不含 gap 记录）")
+    add(f"[二] 全部标记（北京时间；读取 {d['marker_path']}，不含 gap 记录）")
+    if d["marker_note"]:
+        add(f"  注意：{d['marker_note']}")
     if len(d["markers"]):
         add("  t_local                   label")
         for t, label in ctx["markers"]:
@@ -459,7 +477,10 @@ def check_subject(dataset, pid, subject_dir, processed, cfg, signal_dir):
         raise ValueError(f"sub-{pid} 没有 merged/segments.csv（先运行工具 02）")
 
     raw = load_merged(merged)
+    raw["markers"], marker_path, marker_note = load_event_markers(subject_dir)
+    print(f"       事件文件：{marker_path}" + (f"（{marker_note}）" if marker_note else ""))
     d = dict(raw)
+    d["marker_path"], d["marker_note"] = marker_path, marker_note
     d["rr_flag"] = flag_rr(raw["rr"], cfg)
 
     # 时间范围与底色、标记
@@ -469,12 +490,13 @@ def check_subject(dataset, pid, subject_dir, processed, cfg, signal_dir):
     markers = [(float(t), str(lab)) for t, lab in zip(raw["markers"]["t_unix"], raw["markers"]["label"])]
     ctx = {
         "t0": t0, "t1": t1, "markers": markers,
+        "marker_note_en": "events not corrected by 03" if marker_note else "",
         "seg_spans": segment_gap_spans(raw["segments"]),
         "gap_spans": gap_spans(raw["gaps"], t1),
         "rr_ylim": rr_limits(d["rr_flag"], cfg["RR_YAXIS_PERCENTILE"]),
     }
 
-    quality = quality_table(d, cfg)
+    quality = quality_table(d, cfg, pid)
     figures = [plot_overview(d, cfg, ctx, pid, signal_dir, processed),
                plot_rr_full(d, cfg, ctx, pid, signal_dir, processed)]
     if cfg["RR_PAGES"]:
@@ -513,4 +535,9 @@ def run(dataset, subjects, cfg):
         names = ", ".join(f.name for f in summary["figures"])
         print(f"[完成] {pid}：{names}；{pid}_report_raw.txt；quality.csv 已更新")
         summaries.append(summary)
+    print("-" * 60)
+    root = signal_dir.resolve()
+    print(f"图与表：{root}/")
+    print("每人一份：P###_overview_raw.png、P###_rr_raw.png、P###_report_raw.txt；全体汇总：quality.csv")
+    print("看什么：quality.csv 中完整度约 100%；图上大片空缺或大量红点，要告诉研究者。")
     return summaries

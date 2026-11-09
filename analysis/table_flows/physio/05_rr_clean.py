@@ -1,10 +1,10 @@
-"""04 H10 RR 伪迹清理（只出数据，图由 05 画）
+"""05 H10 RR 伪迹清理（只出数据，图由 06 画）
 
-在 VS Code 中打开本文件点 Run，或在终端运行：python3 04_rr_clean.py
+在 VS Code 中打开本文件点 Run，或在终端运行：python3 05_rr_clean.py
 参数读取同目录 parameters.py 的 PARAMETERS["dataset"] 与 PARAMETERS["subjects"]。
 来源：新写；识别与校正采用 Lipponen & Tarvainen (2019)（neurokit2.signal_fixpeaks, method="kubios"）
 输入（只读）：data/<数据集>/processed/physio/sub-P###/merged/rr.csv
-输出：data/<数据集>/processed/physio/sub-P###/clean/rr.csv、holes.csv、report.txt
+输出：data/<数据集>/processed/physio/sub-P###/clean/rr.csv、holes.csv、changes.csv（对原始数据的修改清单）、report.txt
       data/<数据集>/processed/physio/rr_clean_summary.csv（每人一行）
 handling 编码：0 原样保留、1 漏检补拍、2 多检合并、3 异位搏或长短拍校正、4 待人工（仍异常，未修改）
 实现在 analysis/tools/physio_rr_clean.py。

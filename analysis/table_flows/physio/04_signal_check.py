@@ -1,6 +1,6 @@
-"""03 RR、HR、ECG 绘图检查与质量报告。
+"""04 RR、HR、ECG 绘图检查与质量报告。
 
-在 VS Code 中打开本文件点 Run，或在终端运行：python3 03_signal_check.py
+在 VS Code 中打开本文件点 Run，或在终端运行：python3 04_signal_check.py
 参数读取同目录 parameters.py 的 PARAMETERS["dataset"] 与 PARAMETERS["subjects"]。
 输入（只读）：data/<数据集>/processed/physio/sub-P###/merged/
 输出：data/<数据集>/processed/physio/preview/signal/

@@ -14,9 +14,15 @@ subjects 参数可以是一个编号、一组编号，或通配符（"*" 全部�
     track   被试在实验条件中的那一份记录（实验组 Interactive，对照组 Passive）。练习场（Practice）的记录不用于分析，
             这里不会返回。同一被试有多份记录时（例如测试中重跑），必须用 run 指明要哪一份，否则报错并列出可选项。
     psycho  尚未接入：问卷原始格式确定后实现。
-    physio  尚未接入：生理数据原始格式确定后实现。
+    physio  已接入 load_physio(dataset, subject)（读 processed/physio/sub-P###/ 下的各层，不经过 find/load）：
+            hr      merged/hr.csv（机器原样）
+            rr      优先 clean/rr.csv（05 清理后，去掉 handling = 4 的行，段号取 segment 列）；
+                    没有时退回 merged/rr.csv（未经 05 清理，段号取 part 列）
+            events  优先 events/markers.csv（03 更正后）；没有时退回 merged/markers.csv（未经 03 更正）
+            windows events/windows.csv；没有则为 None
+            返回字典里另有 sources，记录每一项实际读的文件。
 
-目前只实现 layer="raw" 的查找；processed、final 的组织方式随 table_flows 实现时确定。
+目前 find / load / subjects 只实现 layer="raw" 的查找；processed、final 的组织方式随 table_flows 实现时确定。
 """
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -103,6 +109,53 @@ def load(dataset, pipeline, subject, layer="raw", run=None, formatted=False):
         from track_io import read_session
         return read_session(path, formatted=formatted)
     _not_yet(pipeline)
+
+
+def load_physio(dataset, subject):
+    """载入一名被试的生理数据，返回 {"hr","rr","events","windows": DataFrame 或 None, "sources": {项: 说明}}。只读。
+    rr 的段号列统一为 segment（clean 层取 segment 列；退回 merged 层时由 part 列编号）。"""
+    import pandas as pd
+    base = layer_dir(dataset, "processed", "physio") / f"sub-{subject}"
+    rel = lambda p: str(p.relative_to(base.parent.parent.parent.parent))
+
+    def read(p):
+        return pd.read_csv(p) if p.is_file() else None
+
+    out, sources = {}, {}
+    p = base / "merged" / "hr.csv"
+    out["hr"] = read(p)
+    sources["hr"] = rel(p) if out["hr"] is not None else None
+
+    p = base / "clean" / "rr.csv"
+    df = read(p)
+    if df is not None:
+        out["rr"] = df[df["handling"] != 4].reset_index(drop=True)
+        sources["rr"] = f"{rel(p)}（已去掉 handling = 4 的行）"
+    else:
+        p = base / "merged" / "rr.csv"
+        df = read(p)
+        if df is not None:
+            df["segment"] = pd.factorize(df["part"])[0] + 1 if "part" in df.columns else 1
+            sources["rr"] = f"{rel(p)}（未经 05 清理）"
+        else:
+            sources["rr"] = None
+        out["rr"] = df
+
+    p = base / "events" / "markers.csv"
+    df = read(p)
+    if df is not None:
+        sources["events"] = rel(p)
+    else:
+        p = base / "merged" / "markers.csv"
+        df = read(p)
+        sources["events"] = f"{rel(p)}（未经 03 更正）" if df is not None else None
+    out["events"] = df
+
+    p = base / "events" / "windows.csv"
+    out["windows"] = read(p)
+    sources["windows"] = rel(p) if out["windows"] is not None else None
+    out["sources"] = sources
+    return out
 
 
 def load_geo():

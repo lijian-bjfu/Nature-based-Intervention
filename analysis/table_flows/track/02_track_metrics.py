@@ -1,6 +1,11 @@
 """track 制表入口：读取同目录 parameters.py，支持 VS Code Run 与命令行。
 
-流程：载入（data_access）→ 清理（历史取值）→ 指标（tools/track_metrics.py）→ 制表。
+流程：载入（data_access）→ 清理（历史取值）→ 确定分析窗口 → 指标（tools/track_metrics.py）→ 制表。
+分析窗口（2026-11-10 研究者确认，global_settings.TRACK_ANALYSIS_WINDOW）：埋点指标只算干预窗口——生理 03 更正后的
+intervention_start 到 intervention_end，按 t_device 与 t_session 之差的中位数换算为会话时间；没有生理事件（或标签不全）时，
+从 App 记录起点切 750 s（12 分 30 秒）。窗口之外的埋点行一律不参与计算；duration_s 是窗口长度（记录没覆盖整个窗口时取
+实际覆盖部分，并在 note 列注明）。结果表带 window_source（events / fallback）、window_start_s、window_end_s（会话时间）。
+第一次触摸时间与每分钟表都从窗口起点算起；逗留明细（track_dwells）里的时刻仍是会话时间。
 输出到 data/<dataset>/final/track/：
   track_metrics.csv        每名被试一行，第十节全部指标（宽表）
   track_dwells.csv         每次逗留一行
@@ -14,6 +19,8 @@
 SCRIPT_HISTORY = [
     {"at": "2026-10-25T00:55:39+08:00", "action": "created",
      "summary": "实现 track 制表：按 global_settings.METRICS 计算第十节全部指标，输出宽表与明细表。"},
+    {"at": "2026-11-10T00:00:00+08:00", "action": "modified",
+     "summary": "指标只算干预窗口（global_settings.TRACK_ANALYSIS_WINDOW）；结果表增加 window_source、window_start_s、window_end_s 与 note。"},
 ]
 
 from pathlib import Path
@@ -33,7 +40,7 @@ from safe_io import retire_dir  # 旧目录移到 _to_delete，不直接删除
 from workflow import load_script
 from paths import ROOT, ANALYSIS, DATASETS, GEO_ANNOTATION, final_root
 from data_access import subjects as list_subjects, find, load, load_geo
-from track_metrics import compute_record, SceneGeometry, SUMMARY_COLUMNS
+from track_metrics import compute_record, analysis_window, clean_legacy, SceneGeometry, SUMMARY_COLUMNS
 from artifacts import sha256, write_json, settings_snapshot
 from run_records import now, run_id, git_state, record_sources
 
@@ -65,7 +72,7 @@ def run(parameters=None):
     rows, dwells, aps, areas, per_min = [], [], [], [], []
     for subject, folder in records.items():
         tables = load(dataset, "track", subject, run=parameters.get("runs", {}).get(subject), formatted=True)
-        res = compute_record(tables, scene)
+        res = compute_record(tables, scene, analysis_window(dataset, subject, clean_legacy(tables)))
         key = {"subject": subject, "record": folder.name}
         commit = tables["session"][settings.column("session", "app_commit")].iloc[0]
         rows.append({**key, "app_commit": None if pd.isna(commit) else str(commit), **res.summary})

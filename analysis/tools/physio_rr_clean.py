@@ -1,4 +1,4 @@
-"""physio 工具 04 的全部处理逻辑：H10 RR 伪迹清理（只输出数据，不画图）。
+"""physio 工具 05 的全部处理逻辑：H10 RR 伪迹清理（只输出数据，不画图）。
 
 方法：丢包只标记、不填补；每个无空洞片段内由 RR 累加重建峰时刻，
 用 neurokit2.signal_fixpeaks(method="kubios")（Lipponen & Tarvainen, 2019）识别并校正漏检、多检、异位搏、长短拍。
@@ -7,15 +7,20 @@
 （含义登记在 global_settings.VALUE_LABELS["rr_handling"]）
 
 输入（只读）：data/<数据集>/processed/physio/sub-P###/merged/rr.csv
-输出：data/<数据集>/processed/physio/sub-P###/clean/rr.csv、holes.csv、report.txt（覆盖同名文件）
+输出：data/<数据集>/processed/physio/sub-P###/clean/rr.csv、holes.csv、changes.csv、report.txt（覆盖同名文件）
       data/<数据集>/processed/physio/rr_clean_summary.csv（每人一行，重跑只替换本次被试的行）
+      另写 clean/changes.csv：对原始数据的修改清单（丢包空洞一行；handling 相同且不为 0 的连续拍为一段，每段一行），
+      类别与原因模板见 global_settings.RR_CHANGE_TYPES；列 id、subject、category、type、t_start、t_end、n_beats、reason。
 写入前检查路径在 processed/physio/ 之内。
 """
+import csv
+
 import numpy as np
 import pandas as pd
 
 import neurokit2 as nk
 
+from global_settings import RR_CHANGE_TYPES
 from paths import layer_dir
 from physio_xdf import check_inside, list_subjects, normalize_subject
 
@@ -256,6 +261,53 @@ def residual_flag(ms, handling, win, rel):
     return handling, med
 
 
+# ---------- 修改清单 ----------
+
+CHANGES_COLUMNS = ["id", "subject", "category", "type", "t_start", "t_end", "n_beats", "reason"]
+
+
+def write_changes(subject, clean, holes, path, root):
+    """clean/changes.csv：每个丢包空洞一行；clean/rr.csv 中连续的、handling 相同且不为 0 的拍为一段，每段一行。
+    时刻文本与 holes.csv、rr.csv 中写出的文本逐字一致（同为 %.6f）。按 t_start 排序；id 只是行号。"""
+    rows = []
+    for _, h in holes.iterrows():
+        rows.append((float(h["t_start"]), {"type": "hole", "t_start": f"{h['t_start']:.6f}", "t_end": f"{h['t_end']:.6f}",
+                                           "n_beats": int(h["est_missing_beats"])}))
+    t, hd, gap = clean["t_unix"].to_numpy(float), clean["handling"].to_numpy(int), clean["gap_before"].to_numpy(int)
+    i, n = 0, len(clean)
+    while i < n:
+        if hd[i] == 0:
+            i += 1
+            continue
+        j = i
+        while j + 1 < n and hd[j + 1] == hd[i] and gap[j + 1] != 1:
+            j += 1
+        rows.append((float(t[i]), {"type": int(hd[i]), "t_start": f"{t[i]:.6f}", "t_end": f"{t[j]:.6f}", "n_beats": j - i + 1}))
+        i = j + 1
+    rows.sort(key=lambda r: r[0])
+    target = check_inside(path, root)
+    with target.open("w", newline="", encoding="utf-8-sig") as f:
+        w = csv.DictWriter(f, fieldnames=CHANGES_COLUMNS)
+        w.writeheader()
+        for k, (_, r) in enumerate(rows, start=1):
+            info = RR_CHANGE_TYPES[r["type"]]
+            w.writerow({"id": k, "subject": subject, "category": info["category"], "type": r["type"],
+                        "t_start": r["t_start"], "t_end": r["t_end"], "n_beats": r["n_beats"], "reason": info["reason"]})
+    return target
+
+
+def count_by_category(path):
+    counts = {}
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            counts[r["category"]] = counts.get(r["category"], 0) + 1
+    return counts
+
+
+def fmt_counts(counts):
+    return "、".join(f"{k} {v}" for k, v in counts.items()) or "无"
+
+
 # ---------- 单个被试 ----------
 
 def clean_subject(dataset, pid, processed, cfg):
@@ -322,9 +374,11 @@ def clean_subject(dataset, pid, processed, cfg):
     out_dir.mkdir(parents=True, exist_ok=True)
     clean.to_csv(check_inside(out_dir / "rr.csv", processed), index=False, float_format="%.6f")
     holes.to_csv(check_inside(out_dir / "holes.csv", processed), index=False, float_format="%.6f")
+    changes_path = write_changes(normalize_subject(pid), clean, holes, out_dir / "changes.csv", processed)
+    change_counts = count_by_category(changes_path)
 
     counts = {k: int((clean["handling"] == k).sum()) for k in range(5)}
-    summary = {"subject": f"sub-{pid}", "n_raw": n_raw, "n_clean": len(clean),
+    summary = {"subject": normalize_subject(pid), "n_raw": n_raw, "n_clean": len(clean),
                **{f"n_handling_{k}": counts[k] for k in range(5)},
                "n_holes": len(holes), "holes_total_s": round(float(holes["dur_s"].sum()), 3),
                "n_segments": len(segs), "n_short_segments": len(short_segs),
@@ -345,6 +399,8 @@ def clean_subject(dataset, pid, processed, cfg):
     for k in range(5):
         pct = 100.0 * counts[k] / len(clean) if len(clean) else 0.0
         lines.append(f"  {k} {HANDLING_NAMES[k]}：{counts[k]}（{pct:.2f}%）")
+    lines += ["", f"修改清单：{changes_path.resolve()}（共 {sum(change_counts.values())} 行；按类别："
+              + fmt_counts(change_counts) + "）"]
     lines += ["", f"空洞个数：{len(holes)}；总时长：{holes['dur_s'].sum():.1f} s；估计丢失拍数合计：{int(holes['est_missing_beats'].sum())}",
               f"清理后仍 > 1.7 倍局部中位数的 RR：{n_big}",
               f"neurokit2 返回的索引条数合计（仅供参考）：{info_tot}", "", "自检（每个片段校正后 RR 之和与原始之差 ≤ "
@@ -359,7 +415,7 @@ def clean_subject(dataset, pid, processed, cfg):
               "方法：signal_fixpeaks(sampling_rate=1000, iterative=True, method=\"kubios\")",
               "设置区参数：" + "；".join(f"{k}={v}" for k, v in cfg.items())]
     check_inside(out_dir / "report.txt", processed).write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return summary, n_big
+    return summary, n_big, changes_path, change_counts
 
 
 def merge_summary(summary, path, root):
@@ -367,12 +423,14 @@ def merge_summary(summary, path, root):
     target = check_inside(path, root)
     if target.is_file():
         old = pd.read_csv(target, dtype={"subject": str})
-        old = old[old["subject"] != summary["subject"]]
+        old = old[old["subject"].map(normalize_subject) != summary["subject"]]
+        old["subject"] = old["subject"].map(normalize_subject)
         df = pd.concat([old, pd.DataFrame([summary])], ignore_index=True)
     else:
         df = pd.DataFrame([summary])
     df = df.sort_values("subject")[SUMMARY_COLUMNS]
-    df[SUMMARY_COLUMNS[1:]] = df[SUMMARY_COLUMNS[1:]].fillna(0).astype({c: int for c in SUMMARY_COLUMNS[1:] if c != "holes_total_s"})
+    numeric = SUMMARY_COLUMNS[1:]
+    df[numeric] = df[numeric].fillna(0).astype({c: int for c in numeric if c != "holes_total_s"})
     df.to_csv(target, index=False)
 
 
@@ -394,9 +452,15 @@ def run(dataset, subjects, cfg):
     results = []
     for pid in chosen:
         print(f"[开始] {pid}")
-        summary, n_big = clean_subject(dataset, pid, processed, cfg)
+        summary, n_big, changes_path, change_counts = clean_subject(dataset, pid, processed, cfg)
         merge_summary(summary, processed / "rr_clean_summary.csv", processed)
         print(f"[完成] {pid}：{summary['n_raw']} → {summary['n_clean']} 拍；空洞 {summary['n_holes']}；"
               f"自检 {'通过' if summary['sum_check_ok'] else '未通过'}；clean/ 与 rr_clean_summary.csv 已更新")
+        print(f"      修改清单：{changes_path.resolve()}；按类别：{fmt_counts(change_counts)}")
         results.append((summary, n_big))
+    print("-" * 60)
+    root = processed.resolve()
+    print(f"每人一份：{root}/sub-P###/clean/（rr.csv、holes.csv、changes.csv、report.txt）")
+    print(f"汇总：{root}/rr_clean_summary.csv")
+    print("看什么：汇总中 sum_check_ok 应为 1；不为 1 说明该被试的 RR 不可信。清理后的图由 06 生成。")
     return results

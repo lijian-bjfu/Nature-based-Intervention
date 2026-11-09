@@ -22,6 +22,16 @@ VALUE_LABELS = {
     "rr_handling": {0: "原样保留", 1: "漏检补拍", 2: "多检合并", 3: "异位搏或长短拍校正", 4: "待人工（仍异常，未修改）"},
 }
 
+# 05 修改清单（clean/changes.csv）的类别与原因模板，2026-11-10 研究者确认。
+# 键 "hole" 对应丢包空洞；整数键对应 rr_handling 编码（0 不是修改，不在清单中）。
+RR_CHANGE_TYPES = {
+    "hole": {"category": "切除", "reason": "数据丢失（丢包），未插补"},
+    1: {"category": "补插", "reason": "漏检：RR 约为参考 RR 的整数倍，等分为多拍"},
+    2: {"category": "编辑", "reason": "多检：两个相邻短间期合并为一拍"},
+    3: {"category": "编辑", "reason": "异位搏或长短拍：Kubios 插值校正"},
+    4: {"category": "切除", "reason": "规则无法还原：数值保留在 rr.csv，不参与计算"},
+}
+
 # 生理阶段事件（2026-11-08 定）：五个阶段各一对 start/end，共 10 个标签。
 # 依据《研究思路/实验记录-实验流程骨架.md》及研究者确认；干预后静息不称为基线。
 # 这是事件标识符，不是 VALUE_LABELS 中的整数分类变量；不包含诱导后静息。
@@ -32,6 +42,8 @@ PHYSIO_PHASES = {
     "intervention": "干预",
     "post_intervention_rest": "干预后静息",
 }
+# 各阶段标准时长（秒）：结束减开始应等于此值。来源：2026-11-09 研究者确认；训练不检查（None）。
+PHYSIO_PHASE_DURATION_S = {"training": None, "baseline": 300, "induction": 480, "intervention": 720, "post_intervention_rest": 300}
 PHYSIO_EVENT_BOUNDARIES = {"start": "开始", "end": "结束"}
 PHYSIO_MARKER_LABELS = tuple(
     f"{phase}_{boundary}"
@@ -202,6 +214,15 @@ GEO_ANNOTATION_SPEC = {
     "coordinates": "Unity 世界坐标，米；points 为水平坐标 [x, z]",
 }
 
+# 埋点分析窗口（2026-11-10 研究者确认）：埋点指标一律只算干预窗口，不按 App 整段记录算。
+#   events：窗口起止事件的标签，取自生理 03 更正后的事件（events/markers.csv），各须恰好一条；
+#           事件时间经 t_device 与 t_session 之差的中位数换算为会话时间，不加余量。
+#   fallback_duration_s：没有生理数据、或两个事件标签不全时的退路：从 App 记录起点切这么长（750 s = 12 分 30 秒）。
+TRACK_ANALYSIS_WINDOW = {
+    "events": ("intervention_start", "intervention_end"),   # 取自生理 03 更正后的事件
+    "fallback_duration_s": 750,                              # 无事件标记时：从 App 记录起点切 12 分 30 秒
+}
+
 # 指标须经过研究讨论后逐项登记；候选指标及其试验阈值留在具体实验中。
 # 登记应包含名称、定义、输入字段、输出单位、计算口径和规范出处；计算函数不放在这里。
 METRICS = {
@@ -325,7 +346,78 @@ METRICS = {
             "source": "研究思路/实验记录-埋点.md 10.12",
         },
     },
-    "psycho": {}, "physio": {},
+    "psycho": {},
+    "physio": {
+        "window_quality": {
+            "name": "窗口质量",
+            "definition": "valid_beat：handling 为 0–3 的拍（4 为待人工，一律排除）；real_beat：handling 为 0 或 2 的拍（原样保留、多检合并），"
+                          "handling 1、3 是推算值，在 HRV 中按空洞处理。"
+                          "hr_coverage = 窗口内 valid_beat 的 RR 之和 / 窗口时长；hrv_coverage = 窗口内 real_beat 的 RR 之和 / 窗口时长。"
+                          "hr_ok = hr_coverage ≥ hr_min_coverage；hrv_ok = hrv_coverage ≥ hrv_min_coverage；不合格时数值照常输出，只标记。"
+                          "real_beat 的 RR 之和不足 min_real_seconds 时 HRV 指标留空",
+            "inputs": ("windows.duration_s", "clean_rr.t_unix", "clean_rr.ms", "clean_rr.handling"),
+            "parameters": {"hrv_min_coverage": 0.90, "hr_min_coverage": 0.80, "min_real_seconds": 60},
+            "output": "hr_coverage、hrv_coverage；hr_ok、hrv_ok",
+            "status": "已定 2026-11-09（修订）",
+            "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
+        },
+        "hr_mean": {
+            "name": "平均心率",
+            "definition": "60000 / 窗口内 valid_beat 的 RR 均值（ms）",
+            "inputs": ("clean_rr.ms", "clean_rr.handling"),
+            "parameters": {},
+            "output": "bpm",
+            "status": "已定 2026-11-09（修订）",
+            "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
+        },
+        "rmssd": {
+            "name": "RMSSD",
+            "definition": "相邻两拍之差的均方根。只用 clean/rr.csv 中前后相邻、两拍都是 real_beat 且后一拍 gap_before = 0 的相邻对"
+                          "（不跨丢包空洞，也不跨推算或被排除的拍）；只用 real_beat",
+            "inputs": ("clean_rr.ms", "clean_rr.handling", "clean_rr.gap_before"),
+            "parameters": {},
+            "output": "ms",
+            "status": "已定 2026-11-09（修订）",
+            "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
+        },
+        "ln_rmssd": {
+            "name": "lnRMSSD",
+            "definition": "rmssd 的自然对数",
+            "inputs": ("METRICS.physio.rmssd",),
+            "parameters": {},
+            "output": "ln(ms)",
+            "status": "已定 2026-11-09（修订）",
+            "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
+        },
+        "sdnn": {
+            "name": "SDNN",
+            "definition": "窗口内 real_beat 的 RR 标准差（ddof = 1）；只用 real_beat",
+            "inputs": ("clean_rr.ms", "clean_rr.handling"),
+            "parameters": {},
+            "output": "ms",
+            "status": "已定 2026-11-09（修订）",
+            "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
+        },
+        "hf": {
+            "name": "HF 功率",
+            "definition": "Lomb-Scargle 周期图：采样点为窗口内 real_beat（只用 real_beat），时刻取 t_unix（s），数值取 ms 并减去均值；"
+                          "不插补，空洞和被排除的拍直接缺席。功率谱密度（ms²/Hz）在 band_hz 内积分。有效条件同 rmssd（real_beat 的 RR 之和不足 min_real_seconds 时留空）",
+            "inputs": ("clean_rr.t_unix", "clean_rr.ms", "clean_rr.handling"),
+            "parameters": {"band_hz": [0.15, 0.40], "freq_step_hz": 0.001},
+            "output": "ms²",
+            "status": "已定 2026-11-09（修订）",
+            "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
+        },
+        "ln_hf": {
+            "name": "lnHF",
+            "definition": "hf 的自然对数",
+            "inputs": ("METRICS.physio.hf",),
+            "parameters": {},
+            "output": "ln(ms²)",
+            "status": "已定 2026-11-09（修订）",
+            "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
+        },
+    },
 }
 SCHEMAS = {"track": TRACK_SCHEMA}
 
