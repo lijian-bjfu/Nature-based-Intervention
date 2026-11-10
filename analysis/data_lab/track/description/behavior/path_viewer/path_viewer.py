@@ -7,6 +7,8 @@
 #   dataset：test=开发测试，pilot=预实验，formal=正式实验。
 #   subject：被试编号，如 "P000"。
 #   run：同一被试有多份记录时才需要填，如 "004"；只有一份时填 None。
+# window_only：True = 只显示干预窗口（与埋点指标的计算范围一致），地图、时间轴、HR、RR 都只保留窗口内的数据，
+#   时间轴从窗口起点开始计时（0 = 干预开始）；False = 显示整段记录，窗口外标灰。窗口取自 track_metrics.analysis_window。
 # stay：浏览页上"停留"图层的画法（暂定口径，见 description/behavior 的讨论，尚未写入规范）。
 #   still_step_m：相邻两个采样之间水平位置变化不超过多少米，算这一步没动。
 #   min_seconds：连续没动至少多久，才画成一次停留。
@@ -18,6 +20,7 @@ PARAMETERS = {
         "subject": "P001",
         "run": None,
     },
+    "window_only": True,
     "stay": {
         "still_step_m": 0.03,
         "min_seconds": 2.0,
@@ -70,7 +73,7 @@ def check(parameters):
     step = float(stay["still_step_m"])
     if not 0 <= step < 1:
         raise ValueError("stay.still_step_m 应在 0 到 1 米之间")
-    return {"dataset": sel["dataset"], "subject": str(sel["subject"]),
+    return {"dataset": sel["dataset"], "subject": str(sel["subject"]), "window_only": bool(parameters.get("window_only", True)),
             "run": None if run in (None, "") else str(run),
             "still_step": step, "min_stay": positive(stay["min_seconds"], "stay.min_seconds"),
             "look_window": positive((parameters.get("look") or settings.METRICS["track"]["look"]["parameters"])["walking_window_s"], "look.walking_window_s"),
@@ -186,6 +189,43 @@ def load_physio(cfg, tb, t_end):
             "markers": {"t": [r(v, 2) for v in mt], "label": ml}}
 
 
+def crop_to_window(data, win):
+    """只保留窗口内的数据，时间减去窗口起点（0 = 干预开始）。窗口边缘留 0.01 s 容差（页面数据已四舍五入到 0.01 s）。"""
+    w0, w1, tol = win["start"], win["end"], 0.01
+    L = w1 - w0
+    sh = lambda v, n=2: r(min(max(v - w0, 0.0), L), n)
+    inside = lambda v: v is not None and w0 - tol <= v <= w1 + tol
+    def rows(items, keys, n=2):
+        out = []
+        for it in items:
+            if inside(it[keys[0]]):
+                out.append({**it, **{k: sh(it[k], n) for k in keys if it.get(k) is not None}})
+        return out
+    d = dict(data)
+    pk = [i for i, v in enumerate(data["path"]["t"]) if inside(v)]
+    d["path"] = {k: [v[i] for i in pk] for k, v in data["path"].items()}
+    d["path"]["t"] = [sh(data["path"]["t"][i]) for i in pk]
+    for key, fields in (("hr", ("bpm",)), ("rr", ("ms", "seg")), ("physio_markers", ("label",))):
+        src = data[key]; ik = [i for i, v in enumerate(src["t"]) if inside(v)]
+        d[key] = {"t": [sh(src["t"][i]) for i in ik], **{f: [src[f][i] for i in ik] for f in fields}}
+    d["taps"] = rows(data["taps"], ["t"], 3)
+    d["backsteps"] = rows(data["backsteps"], ["t"])
+    d["events"] = rows(data["events"], ["t"])
+    d["glitches"] = rows(data["glitches"], ["t"])
+    d["looks"] = rows(data["looks"], ["t0", "t1"])
+    d["drags"] = rows(data["drags"], ["t0", "t1"])
+    stays = []
+    for st in data["stays"]:
+        a, b = max(st["t0"], w0), min(st["t1"], w1)
+        if b > a:
+            stays.append({**st, "t0": sh(a), "t1": sh(b), "dur": r(b - a, 1)})
+    d["stays"] = stays
+    d["meta"] = {**data["meta"], "duration": r(L, 2)}
+    d["window"] = {**data["window"], "start": 0.0, "end": r(L, 2), "session_start": r(w0, 3), "session_end": r(w1, 3)}
+    d["physio"] = {**data["physio"], "n_hr": len(d["hr"]["t"]), "n_rr": len(d["rr"]["t"]), "n_markers": len(d["physio_markers"]["t"])}
+    return d
+
+
 def build(cfg):
     settings.validate()
     folder = find(cfg["dataset"], "track", [cfg["subject"]], run=cfg["run"])[cfg["subject"]]
@@ -263,9 +303,10 @@ def build(cfg):
         "空间结构来自 Unity 地理空间标注导出，" + f"导出于 {geo.get('exported_at')}（Unity 提交 {str(geo.get('unity_commit'))[:8]}）。",
         "区域、桥内停留时间按轨迹采样落在多边形内的时间累加（单步间隔超过 1 s 的按 1 s 计）。",
         "滚轮缩放，拖动平移，双击范围聚焦；颜色与图层开关保存在本机浏览器。",
-        f"灰色部分不计入埋点指标：埋点指标只算分析窗口 {win['start']:.1f}–{win['end']:.1f} s（会话时间；"
+        (f"只显示分析窗口（与埋点指标的计算范围一致）：会话时间 {win['start']:.1f}–{win['end']:.1f} s，时间轴 0 = 窗口起点；" if cfg["window_only"]
+         else f"灰色部分不计入埋点指标：埋点指标只算分析窗口 {win['start']:.1f}–{win['end']:.1f} s（会话时间；")
         + ("生理 03 更正后的 intervention_start 到 intervention_end" if win["source"] == "events" else "没有可用的生理事件，退路：从 App 记录起点起的备用时长，可能混入干预前内容")
-        + "），见 global_settings.TRACK_ANALYSIS_WINDOW。时间轴与生理面板上窗口外的部分用浅灰底标出。",
+        + ("，见 global_settings.TRACK_ANALYSIS_WINDOW。" if cfg["window_only"] else "），见 global_settings.TRACK_ANALYSIS_WINDOW。时间轴与生理面板上窗口外的部分用浅灰底标出。"),
         "生理数据（心率 HR、RR 间期、阶段标记）经 data_access.load_physio 读取：HR 取 merged/，RR 优先取 clean/（05 清理后，已去掉 handling = 4），无则退回 merged/（未清理），标记优先取 events/（03 更正后），无则退回 merged/；实际来源见终端输出。按 iPad 与手机系统时间对齐：会话时间 = 生理时间戳 − offset，offset 取埋点中设备时间与会话时间之差的中位数。跳变按页面上的阈值实时判定，仅供观察。",
     ]
     data = {
@@ -281,6 +322,8 @@ def build(cfg):
         "physio": {k: physio[k] for k in ("has", "offset", "n_hr", "n_rr", "n_markers", "sources")},
         "stays": stay_list, "taps": taps, "looks": looks, "drags": drags, "backsteps": backsteps, "events": events, "glitches": glitches,
     }
+    if cfg["window_only"]:
+        data = crop_to_window(data, win)
     return folder, data
 
 
@@ -317,7 +360,9 @@ def main():
     print(f"数据：{cfg['dataset']}／{folder.name}")
     print("生理数据来源：" + "；".join(f"{k} ← {v or '无'}" for k, v in ph["sources"].items()))
     print(f"生理数据：" + (f"HR {ph['n_hr']} 条，RR {ph['n_rr']} 条，标记 {ph['n_markers']} 个，offset {ph['offset']} s" if ph["has"] else "无（该被试在 processed/physio 下没有 hr / rr，或埋点缺设备时间）"))
-    print(f"埋点分析窗口：来源 {data['window']['source']}，会话时间 {data['window']['start']:.3f} – {data['window']['end']:.3f} s"
+    print("显示方式：" + ("只显示干预窗口（window_only = True，时间轴 0 = 窗口起点）" if cfg["window_only"] else "显示整段记录，窗口外标灰（window_only = False）"))
+    w = data["window"]
+    print(f"埋点分析窗口：来源 {data['window']['source']}，会话时间 {w.get('session_start', w['start']):.3f} – {w.get('session_end', w['end']):.3f} s"
           + (f"（{data['window']['reason']}）" if data["window"]["reason"] else ""))
     print(f"在浏览器中打开：{dest / OUTPUT_NAME}")
 
@@ -345,6 +390,8 @@ SCRIPT_HISTORY = [
      "summary": "左上角改为被试信息卡：组别、性别、年龄与各时间点问卷结果（读 processed/psycho/scores_wide.csv，对照表 QUESTIONNAIRE_CARD 只用于显示）。"},
     {"at": "2026-11-09T12:00:00+08:00", "action": "modified",
      "summary": "生理数据改为通过 data_access.load_physio 读取：RR 优先 clean/（去掉 handling = 4，段号取 segment），事件优先 events/；无则退回 merged/；终端与页面说明如实写明来源。"},
+    {"at": "2026-11-10T12:00:00+08:00", "action": "modified",
+     "summary": "PARAMETERS 增加 window_only：True（默认）只显示干预窗口，地图、时间轴、HR、RR 只保留窗口内数据，时间轴从窗口起点计时；False 显示整段、窗口外标灰。"},
     {"at": "2026-11-10T00:00:00+08:00", "action": "modified",
      "summary": "标出埋点分析窗口：调用 track_metrics.analysis_window（与制表同一函数），时间轴与生理面板上窗口外用浅灰底标出，页面说明写明灰色部分不计入埋点指标，终端打印窗口来源与起止。"},
 ]
