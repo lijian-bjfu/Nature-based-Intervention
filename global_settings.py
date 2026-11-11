@@ -43,6 +43,7 @@ PHYSIO_PHASES = {
     "post_intervention_rest": "干预后静息",
 }
 # 各阶段标准时长（秒）：结束减开始应等于此值。来源：2026-11-09 研究者确认；训练不检查（None）。
+# 只用于 03 的时长提示和更正时的推算，不是取舍标准：实际时长偏离它的窗口照常计算指标（2026-11-11 研究者定）。
 PHYSIO_PHASE_DURATION_S = {"training": None, "baseline": 300, "induction": 480, "intervention": 720, "post_intervention_rest": 300}
 PHYSIO_EVENT_BOUNDARIES = {"start": "开始", "end": "结束"}
 PHYSIO_MARKER_LABELS = tuple(
@@ -354,11 +355,13 @@ METRICS = {
                           "handling 1、3 是推算值，在 HRV 中按空洞处理。"
                           "hr_coverage = 窗口内 valid_beat 的 RR 之和 / 窗口时长；hrv_coverage = 窗口内 real_beat 的 RR 之和 / 窗口时长。"
                           "hr_ok = hr_coverage ≥ hr_min_coverage；hrv_ok = hrv_coverage ≥ hrv_min_coverage；不合格时数值照常输出，只标记。"
-                          "real_beat 的 RR 之和不足 min_real_seconds 时 HRV 指标留空",
+                          "real_beat 的 RR 之和不足 min_real_seconds 时 HRV 指标留空。"
+                          "窗口按 03 给出的实际起止时刻计算；窗口时长偏离标准时长不影响计算，只在 note 中提示。"
+                          "只有窗口无法确定（缺失、重复、顺序冲突）时才不计算",
             "inputs": ("windows.duration_s", "clean_rr.t_unix", "clean_rr.ms", "clean_rr.handling"),
             "parameters": {"hrv_min_coverage": 0.90, "hr_min_coverage": 0.80, "min_real_seconds": 60},
             "output": "hr_coverage、hrv_coverage；hr_ok、hrv_ok",
-            "status": "已定 2026-11-09（修订）",
+            "status": "已定 2026-11-09（修订）；2026-11-11 明确窗口时长偏差不丢数据",
             "source": "研究思路/分析工具迁移与整合工作计划.md 窗口指标口径",
         },
         "hr_mean": {

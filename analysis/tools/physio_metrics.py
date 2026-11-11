@@ -4,6 +4,8 @@
 valid_beat：handling 为 0–3 的拍（4 待人工一律排除），用于平均心率与 hr_coverage。
 real_beat：handling 为 0 或 2 的拍（真实间期）；handling 1、3 是推算值，在 HRV 中按空洞处理。RMSSD、SDNN、HF 只用 real_beat。
 拍的归属：t_unix 落在 [t_start, t_end) 的拍属于该窗口。
+窗口按 03 给出的实际起止时刻计算，不因时长偏离标准时长而丢弃；偏差只抄进 note 作提示。
+只有 03 判定窗口无法确定（window_valid=0：缺失、重复、顺序冲突）时才不计算。
 
 输入（只读）：data/<数据集>/processed/physio/sub-P###/events/windows.csv（工具 03）、clean/rr.csv（工具 05）
 输出：data/<数据集>/final/physio/window_metrics_long.csv、window_metrics_wide.csv、window_metrics_report.txt（整表重算并覆盖）
@@ -84,7 +86,7 @@ def window_row(pid, win, rr, params, hf_params=None):
     t0, t1, dur = to_float(win["t_start"]), to_float(win["t_end"]), to_float(win["duration_s"])
     row["duration_s"] = dur
     if row["window_valid"] == 0 or t0 is None or t1 is None or not dur:
-        row["note"] = "窗口无效：" + (win.get("issue") or "")
+        row["note"] = "窗口无法确定：" + (win.get("issue") or "")
         return row
     lo, hi = np.searchsorted(t, t0, side="left"), np.searchsorted(t, t1, side="left")
     ms_w, h_w, g_w, t_w = ms[lo:hi], handling[lo:hi], gap[lo:hi], t[lo:hi]
@@ -97,7 +99,7 @@ def window_row(pid, win, rr, params, hf_params=None):
     real_s = float(ms_w[real].sum()) / 1000.0
     row["hr_coverage"] = float(ms_w[valid].sum()) / 1000.0 / dur
     row["hrv_coverage"] = real_s / dur
-    notes = []
+    notes = [f"时长提示：{win['note']}"] if win.get("note") else []
     hr_ok = row["hr_coverage"] >= params["hr_min_coverage"]
     hrv_ok = row["hrv_coverage"] >= params["hrv_min_coverage"]
     row["hr_ok"], row["hrv_ok"] = int(hr_ok), int(hrv_ok)
@@ -152,6 +154,7 @@ def write_outputs(rows, subjects, skipped, params, hf_params, out_dir, final):
              "  拍属于 [t_start, t_end) 的窗口。hr_coverage = valid_beat 的 RR 之和 / 窗口时长；hrv_coverage = real_beat 的 RR 之和 / 窗口时长",
              f"  hr_ok：hr_coverage ≥ {pct_limit(params['hr_min_coverage'])}；hrv_ok：hrv_coverage ≥ {pct_limit(params['hrv_min_coverage'])}；不合格时数值照常输出，note 写明原因",
              f"  real_beat 的 RR 之和不足 {params['min_real_seconds']:g} s 时 HRV 指标留空",
+             "  窗口按实际起止时刻计算；时长偏离标准时长只在 note 中提示，不丢弃。只有窗口无法确定（缺失、重复、顺序冲突）时才不计算",
              "  平均心率 = 60000 / valid_beat 的 RR 均值；RMSSD 只用前后相邻、两拍均为 real_beat 且后一拍无丢包的相邻对；SDNN 只用 real_beat（ddof=1）",
              f"  HF 功率：Lomb-Scargle 周期图（只用 real_beat，不插补，其余拍缺席；先减均值），PSD 单位 ms²/Hz，"
              f"在 {hf_params['band_hz'][0]}–{hf_params['band_hz'][1]} Hz 积分（频率步长 {hf_params['freq_step_hz']} Hz）；lnHF 为其自然对数", "",
@@ -160,7 +163,7 @@ def write_outputs(rows, subjects, skipped, params, hf_params, out_dir, final):
     lines += ["", "[三] 每人每窗口摘要"]
     for r in rows:
         if not r["window_valid"]:
-            body = "窗口无效"
+            body = "窗口无法确定，未计算"
         else:
             body = (f"有效拍 {r['n_beats_valid']}（真实 {r['n_real']}，推算 {r['n_estimated']}），待人工 {r['n_review']}，"
                     f"hr_coverage {fmt('hr_coverage', r['hr_coverage'])}，hrv_coverage {fmt('hrv_coverage', r['hrv_coverage'])}，"

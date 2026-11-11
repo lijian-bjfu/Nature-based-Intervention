@@ -5,7 +5,8 @@
 输入（只读）：data/<数据集>/processed/physio/sub-P###/merged/markers.csv
     data/<数据集>/corrections/physio_events.csv（人工更正表，只读；不存在视为没有更正）
 输出：data/<数据集>/processed/physio/sub-P###/events/markers.csv、report.txt、windows.csv
-    （windows.csv 为窗口表：按阶段顺序每阶段一行，含起止时刻、时长、valid 与 issue；每次覆盖）
+    （windows.csv 为窗口表：按阶段顺序每阶段一行，含起止时刻、时长、valid、issue 与 note；每次覆盖。
+     valid=0 只表示窗口无法确定（缺失、重复、顺序冲突）；时长偏差写在 note，只是提示，不影响 07 计算）
     更正表套用出错时：该被试已有的 events/ 经 safe_io.retire_dir 移到 _to_delete/，并在 events_check.csv 记 error
     data/<数据集>/processed/physio/events_check.csv（每人一行，重跑只替换本次被试的行）
 实现在 analysis/tools/physio_events.py。
@@ -21,7 +22,7 @@ from workflow import load_script
 from physio_events import run
 
 # ================= 设置区 =================
-DURATION_TOL_S = 30   # 阶段时长与标准时长的允许偏差（秒）；超出则在体检中列出
+DURATION_TOL_S = 30   # 阶段时长与标准时长相差超过多少秒时给出提示；只提示人核对，不判窗口无效、不丢数据
 # ==========================================
 
 

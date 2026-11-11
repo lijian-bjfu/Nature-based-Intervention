@@ -6,8 +6,11 @@
 输出：data/<数据集>/processed/physio/
     sub-P###/events/markers.csv   列：t_unix、time_lsl、part、label、label_raw、t_local、source
     sub-P###/events/report.txt    中文报告
-    sub-P###/events/windows.csv   窗口表：每个阶段一行；列 window、t_start、t_end、t_start_local、t_end_local、duration_s、valid、issue
+    sub-P###/events/windows.csv   窗口表：每个阶段一行；列 window、t_start、t_end、t_start_local、t_end_local、duration_s、valid、issue、note
+                                  valid=0 只在窗口无法确定时出现（缺 start/end、重复、start 不早于 end、阶段顺序冲突），原因写在 issue；
+                                  时长与标准时长的偏差只是提示，写在 note，不影响 valid，07 照实际窗口计算（2026-11-11 研究者定）
     events_check.csv              每人一行（subject、status、n_corrections_applied、issues）；重跑只替换本次被试的行
+                                  status：ok 通过；notice 只有时长提示（窗口照常使用）；issues 有窗口无法确定；error 更正表出错
 subject 列写 sub-P### 或 P### 都视为同一人。
 
 更正表按文件先后逐行套用到事件集合上，每行的依据是套用前的事件状态。
@@ -26,7 +29,7 @@ from physio_xdf import check_inside, list_subjects, normalize_subject
 MATCH_TOL_S = 1.0
 ACTIONS = ("delete", "move", "add", "relabel")
 OUT_COLUMNS = ["t_unix", "time_lsl", "part", "label", "label_raw", "t_local", "source"]
-WINDOW_COLUMNS = ["window", "t_start", "t_end", "t_start_local", "t_end_local", "duration_s", "valid", "issue"]
+WINDOW_COLUMNS = ["window", "t_start", "t_end", "t_start_local", "t_end_local", "duration_s", "valid", "issue", "note"]
 CHECK_COLUMNS = ["subject", "status", "n_corrections_applied", "issues"]
 SOURCE_RANK = {"raw": 0, "relabeled": 1, "moved": 2, "added": 3}
 
@@ -199,10 +202,16 @@ def apply_corrections(events, corrections):
 # ---------- 体检 ----------
 
 def check_events(events, tol):
-    """返回 (问题列表（中文短句）, 有效区间 spans, 各阶段问题 by_phase)。只报告，不修改。"""
+    """返回 (问题列表, 时长提示列表, 有效区间 spans, 各阶段问题 by_phase, 各阶段时长提示 notes_by_phase, times)。只报告，不修改。
+
+    问题（issues）：窗口无法确定——缺失、重复、start 不早于 end、阶段顺序冲突；该阶段 valid=0。
+    时长提示（notes）：窗口可以确定，但时长与标准时长相差超过 tol；只提醒人核对，窗口照常有效。
+    """
     issues = []
+    notes = []
     spans = {}
     by_phase = {phase: [] for phase in PHYSIO_PHASES}
+    notes_by_phase = {phase: [] for phase in PHYSIO_PHASES}
     times = {phase: {} for phase in PHYSIO_PHASES}
     for phase in PHYSIO_PHASES:
         pts = {}
@@ -230,8 +239,8 @@ def check_events(events, tol):
                 dur = pts["end"] - pts["start"]
                 if std is not None and abs(dur - std) > tol:
                     msg = f"{phase} 时长 {dur:.1f} 秒，与标准 {std} 秒相差 {dur - std:+.1f} 秒，超出 ±{tol:g} 秒"
-                    issues.append(msg)
-                    by_phase[phase].append(msg)
+                    notes.append(msg)
+                    notes_by_phase[phase].append(msg)
     order = [p for p in PHYSIO_PHASES if p in spans]
     for a, b in zip(order, order[1:]):
         if spans[a][1] > spans[b][0]:
@@ -239,7 +248,7 @@ def check_events(events, tol):
             issues.append(msg)
             by_phase[a].append(msg)
             by_phase[b].append(msg)
-    return issues, spans, by_phase, times
+    return issues, notes, spans, by_phase, notes_by_phase, times
 
 
 # ---------- 输出 ----------
@@ -262,8 +271,11 @@ def write_events(events, out_dir, processed):
                         e["label_raw"], t_local(e["t_unix"]), e["source"]])
 
 
-def write_windows(pid, by_phase, times, out_dir, processed):
-    """每个阶段一行；缺 start/end（或重复无法确定）的时刻留空；valid=1 当且仅当该阶段没有任何问题。"""
+def write_windows(pid, by_phase, notes_by_phase, times, out_dir, processed):
+    """每个阶段一行；缺 start/end（或重复无法确定）的时刻留空；valid=0 当且仅当该阶段的窗口无法确定（issue 非空）。
+
+    时长提示写在 note，不影响 valid。
+    """
     path = check_inside(out_dir / "windows.csv", processed)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -274,16 +286,21 @@ def write_windows(pid, by_phase, times, out_dir, processed):
             dur = f"{t1 - t0:.3f}" if t0 is not None and t1 is not None else ""
             issue = "；".join(by_phase[phase])
             w.writerow([phase, repr(t0) if t0 is not None else "", repr(t1) if t1 is not None else "",
-                        t_local(t0), t_local(t1), dur, 0 if issue else 1, issue])
+                        t_local(t0), t_local(t1), dur, 0 if issue else 1, issue, "；".join(notes_by_phase[phase])])
 
 
-def write_report(pid, events, log, issues, spans, n_rows, out_dir, processed):
+def write_report(pid, events, log, issues, notes, spans, n_rows, out_dir, processed):
     lines = [f"physio 工具 03 事件更正与体检报告：sub-{pid}",
              f"生成时间：{datetime.now(TZ_BEIJING).isoformat(timespec='seconds')}（北京时间）", "",
              f"[一] 套用的人工更正（共 {len(log)} 行；行号为更正表行号，含表头）"]
     lines += [f"  第 {row} 行  {action}：{text}" for row, action, text in log] or ["  无"]
     lines += ["", "[二] 体检（套用更正后）"]
-    lines += [f"  - {x}" for x in issues] or ["  通过"]
+    lines += [f"  - 〔窗口无法确定，该阶段不计算指标〕{x}" for x in issues]
+    lines += [f"  - 〔时长提示，窗口照实际打点使用〕{x}" for x in notes]
+    if not issues and not notes:
+        lines.append("  通过")
+    if notes:
+        lines.append("  时长提示不丢数据：07 按实际起止时刻计算指标。确认是打点偏了并想改回标准时长的，写入更正表后重跑 03。")
     lines += ["", "[三] 最终事件表", "  t_local                  label                         source     该阶段时长"]
     for e in events:
         phase = phase_of(e["label"])
@@ -327,15 +344,18 @@ def process_subject(dataset, pid, processed, corrections_path, cfg):
         update_check_csv(processed, row)
         print(f"[更正表出错] {pid}：{error}（未写 events/）")
         return row
-    issues, spans, by_phase, times = check_events(events, cfg["DURATION_TOL_S"])
+    issues, notes, spans, by_phase, notes_by_phase, times = check_events(events, cfg["DURATION_TOL_S"])
     write_events(events, out_dir, processed)
-    write_windows(pid, by_phase, times, out_dir, processed)
-    write_report(pid, events, log, issues, spans, len(corrections), out_dir, processed)
-    row.update(status="issues" if issues else "ok", n_corrections_applied=len(log), issues="；".join(issues))
+    write_windows(pid, by_phase, notes_by_phase, times, out_dir, processed)
+    write_report(pid, events, log, issues, notes, spans, len(corrections), out_dir, processed)
+    status = "issues" if issues else ("notice" if notes else "ok")
+    row.update(status=status, n_corrections_applied=len(log), issues="；".join(issues + notes))
     update_check_csv(processed, row)
     if issues:
-        print(f"[需要人工判断] {pid}：{row['issues']}")
-    else:
+        print(f"[需要人工判断] {pid}：{'；'.join(issues)}")
+    if notes:
+        print(f"[时长提示，窗口照常使用] {pid}：{'；'.join(notes)}")
+    if not issues and not notes:
         print(f"[规则检查通过] {pid}：应用 {len(log)} 行更正")
     return row
 
