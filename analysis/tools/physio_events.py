@@ -2,6 +2,7 @@
 
 输入（只读）：
     data/<数据集>/processed/physio/sub-P###/merged/markers.csv
+    同目录 segments.csv（原始事件为空时，用 02 的录制段范围与 offset 定位新增事件）
     data/<数据集>/corrections/physio_events.csv（utf-8-sig，可能不存在；不存在视为没有更正）
 输出：data/<数据集>/processed/physio/
     sub-P###/events/markers.csv   列：t_unix、time_lsl、part、label、label_raw、t_local、source
@@ -11,7 +12,7 @@
                                   时长与标准时长的偏差只是提示，写在 note，不影响 valid，07 照实际窗口计算（2026-11-11 研究者定）
     events_check.csv              每人一行（subject、status、n_corrections_applied、issues）；重跑只替换本次被试的行
                                   status：ok 通过；notice 只有时长提示（窗口照常使用）；issues 有窗口无法确定；error 更正表出错
-subject 列写 sub-P### 或 P### 都视为同一人。
+subject 列写 sub-P### 或 P### 都视为同一人；编号匹配兼容大小写，磁盘目录名保持原样。
 
 更正表按文件先后逐行套用到事件集合上，每行的依据是套用前的事件状态。
 任何一行出错：该被试不写 events/；若已有旧的 events/，用 safe_io.retire_dir 移走；在 events_check.csv 记 error。
@@ -19,6 +20,7 @@ subject 列写 sub-P### 或 P### 都视为同一人。
 """
 import csv
 from datetime import datetime
+from math import isfinite
 
 from global_settings import PHYSIO_MARKER_LABELS, PHYSIO_PHASE_DURATION_S, PHYSIO_PHASES
 from paths import layer_dir
@@ -60,12 +62,33 @@ def read_corrections(path, pid):
     """返回 [(表格行号, 行字典)]，只含当前被试的行，保持文件顺序。"""
     if not path.is_file():
         return []
+    pid = normalize_subject(pid).upper()
     rows = []
     with open(path, newline="", encoding="utf-8-sig") as f:
         for i, r in enumerate(csv.DictReader(f), start=2):
-            if normalize_subject((r.get("subject") or "").strip()) == pid:
+            if normalize_subject((r.get("subject") or "").strip()).upper() == pid:
                 rows.append((i, {k: (v or "").strip() for k, v in r.items() if k is not None}))
     return rows
+
+
+def read_segments(path):
+    """空事件表新增标签时，复用 02 已确定的录制段范围及时间偏移。"""
+    if not path.is_file():
+        return []
+    segments = []
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            # 02 未能对齐的段没有 offset，不能用于定位新增事件。
+            if not r.get("offset"):
+                continue
+            try:
+                start, end, offset = (float(r[k]) for k in ("start_unix", "end_unix", "offset"))
+                if not r.get("part") or not all(map(isfinite, (start, end, offset))) or start > end:
+                    raise ValueError
+            except (KeyError, TypeError, ValueError):
+                raise CorrectionError("-", "segments.csv", "录制段范围或偏移无效，请先重跑工具 02") from None
+            segments.append({"part": r["part"], "start_unix": start, "end_unix": end, "offset": offset})
+    return segments
 
 
 # ---------- 套用 ----------
@@ -150,9 +173,10 @@ def bump(event, source):
         event["source"] = source
 
 
-def apply_corrections(events, corrections):
+def apply_corrections(events, corrections, segments=()):
     """逐行套用；返回 (新事件列表, 套用记录)。出错抛 CorrectionError。"""
     offsets = part_offsets(events)
+    initially_empty = not events
     events = [dict(e) for e in events]
     log = []
     for row, r in corrections:
@@ -188,6 +212,14 @@ def apply_corrections(events, corrections):
             t_new, anchor_event = new_time_of(events, r, row)
             if anchor_event is not None:
                 part = anchor_event["part"]
+            elif initially_empty:
+                hits = [s for s in segments if s["start_unix"] <= t_new <= s["end_unix"]]
+                if len(hits) != 1:
+                    raise CorrectionError(row, "new_time", "原始事件为空，新增时刻必须落在 segments.csv 中唯一一个已对齐录制段内"
+                                          f"（当前匹配 {len(hits)} 段；请核对时刻或先重跑工具 02）")
+                part = hits[0]["part"]
+                # 02: t_unix = time_lsl + offset；此处 offsets 存反向差值。
+                offsets[part] = -hits[0]["offset"]
             else:
                 part = min(events, key=lambda x: abs(x["t_unix"] - t_new))["part"] if events else None
             if part is None or part not in offsets:
@@ -315,7 +347,8 @@ def update_check_csv(processed, row):
     rows = []
     if path.is_file():
         with path.open(newline="", encoding="utf-8-sig") as f:
-            rows = [{k: r.get(k, "") for k in CHECK_COLUMNS} for r in csv.DictReader(f) if r["subject"] != row["subject"]]
+            rows = [{k: r.get(k, "") for k in CHECK_COLUMNS} for r in csv.DictReader(f)
+                    if normalize_subject(r["subject"]).upper() != normalize_subject(row["subject"]).upper()]
     rows.append({k: str(v) for k, v in row.items()})
     rows.sort(key=lambda r: r["subject"])
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -326,17 +359,19 @@ def update_check_csv(processed, row):
 
 # ---------- 入口 ----------
 
-def process_subject(dataset, pid, processed, corrections_path, cfg):
-    out_dir = processed / f"sub-{pid}" / "events"
+def process_subject(dataset, pid, processed, corrections_path, cfg, subject_dir=None):
+    subject_dir = subject_dir if subject_dir is not None else processed / f"sub-{pid}"
+    out_dir = subject_dir / "events"
     check_inside(out_dir, processed)
-    markers_path = processed / f"sub-{pid}" / "merged" / "markers.csv"
+    markers_path = subject_dir / "merged" / "markers.csv"
     row = {"subject": pid, "status": "error", "n_corrections_applied": 0, "issues": ""}
     try:
         if not markers_path.is_file():
             raise CorrectionError("-", "-", f"找不到 {markers_path}（先运行工具 01、02）")
         events = read_markers(markers_path)
         corrections = read_corrections(corrections_path, pid)
-        events, log = apply_corrections(events, corrections)
+        segments = read_segments(markers_path.with_name("segments.csv")) if not events and corrections else []
+        events, log = apply_corrections(events, corrections, segments)
     except CorrectionError as error:
         row["issues"] = str(error)
         if out_dir.exists():
@@ -380,17 +415,22 @@ def print_summary(processed, rows):
 def run(dataset, subjects, cfg):
     processed = layer_dir(dataset, "processed", "physio")
     corrections_path = layer_dir(dataset, "processed").parent / "corrections" / "physio_events.csv"
-    pool = list_subjects(processed)
+    actual_subjects = list_subjects(processed)
+    subject_names = {normalize_subject(s).upper(): s for s in actual_subjects}
+    if len(subject_names) != len(actual_subjects):
+        raise ValueError("processed/physio 中存在仅大小写不同的重复被试目录，请先核对目录")
+    pool = sorted(subject_names)
     if subjects == "*":
         chosen = pool
     else:
-        chosen = [normalize_subject(s) for s in ([subjects] if isinstance(subjects, str) else subjects)]
+        chosen = [normalize_subject(s).upper() for s in ([subjects] if isinstance(subjects, str) else subjects)]
         missing = [s for s in chosen if s not in pool]
         if missing:
             raise ValueError(f"processed/physio 中没有这些被试：{missing}；现有：{pool}")
     if not chosen:
         raise ValueError(f"processed/physio 中没有任何 sub-P### 文件夹：{processed}")
     print(f"数据集 {dataset}：共 {len(chosen)} 位被试；更正表：{corrections_path if corrections_path.is_file() else '（不存在，视为没有更正）'}")
-    rows = [process_subject(dataset, pid, processed, corrections_path, cfg) for pid in chosen]
+    rows = [process_subject(dataset, pid, processed, corrections_path, cfg,
+                            subject_dir=processed / f"sub-{subject_names[pid]}") for pid in chosen]
     print_summary(processed, rows)
     return rows

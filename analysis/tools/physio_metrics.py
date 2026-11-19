@@ -8,6 +8,7 @@ real_beat：handling 为 0 或 2 的拍（真实间期）；handling 1、3 是�
 只有 03 判定窗口无法确定（window_valid=0：缺失、重复、顺序冲突）时才不计算。
 
 输入（只读）：data/<数据集>/processed/physio/sub-P###/events/windows.csv（工具 03）、clean/rr.csv（工具 05）
+    另读 merged/acc.csv，输出一个ACC指标acc_enmo_mean，基线重力参考由全局规范指定。
 输出：data/<数据集>/final/physio/window_metrics_long.csv、window_metrics_wide.csv、window_metrics_report.txt（整表重算并覆盖）
 写入前检查路径在 final/physio/ 之内。
 """
@@ -18,16 +19,79 @@ from datetime import datetime
 import numpy as np
 from scipy.signal import lombscargle
 
-from global_settings import METRICS, PHYSIO_PHASES
+from global_settings import METRICS, PHYSIO_PHASES, PHYSIO_ACC_SCHEMA
 from paths import layer_dir
 from physio_xdf import check_inside, list_subjects, normalize_subject
 
 LONG_COLUMNS = ["subject", "window", "window_valid", "duration_s", "n_beats_valid", "n_real", "n_estimated",
                 "n_review", "hr_coverage", "hrv_coverage", "hr_ok", "hrv_ok",
-                "hr_mean", "rmssd", "ln_rmssd", "sdnn", "hf", "ln_hf", "note"]
-WIDE_METRICS = ("hr_mean", "rmssd", "ln_rmssd", "sdnn", "hf", "ln_hf", "hr_ok", "hrv_ok")
+                "hr_mean", "rmssd", "ln_rmssd", "sdnn", "hf", "ln_hf", "acc_enmo_mean", "note"]
+WIDE_METRICS = ("hr_mean", "rmssd", "ln_rmssd", "sdnn", "hf", "ln_hf", "acc_enmo_mean", "hr_ok", "hrv_ok")
 DIGITS = {"hr_coverage": 4, "hrv_coverage": 4, "ln_rmssd": 4, "duration_s": 2,
-          "hr_mean": 2, "rmssd": 2, "sdnn": 2, "hf": 2, "ln_hf": 4}
+          "hr_mean": 2, "rmssd": 2, "sdnn": 2, "hf": 2, "ln_hf": 4, "acc_enmo_mean": 3}
+
+
+def read_acc(path):
+    """返回有限时间、三轴有效的(t, vm)，及只用于报告的读取说明。"""
+    empty = (np.array([], float), np.array([], float))
+    if not path.is_file():
+        return empty, "缺少 merged/acc.csv"
+    axes = [field.column for key, field in PHYSIO_ACC_SCHEMA.items() if key != "time_lsl"]
+    with path.open(newline="", encoding="utf-8-sig") as stream:
+        reader = csv.DictReader(stream)
+        if not {"t_unix", *axes}.issubset(reader.fieldnames or []):
+            return empty, "ACC缺少时间或三轴字段"
+        samples, rejected = [], 0
+        for row in reader:
+            try:
+                t = float(row["t_unix"])
+                xyz = [float(row[c]) for c in axes]
+                vm = math.hypot(*xyz)
+                if not all(math.isfinite(v) for v in [t, *xyz, vm]):
+                    raise ValueError
+            except (ValueError, TypeError):
+                rejected += 1
+                continue
+            samples.append((t, vm))
+    data = np.array(samples, float).reshape(-1, 2)
+    return (data[:, 0], data[:, 1]), f"有效样本{len(samples)}，非有限或非数字样本排除{rejected}"
+
+
+def acc_window_values(win, acc):
+    """无效窗口返回None；有效但无ACC样本返回空数组。"""
+    if not win or str(win.get("valid")) != "1":
+        return None
+    start, end = to_float(win.get("t_start")), to_float(win.get("t_end"))
+    if start is None or end is None or not math.isfinite(start) or not math.isfinite(end) or end <= start:
+        return None
+    t, vm = acc
+    return vm[(t >= start) & (t < end)]
+
+
+def acc_reference(wins, acc):
+    params = METRICS["physio"]["acc_enmo_mean"]["parameters"]
+    if params["reference_estimator"] != "median":
+        raise ValueError("ACC重力参考仅支持登记的median方式")
+    vm = acc_window_values(wins.get(params["reference_window"]), acc)
+    if vm is None or len(vm) == 0:
+        return None, "ACC基线窗口无法确定或无有效样本，全部阶段ACC指标留空"
+    g0 = float(np.median(vm))
+    return g0, f"ACC基线有效样本{len(vm)}，g0={g0:.6f} mG（各阶段共用）"
+
+
+def add_acc_metric(row, win, acc, g0):
+    vm = acc_window_values(win, acc)
+    if vm is None:
+        reason = "ACC窗口无法确定"
+    elif g0 is None:
+        reason = "ACC基线参考不可用"
+    elif len(vm) == 0:
+        reason = "ACC窗口无有效样本"
+    else:
+        row["acc_enmo_mean"] = float(np.maximum(vm - g0, 0).mean())
+        return len(vm)
+    row["note"] = "；".join(filter(None, [row["note"], reason + "，acc_enmo_mean留空"]))
+    return 0
 
 
 def fmt(key, value):
@@ -129,7 +193,7 @@ def window_row(pid, win, rr, params, hf_params=None):
     return row
 
 
-def write_outputs(rows, subjects, skipped, params, hf_params, out_dir, final):
+def write_outputs(rows, subjects, skipped, params, hf_params, out_dir, final, acc_report=()):
     long_path = check_inside(out_dir / "window_metrics_long.csv", final)
     wide_path = check_inside(out_dir / "window_metrics_wide.csv", final)
     report_path = check_inside(out_dir / "window_metrics_report.txt", final)
@@ -172,6 +236,8 @@ def write_outputs(rows, subjects, skipped, params, hf_params, out_dir, final):
                     f"SDNN {fmt('sdnn', r['sdnn']) or '—'} ms，"
                     f"HF {fmt('hf', r['hf']) or '—'} ms²，lnHF {fmt('ln_hf', r['ln_hf']) or '—'}")
         lines.append(f"  {r['subject']} {r['window']:<24} {body}" + (f"  〔{r['note']}〕" if r["note"] else ""))
+    lines += ["", "[四] ACC活动量（唯一新增分析指标acc_enmo_mean，mG）",
+              METRICS["physio"]["acc_enmo_mean"]["definition"]] + list(acc_report)
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -190,7 +256,7 @@ def run(dataset, subjects="*"):
             raise ValueError(f"processed/physio 中没有这些被试：{missing}；现有：{pool}")
     if not chosen:
         raise ValueError(f"processed/physio 中没有任何 sub-P### 文件夹：{processed}")
-    rows, done, skipped = [], [], []
+    rows, done, skipped, acc_report = [], [], [], []
     for pid in chosen:
         base = processed / f"sub-{pid}"
         if not (base / "events" / "windows.csv").is_file():
@@ -201,14 +267,20 @@ def run(dataset, subjects="*"):
             continue
         rr = read_rr(base / "clean" / "rr.csv")
         wins = {w["window"]: w for w in read_windows(base / "events" / "windows.csv")}
+        acc, acc_note = read_acc(base / "merged" / "acc.csv")
+        g0, reference_note = acc_reference(wins, acc)
+        acc_report.append(f"  {pid}：{acc_note}；{reference_note}")
         for phase in PHYSIO_PHASES:
             if phase in wins:
-                rows.append(window_row(pid, wins[phase], rr, params, hf_params))
+                row = window_row(pid, wins[phase], rr, params, hf_params)
+                n_acc = add_acc_metric(row, wins[phase], acc, g0)
+                rows.append(row)
+                acc_report.append(f"    {phase}：用于均值的有效样本{n_acc}，acc_enmo_mean={fmt('acc_enmo_mean', row['acc_enmo_mean']) or '留空'} mG")
         done.append(pid)
         print(f"[完成] {pid}")
     for pid, why in skipped:
         print(f"[跳过] {pid}：{why}")
-    write_outputs(rows, done, skipped, params, hf_params, final, final)
+    write_outputs(rows, done, skipped, params, hf_params, final, final, acc_report)
     print(f"已写入 {final}")
     print("-" * 60)
     root = final.resolve()

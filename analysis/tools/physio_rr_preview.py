@@ -3,11 +3,14 @@
 输入（只读）：data/<数据集>/processed/physio/sub-P###/
     clean/rr.csv、clean/holes.csv、merged/rr.csv、events/markers.csv（没有则退回 merged/markers.csv）、merged/segments.csv
     没有 clean/rr.csv 的被试跳过，并提示先运行 05。
+    raw/session_notes/sub-P###/log.csv 的 group_code 用于标题组别；缺失或异常时显示组别未知。
 输出：data/<数据集>/processed/physio/preview/signal/P###_rr_clean.png（每人一张，覆盖旧图）
 图的版式（尺寸、北京时间横轴、字体、底色）与 04 的 P###_rr_raw.png 一致，复用 physio_check 的常量与函数。
 写入前检查路径在 processed/physio/ 之内。
 """
+import csv
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 import matplotlib
 
@@ -16,11 +19,12 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
+from matplotlib.font_manager import FontProperties  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 from matplotlib.ticker import FuncFormatter  # noqa: E402
 from matplotlib.transforms import blended_transform_factory  # noqa: E402
 
-from global_settings import PHYSIO_PHASES  # noqa: E402
+from global_settings import PHYSIO_PHASES, VALUE_LABELS  # noqa: E402
 from paths import layer_dir  # noqa: E402
 from physio_check import (load_event_markers, COLOR_BLE, COLOR_NORMAL, COLOR_SEG, SIGNAL_SUBDIR, hhmm,  # noqa: E402
                           save_figure, segment_gap_spans)
@@ -46,6 +50,26 @@ PHASE_NAMES = {
     "training": "Training", "baseline": "Baseline", "induction": "Induction",
     "intervention": "Intervention", "post_intervention_rest": "Post-intervention rest",
 }
+
+
+def read_group_label(dataset, pid):
+    """只读流程单组别，返回（显示标签，异常原因）；不猜测、不向其他来源回退。"""
+    path = layer_dir(dataset, "raw", "session_notes") / f"sub-{pid}" / "log.csv"
+    try:
+        with path.open(newline="", encoding="utf-8-sig") as stream:
+            rows = list(csv.DictReader(stream))
+    except (OSError, UnicodeError, csv.Error) as error:
+        return "组别未知", f"无法读取 {path}：{error}"
+    if len(rows) != 1:
+        return "组别未知", f"{path} 有 {len(rows)} 行数据（应为 1 行）"
+    text = (rows[0].get("group_code") or "").strip()
+    try:
+        code = Decimal(text)
+        if not code.is_finite() or code != code.to_integral_value() or code not in VALUE_LABELS["group"]:
+            raise ValueError
+    except (InvalidOperation, ValueError):
+        return "组别未知", f"{path} 的 group_code 缺失或非法：{text!r}"
+    return VALUE_LABELS["group"][int(code)], ""
 
 
 def clock(t):
@@ -90,7 +114,7 @@ def y_range(clean, mode, t_train=None):
     return lo - pad, hi + pad
 
 
-def plot_subject(pid, clean, holes, raw, markers, segments, mode, out_dir, root, marker_note=""):
+def plot_subject(pid, clean, holes, raw, markers, segments, mode, out_dir, root, marker_note="", group_label="组别未知"):
     assert set(PHASE_COLORS) == set(PHYSIO_PHASES), "阶段表与 global_settings.PHYSIO_PHASES 不一致"
     t = clean["t_unix"].to_numpy(float)
     ms = clean["ms"].to_numpy(float)
@@ -163,7 +187,7 @@ def plot_subject(pid, clean, holes, raw, markers, segments, mode, out_dir, root,
     ax.grid(alpha=0.2)
     ax.set_ylabel("RR (ms)")
 
-    title = (f"{pid} RR after cleaning: {len(clean)} beats | needs review {len(review)} "
+    title = (f"{pid} | {group_label} | RR after cleaning: {len(clean)} beats | needs review {len(review)} "
              f"(in phases {len(in_phase)}) | holes {len(holes)}, {holes['dur_s'].sum():.1f} s")
     if beyond:
         title += f" | {beyond} points beyond axis"
@@ -171,7 +195,8 @@ def plot_subject(pid, clean, holes, raw, markers, segments, mode, out_dir, root,
         title += f" | missing markers: {', '.join(missing)}"
     if marker_note:
         title += f" | {marker_note}"
-    fig.suptitle(title, fontsize=11, y=0.985)
+    title_font = FontProperties(family=["Heiti TC", "Arial Unicode MS", "DejaVu Sans"])
+    fig.suptitle(title, fontsize=11, y=0.985, fontproperties=title_font)
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.945),
                ncol=len(handles), frameon=False, fontsize=9)
     fig.subplots_adjust(top=0.87, bottom=0.10, left=0.07, right=0.98)
@@ -211,7 +236,10 @@ def run(dataset, subjects, cfg):
         print(f"       事件文件：{marker_path}" + (f"（{marker_note}）" if marker_note else ""))
         res_note = "events not corrected by 03" if marker_note else ""
         segments = pd.read_csv(sub / "merged" / "segments.csv", dtype={"part": str})
-        res = plot_subject(pid, clean, holes, raw, markers, segments, mode, out_dir, processed, res_note)
+        group_label, group_note = read_group_label(dataset, pid)
+        print(f"       组别：{group_label}" + (f"（{group_note}）" if group_note else ""))
+        res = plot_subject(pid, clean, holes, raw, markers, segments, mode, out_dir, processed,
+                           res_note, group_label=group_label)
         res["clean"] = clean
         res["marker_path"] = marker_path
         results[pid] = res

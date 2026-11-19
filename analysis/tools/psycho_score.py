@@ -547,14 +547,38 @@ def run(dataset, subjects, option_counts):
     for c in mismatches:
         print(f"!! STAI-T 校验不一致：{c['subject']} 计算 {c['computed']}，log.csv {c['logged']}")
 
+    partial = subjects != "*"
+    all_subjects = list(chosen)
+    if partial:
+        # 只替换本次处理的被试的行，其他被试的行原样保留（只取基础列，旧转换列丢弃）
+        def merged(name, columns, new_rows):
+            old_path = processed / name
+            kept = []
+            if old_path.is_file():
+                with old_path.open(newline="", encoding="utf-8-sig") as f:
+                    kept = [{c: r.get(c, "") for c in columns} for r in csv.DictReader(f)
+                            if normalize_subject(r["subject"]) not in chosen]
+            rows = kept + [{c: r[c] for c in columns} for r in new_rows]
+            return sorted(rows, key=lambda r: (normalize_subject(r["subject"]),
+                                               TIMES.index(r["time"]) if "time" in r else 0))
+        wide_rows_out = merged(WIDE_NAME, WIDE_COLUMNS, wide_rows)
+        long_rows_out = merged(LONG_NAME, LONG_COLUMNS, long_rows)
+        all_subjects = [r["subject"] for r in wide_rows_out]
+    else:
+        wide_rows_out, long_rows_out = wide_rows, long_rows
     wide_path = write_csv(processed / WIDE_NAME, WIDE_COLUMNS,
-                          [[r[c] for c in WIDE_COLUMNS] for r in wide_rows], processed)
+                          [[r[c] for c in WIDE_COLUMNS] for r in wide_rows_out], processed)
     long_path = write_csv(processed / LONG_NAME, LONG_COLUMNS,
-                          [[r[c] for c in LONG_COLUMNS] for r in long_rows], processed)
+                          [[r[c] for c in LONG_COLUMNS] for r in long_rows_out], processed)
+    merge_note = [f"本次处理：{', '.join(chosen)}；两张表现共 {len(all_subjects)} 位被试：{', '.join(all_subjects)}"
+                  + ("（其余被试的行沿用旧表，未重新计分）" if partial else "")]
     report_text = build_report(dataset, chosen, specs, checks, empty_lines, screen_notes,
-                               log_notes, [])
+                               log_notes, merge_note)
     report_path = write_text(processed / REPORT_NAME, report_text, processed)
     print(f"已写入：{wide_path}")
     print(f"已写入：{long_path}")
     print(f"已写入：{report_path}")
+    from psycho_derive import apply_transforms  # 延迟导入，避免循环引用
+    apply_transforms(dataset, [])
+    print("已按 global_settings.TRANSFORMS 补充转换列")
     return wide_rows, long_rows, checks

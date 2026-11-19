@@ -5,7 +5,7 @@ table_flows 与 data_lab 共用本文件。运行选择、试验参数、任务�
 """
 from dataclasses import dataclass
 
-SCHEMA_VERSION = "1.6"
+SCHEMA_VERSION = "1.8"
 DATA_OBJECTS = ("track", "psycho", "physio")   # 即 pipeline，命名规范见 analysis/tools/paths.py
 MODULE_LABELS = {
     "Interactive": "自由交互体验",
@@ -19,6 +19,7 @@ VALUE_LABELS = {
     "group": {1: "实验组（交互）", 2: "对照组"},
     "A_gender": {0: "男", 1: "女"},
     "T0_stait_level": {0: "低焦虑", 1: "高焦虑"},
+    "time_code": {0: "T1 基线静息后", 1: "T2 诱导后", 2: "T3 干预后"},
     "rr_handling": {0: "原样保留", 1: "漏检补拍", 2: "多检合并", 3: "异位搏或长短拍校正", 4: "待人工（仍异常，未修改）"},
 }
 
@@ -41,6 +42,16 @@ PHYSIO_PHASES = {
     "induction": "诱导",
     "intervention": "干预",
     "post_intervention_rest": "干预后静息",
+}
+# 合表（integration 03）长表的窗口编号：按 PHYSIO_PHASES 的顺序编号 0–4（training=0 … post_intervention_rest=4）。
+VALUE_LABELS["window_code"] = {i: name for i, name in enumerate(PHYSIO_PHASES.values())}
+# 问卷列名前缀 → 测量时点。来源：研究思路/实验注册（2026-11-11 版）流程；2026-11-14 研究者确认
+PSYCHO_TIMEPOINTS = {
+    "A": "参加条件问卷（到场后，确认是否适合参加）",
+    "T0": "分组前（佩戴 H10 后，STAI-T 与 CNS）",
+    "T1": "基线静息后",
+    "T2": "诱导（担忧书写）后",
+    "T3": "干预后",
 }
 # 各阶段标准时长（秒）：结束减开始应等于此值。来源：2026-11-09 研究者确认；训练不检查（None）。
 # 只用于 03 的时长提示和更正时的推算，不是取舍标准：实际时长偏离它的窗口照常计算指标（2026-11-11 研究者定）。
@@ -90,6 +101,15 @@ class Field:
     dtype: str
     unit: str | None = None
     levels: tuple | None = None
+
+# H10 ACC 原始导出字段；02 拼接后另有 t_unix（Unix秒）与 part（录制段）。
+# 单位 mG 是千分之一重力加速度；不代表质量单位 mg。
+PHYSIO_ACC_SCHEMA = {
+    "time_lsl": Field("time_lsl", "Float64", unit="s"),
+    **{f"{axis}_mG": Field(f"{axis}_mG", "Float64", unit="mG") for axis in "xyz"},
+}
+PHYSIO_ACC_LABELS = {"time_lsl": "LSL 时间（秒，xdf 时间戳）",
+                     **{f"{axis}_mG": f"{axis.upper()} 轴加速度（毫 g）" for axis in "xyz"}}
 
 # 每行依次写明：实际列名、类型、单位、分类取值；没有按名字猜测类型的规则。
 TRACK_SCHEMA = {
@@ -349,6 +369,19 @@ METRICS = {
     },
     "psycho": {},
     "physio": {
+        "acc_enmo_mean": {
+            "name": "基线校正的平均加速度活动量",
+            "definition": "vm=sqrt(x_mG²+y_mG²+z_mG²)；同一被试有效baseline窗口内全部有效样本的vm中位数为g0，"
+                          "各阶段共用；指标为窗口内max(vm-g0,0)的样本算术均值。时间与三轴均须为有限数字；"
+                          "样本按[t_start,t_end)取窗，不插补、不填充丢包；按实际观测样本平均，不作时间加权。"
+                          "ACC缺失、基线无法确定或无有效样本、目标窗口无法确定或无有效样本时留空并报告；"
+                          "不逐窗口另估g0，不依赖HRV合格标记。属于基线校正ENMO变体，不等于标准传感器校准，也不是物理动量",
+            "inputs": ("merged/acc.csv:t_unix,x_mG,y_mG,z_mG", "events/windows.csv"),
+            "parameters": {"reference_window": "baseline", "reference_estimator": "median"},
+            "output": "mG",
+            "status": "2026-11-18研究者确认；用于HRV协变量候选，不自动改变确证性模型",
+            "source": "研究者确认；参考PhysicoAnalysis/scripts/features/hrv_acc.py的ENMO思路，改为基线全部有效样本的中位数",
+        },
         "window_quality": {
             "name": "窗口质量",
             "definition": "valid_beat：handling 为 0–3 的拍（4 为待人工，一律排除）；real_beat：handling 为 0 或 2 的拍（原样保留、多检合并），"
@@ -422,6 +455,85 @@ METRICS = {
         },
     },
 }
+
+TRANSFORM_METHODS = {
+    "center": {"suffix": "_c",  "name": "总均值中心化", "definition": "减去全体被试的均值"},
+    "z":      {"suffix": "_z",  "name": "标准化", "definition": "减去全体被试的均值后除以标准差（ddof = 1）"},
+    "ln":     {"suffix": "_ln", "name": "自然对数", "definition": "取自然对数；≤ 0 的值留空"},
+}
+# 来源：研究思路/实验注册（2026-11-11 版）分析方法："STAI-T 与 CNS 做总均值中心化"；
+# CNS 报总分还是均分未定，两者都出；2026-11-14 研究者确认。
+TRANSFORMS = {
+    "psycho": [   # 确证性转换：每次都算，不受任何参数影响
+        {"source": "T0_stait_sum", "method": "center"},
+        {"source": "T0_cns_sum",   "method": "center"},
+        {"source": "T0_cns_mean",  "method": "center"},
+    ],
+}
+# 最终合表规范（2026-11-15研究者确认）：文件名与字段组织属于共享数据规范；输出路径仍由 paths.py 管理。
+INTEGRATION_TABLES = {
+    "wide": {
+        "filename": "wide.csv", "id_columns": ("subject", "group"), "row_key": ("subject",),
+        "contents": "一人一行；问卷宽表全部得分与转换列，随后按PHYSIO_PHASES展开全部生理指标、质量列及note，列名为<window>_<列名>",
+    },
+    "long": {
+        "filename": "long.csv", "id_columns": ("subject", "group", "window", "window_code", "time", "time_code"),
+        "row_key": ("subject", "window"),
+        # 2026-11-18：只有这些前缀的个人字段（含转换列）重复进长表。
+        # 其他非T1/T2/T3列（例如跨时点差值）仅留宽表，不按差值后缀猜测。
+        "person_column_prefixes": ("A_", "T0_"),
+        "contents": "每人五个生理阶段；T1/T2/T3问卷列去时点前缀后放对应阶段，同一时点单次测量也保留；仅person_column_prefixes指定的个人字段及转换列重复五行，其他宽表派生列不自动进入长表；生理指标、质量列及note全部保留；无对应问卷时点的测量列留空",
+    },
+    "psycho_long": {
+        "filename": "psycho_long.csv", "id_columns": ("subject", "group", "time", "time_code"),
+        "row_key": ("subject", "time"), "contents": "保留既有问卷长表，每人T1–T3三行，补充个人协变量及转换列",
+    },
+    "physio_long": {
+        "filename": "physio_long.csv", "id_columns": ("subject", "group", "window", "window_code"),
+        "row_key": ("subject", "window"), "contents": "保留既有生理长表，每人五行，补充个人协变量及转换列",
+    },
+}
+INTEGRATION_AUX_FILES = {"dictionary": "data_dictionary.csv", "report": "merge_report.txt",
+                         "short_report": "short_report.txt"}
+INTEGRATION_COVARIATES = ("A_age", "A_gender", "T0_stait_sum", "T0_stait_level", "T0_cns_sum", "T0_cns_mean")
+# 阶段与阶段后问卷的配对，不表示两者同时采集；不能按time_code与window_code数字直接合并。
+INTEGRATION_PHASE_TIMEPOINTS = {
+    "training": None, "baseline": "T1", "induction": "T2", "intervention": "T3", "post_intervention_rest": None,
+}
+# 短表排除规范（2026-11-18 研究者确认）：默认保留完整版字段，仅排除固定基础字段。
+# 中心化、标准化、差值等计算列不在此登记或按后缀筛选；在哪张完整版出现就随该表进入短表。
+# 训练属于结构排除：宽表排除 training_ 列，长表排除训练行；编码保持不变。
+# 原始得分的重复口径、筛查字段及生理诊断字段按确切名称排除，避免连带排除其转换列。
+# 生理纳入由人工审查决定，04 不按 ok 筛行或清空数值，不改上游或 OSF 注册正文。
+INTEGRATION_SHORT_EXCLUDED_PHYSIO = (
+    "window_valid", "duration_s", "n_beats_valid", "n_real", "n_estimated", "n_review",
+    "hr_coverage", "hrv_coverage", "hr_ok", "hrv_ok", "note", "hf",
+)
+INTEGRATION_SHORT_TABLES = {
+    "wide_short": {
+        "filename": "wide_short.csv", "source": "wide",
+        "id_columns": ("subject", "group"),
+        "exclude_columns": (
+            "A_gad2_sum", "A_screen_hard", "T0_stait_sum", "T0_cns_sum", "T0_cns_mean",
+            "T1_stai6_sum", "T1_msbs_sum", "T2_stai6_sum", "T2_msbs_sum",
+            "T3_stai6_sum", "T3_msbs_sum", "T3_imi_choice_sum", "T3_meaning_sum",
+        ) + tuple(f"{window}_{column}" for window in PHYSIO_PHASES
+                  for column in INTEGRATION_SHORT_EXCLUDED_PHYSIO),
+        "exclude_column_prefixes": ("training_",),
+        "contents": "一人一行；按源列序保留全部非排除字段，计算列自动带入；无训练及固定诊断列",
+    },
+    "long_short": {
+        "filename": "long_short.csv", "source": "long",
+        "id_columns": ("subject", "group", "window", "window_code", "time", "time_code"),
+        "exclude_windows": ("training",),
+        "exclude_columns": (
+            "A_age", "A_gender", "A_gad2_sum", "A_screen_hard",
+            "T0_stait_sum", "T0_cns_sum", "T0_cns_mean",
+            "stai6_sum", "msbs_sum", "imi_choice_sum", "meaning_sum",
+        ) + INTEGRATION_SHORT_EXCLUDED_PHYSIO,
+        "contents": "每人四阶段；按源列序保留非排除字段，包括源表已有的全部计算列；无训练行及固定诊断列",
+    },
+}
 SCHEMAS = {"track": TRACK_SCHEMA}
 
 def column(table, field, source="track"):
@@ -431,6 +543,45 @@ def table_columns(table, source="track"):
     return tuple(column(table, field, source) for field in SCHEMAS[source][table])
 
 def validate():
+    person_prefixes = INTEGRATION_TABLES["long"]["person_column_prefixes"]
+    if (not isinstance(person_prefixes, tuple) or not person_prefixes
+            or any(not isinstance(p, str) or not p or not p.endswith("_") for p in person_prefixes)):
+        raise ValueError("integration: long.person_column_prefixes 须为非空前缀元组，各项以 _ 结尾")
+    if set(INTEGRATION_PHASE_TIMEPOINTS) != set(PHYSIO_PHASES):
+        raise ValueError("integration: 长表对应关系必须覆盖全部生理阶段")
+    if any(t is not None and t not in ("T1", "T2", "T3") for t in INTEGRATION_PHASE_TIMEPOINTS.values()):
+        raise ValueError("integration: 阶段对应问卷时点只能是T1、T2、T3或空")
+    filenames = [t["filename"] for t in INTEGRATION_TABLES.values()] + list(INTEGRATION_AUX_FILES.values())
+    if len(filenames) != len(set(filenames)):
+        raise ValueError("integration: 输出文件名不得重复")
+    short_names = [t["filename"] for t in INTEGRATION_SHORT_TABLES.values()]
+    if len(short_names) != len(set(short_names)) or set(short_names) & set(filenames):
+        raise ValueError("integration: 简表输出文件名不得重复，也不得与整表或附件重名")
+    for key, short in INTEGRATION_SHORT_TABLES.items():
+        if short["source"] not in INTEGRATION_TABLES:
+            raise ValueError(f"integration: 简表 {key} 的来源必须是 INTEGRATION_TABLES 中的整表")
+        if "columns" in short:
+            raise ValueError(f"integration: 简表 {key} 已改为排除式登记，不得再设置保留列 columns")
+        for field in ("exclude_columns", "exclude_column_prefixes"):
+            values = short.get(field, ())
+            if not isinstance(values, (tuple, list)) or any(not isinstance(v, str) or not v for v in values):
+                raise ValueError(f"integration: 简表 {key} 的 {field} 必须为非空字符串清单")
+            if len(set(values)) != len(values):
+                raise ValueError(f"integration: 简表 {key} 的 {field} 不得重复")
+        if any(c in short.get("exclude_columns", ()) or
+               any(c.startswith(p) for p in short.get("exclude_column_prefixes", ()))
+               for c in short["id_columns"]):
+            raise ValueError(f"integration: 简表 {key} 的标识列不能被排除")
+        if len(set(short["id_columns"])) != len(short["id_columns"]):
+            raise ValueError(f"integration: 简表 {key} 的标识列不得重复")
+        excluded = short.get("exclude_windows", ())
+        if excluded and ("window" not in short["id_columns"] or
+                         len(set(excluded)) != len(excluded) or
+                         not set(excluded) <= set(PHYSIO_PHASES)):
+            raise ValueError(f"integration: 简表 {key} 的排除窗口必须唯一、已登记，且来源及输出须包含 window")
+        parent = set(INTEGRATION_TABLES[short["source"]]["id_columns"])
+        if not set(short["id_columns"]) <= parent:
+            raise ValueError(f"integration: 简表 {key} 的标识列必须来自来源整表的标识列")
     expected_markers = {
         f"{phase}_{boundary}"
         for phase in PHYSIO_PHASES for boundary in PHYSIO_EVENT_BOUNDARIES

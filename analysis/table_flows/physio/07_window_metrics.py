@@ -4,6 +4,8 @@
 参数读取同目录 parameters.py 的 PARAMETERS["dataset"] 与 PARAMETERS["subjects"]。
 来源：新写；口径见 global_settings.METRICS["physio"]（研究思路/分析工具迁移与整合工作计划.md 窗口指标口径）
 输入（只读）：data/<数据集>/processed/physio/sub-P###/events/windows.csv（工具 03）、clean/rr.csv（工具 05）
+    以及 merged/acc.csv。新增唯一ACC指标acc_enmo_mean（mG）：基线全部有效样本模长中位数为重力参考，
+    各阶段共用，计算max(模长-参考,0)的均值；基线不可用时留空，不逐窗更换参考。
 输出：data/<数据集>/final/physio/window_metrics_long.csv、window_metrics_wide.csv、window_metrics_report.txt（整表重算并覆盖）
 实现在 analysis/tools/physio_metrics.py。
 """

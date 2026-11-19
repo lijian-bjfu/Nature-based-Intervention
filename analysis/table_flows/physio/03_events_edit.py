@@ -4,6 +4,7 @@
 参数读取同目录 parameters.py 的 PARAMETERS["dataset"] 与 PARAMETERS["subjects"]。
 输入（只读）：data/<数据集>/processed/physio/sub-P###/merged/markers.csv
     data/<数据集>/corrections/physio_events.csv（人工更正表，只读；不存在视为没有更正）
+    原始事件为空时，读取 merged/segments.csv 的范围和 offset 定位新增标签；新增时刻必须匹配唯一录制段。
 输出：data/<数据集>/processed/physio/sub-P###/events/markers.csv、report.txt、windows.csv
     （windows.csv 为窗口表：按阶段顺序每阶段一行，含起止时刻、时长、valid、issue 与 note；每次覆盖。
      valid=0 只表示窗口无法确定（缺失、重复、顺序冲突）；时长偏差写在 note，只是提示，不影响 07 计算）

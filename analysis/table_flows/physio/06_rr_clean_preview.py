@@ -4,6 +4,8 @@
 参数读取同目录 parameters.py 的 PARAMETERS["dataset"] 与 PARAMETERS["subjects"]。
 输入（只读）：data/<数据集>/processed/physio/sub-P###/clean/（rr.csv、holes.csv，由工具 05 生成）
     以及同目录下 merged/（rr.csv、markers.csv、segments.csv）
+    组别读取 raw/session_notes/sub-P###/log.csv 的 group_code，标题显示 global_settings 登记的标签；
+    缺失或异常时显示“组别未知”，终端提示原因，仍正常绘图。
 输出：data/<数据集>/processed/physio/preview/signal/P###_rr_clean.png（每人一张，覆盖旧图）
     原始 RR 浅灰，清理后 RR 按处置类型着色；丢包空洞浅红底、段间空档灰底；按标记画五个阶段背景带。
 实现在 analysis/tools/physio_rr_preview.py。

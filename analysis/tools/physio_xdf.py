@@ -20,7 +20,8 @@ from pathlib import Path
 
 import numpy as np
 
-from global_settings import PHYSIO_MARKER_ALIASES, PHYSIO_MARKER_LABELS, validate as validate_settings
+from global_settings import (PHYSIO_ACC_SCHEMA, PHYSIO_ACC_LABELS, PHYSIO_MARKER_ALIASES,
+                             PHYSIO_MARKER_LABELS, validate as validate_settings)
 from paths import layer_dir
 
 # 期望的流类型（报告中逐条检查）
@@ -36,12 +37,7 @@ OUTPUTS = {
         ("time_lsl", "LSL 时间（秒，xdf 时间戳）"),
         ("uV", "心电电压（微伏）"),
     ],
-    "acc.csv": [
-        ("time_lsl", "LSL 时间（秒，xdf 时间戳）"),
-        ("x_mG", "X 轴加速度（毫 g）"),
-        ("y_mG", "Y 轴加速度（毫 g）"),
-        ("z_mG", "Z 轴加速度（毫 g）"),
-    ],
+    "acc.csv": [(field.column, PHYSIO_ACC_LABELS[key]) for key, field in PHYSIO_ACC_SCHEMA.items()],
     "hr.csv": [
         ("time_lsl", "LSL 时间（秒，xdf 时间戳）"),
         ("bpm", "瞬时心率（次/分）"),
